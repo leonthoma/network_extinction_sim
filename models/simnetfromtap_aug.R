@@ -59,7 +59,7 @@ simnetfromtap_aug <- function(traits,
   lat_low <- as.vector(scale(rowSums(a_mat_low * pems[[1]])))
   lat_high <- as.vector(scale(rowSums(a_mat_high * pems[[2]]))) + 
     paramsList[[3]]
-  L_mat <- tapnet::tmatch(t(outer(lat_high, lat_low, "-")), type = tmatch_type_pem, 
+  L_mat <- tmatch(t(outer(lat_high, lat_low, "-")), type = tmatch_type_pem, 
                   width = paramsList[[4]])
   rownames(L_mat) <- rownames(pems[[1]])
   colnames(L_mat) <- rownames(pems[[2]])
@@ -88,4 +88,22 @@ simnetfromtap_aug <- function(traits,
   I_mat <- I_mat/sum(I_mat)
   #return(I_mat)
   return(list(I_mat, L_mat, T_mat)) # use only for verfication
+}
+
+tmatch <- function(delta_t, # Vector of pairwise trait differences (higher - lower)
+                   type = "normal", # Trait matching function
+                   width = 1, # Width parameter of trait matching function,
+                   shift = 0, # shift parameter (optimum trait distance)
+                   err = 1E-5 # "baseline" probability of match, even if traits do not match at all
+){# Calculate interaction probabilities based on trait matching
+  # shift
+  delta_t <- delta_t + shift
+  
+  # lognormal distribution with mode shifted to zero:
+  if(type == "shiftlnorm") out <- dlnorm(delta_t + width, meanlog = log(width) + 1) + err
+  
+  # normal distribution:
+  if(type == "normal") out <- dnorm(delta_t, mean = 0, sd = width) + err
+  
+  return(out)
 }
