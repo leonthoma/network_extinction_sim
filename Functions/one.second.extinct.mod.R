@@ -60,8 +60,8 @@ one.second.extinct.mod_aug <- function(web, participant = "higher", method = "ab
             m <- m+1
             # choose rewiring partner based on highest abundance, irrespective
             # if a interaction was formerly observed
-            sp.add <- which.max(probabilities.rewiring1[,jj]) # get name of sp
-            sp.surv.prob2 <- max(probabilities.rewiring1[,jj]) # get rew prob
+            sp.add <- which.max(probabilities.rewiring1[sp.surv.temp, jj]) # get name of sp
+            sp.surv.prob2 <- max(probabilities.rewiring1[sp.surv.temp, jj]) # get rew prob
             
             # original code to determine rewiring partner
             # sp.surv.prob1 <- probabilities.rewiring1[sp.surv.temp, jj] # probs of rewiring to a potential partner
@@ -111,8 +111,8 @@ one.second.extinct.mod_aug <- function(web, participant = "higher", method = "ab
             m <- m+1
             # choose rewiring partner based on highest abundance, irrespective
             # if a interaction was formerly observed
-            sp.add <- which.max(probabilities.rewiring1[, ii]) # get name of sp
-            sp.surv.prob2 <- max(probabilities.rewiring1[, ii]) # get rew prob
+            sp.add <- which.max(probabilities.rewiring1[sp.surv.temp, ii]) # get name of sp
+            sp.surv.prob2 <- max(probabilities.rewiring1[sp.surv.temp, ii]) # get rew prob
             
             # original code to determine rewiring partner
             # sp.surv.prob1 <- probabilities.rewiring1[ii, sp.surv.temp] # probs of rewiring to a potential partner (either random or anbundance)
@@ -171,9 +171,9 @@ one.second.extinct.mod_aug <- function(web, participant = "higher", method = "ab
   if (nrow(dead) + 1 != nrow(dead2)) 
     stop("PANIC! Something went wrong with the extinct sequence! Please contact the author to fix this!!")
   if (participant == "lower") 
-    supposed.length <- NROW(web)
+    supposed.length <- NROW(dead2)
   if (participant == "higher") 
-    supposed.length <- NCOL(web)
+    supposed.length <- NCOL(dead2)
   if (participant == "both") 
     supposed.length <- NROW(dead2)
   if (NROW(dead2) != supposed.length) {
@@ -182,7 +182,7 @@ one.second.extinct.mod_aug <- function(web, participant = "higher", method = "ab
     addit2n3 <- rep(0, times = missing)
     dead2 <- rbind(dead2, as.matrix(data.frame(addit1, addit2n3, addit2n3)))
   }
-  out <- dead2
+  out <- list(dead2, ext.temp$web)
   class(out) <- "bipartite"
   attr(out, "exterminated") <- c("both", "lower", "higher")[pmatch(participant, c("both", "lower", "higher"))]
   attr(out, "exterminated")
