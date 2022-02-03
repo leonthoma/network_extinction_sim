@@ -2,7 +2,7 @@
 # importance of community structure variables (abundance, latent traits, traits)
 # individually);
 # For each variable (abundance, latent traits, and traits, respectively) in 
-# ctrb_list specify either "high" or "low".
+# ctrb_vec specify either "high" or "low".
 
 simnetfromtap_aug <- function(traits,
                                abuns,
@@ -10,9 +10,9 @@ simnetfromtap_aug <- function(traits,
                                pems,
                                tmatch_type_pem,
                                tmatch_type_obs,
-                               ctrb_list = c(NULL))
-{ if (!is.null(ctrb_list)){
-  if (length(ctrb_list) != 3) stop("ctrb_list has to be a character vector of length 3")
+                               ctrb_vec = c(NULL))
+{ if (!is.null(ctrb_vec)){
+  if (length(ctrb_vec) != 3) stop("ctrb_vec has to be a character vector of length 3")
   }
   if (!is.null(traits$low)) 
     traits$low <- traits$low[order(rownames(traits$low)), 
@@ -67,9 +67,9 @@ simnetfromtap_aug <- function(traits,
   A_mat <- as.matrix(abuns$low) %*% t(abuns$high)
   
   # Get contributions
-  A_ctrb <- switch(ctrb_list[[1]], "low" = 1.9, "high" = .1)
-  L_ctrb <- switch(ctrb_list[[2]], "low" = 1.9, "high" = .1)
-  T_ctrb <- switch(ctrb_list[[3]], "low" = 1.9, "high" = .1)
+  A_ctrb <- switch(ctrb_vec[[1]], "low" = 1.9, "high" = .1)
+  L_ctrb <- switch(ctrb_vec[[2]], "low" = 1.9, "high" = .1)
+  T_ctrb <- switch(ctrb_vec[[3]], "low" = 1.9, "high" = .1)
   
   A_mat <- A_mat^A_ctrb # set contribution
   A_mat <- A_mat/sum(A_mat)
