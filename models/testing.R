@@ -1,8 +1,10 @@
 # first test using tapnet to simulate network
 setwd("~/Documents/Uni/M.sc/Master Thesis/Networks/models/")
 
-library(tapnet)
+#library(tapnet)
 source("tapnet_helper.R")
+source("simnetfromtap_aug.R")
+source("./tapnet/tapnet/R/simulate_tapnet.R")
 library(phytools)
 library(bipartite)
 library(vegan)
@@ -41,12 +43,10 @@ head(simnet$networks[[1]]$I_mat)
 plotweb(simnet$networks[[1]]$I_mat)
 visweb(simnet$networks[[1]]$I_mat)
 
-# load altered simnetfromtap fy
-source("simnetfromtap_aug.R")
-
 # initial simulation
-sim <- tapnet::simulate_tapnet(nlower = 26, nhigher = 14, ntraits_nopem = 4,
-                       ntraits_pem = 2, abuns = "lognormal", Nobs = 1111)
+sim <- simulate_tapnet_aug(nlower = 26, nhigher = 14, ntraits_nopem = 4,
+                       ntraits_pem = 2, abuns = "lognormal", Nobs = 1111,
+                       names = sp_names)
 dimnames(sim$networks[[1]]$web) <- dimnames(sim$networks[[1]]$I_mat)
 # use parms form initial sim
 
@@ -139,9 +139,9 @@ network <- sim$networks[[1]]$web[-no_int_low, -no_int_high]
 
 # rewiring probabilites
 # pairwise relative abundances
-rew_abund <- sim$networks[[1]]$abuns$low[-c(1, 4, 13, 19, 21)] %*%
-  t(sim$networks[[1]]$abuns$high[-c(3, 5)]) # hardcoding no_int_low/high due to weird sorting in network obj
-row.names(rew_abund) <- sim$trees[[1]]$tip.label[-c(1, 4, 13, 19, 21)]
+rew_abund <- sim$networks[[1]]$abuns$low[-no_int_low] %*%
+  t(sim$networks[[1]]$abuns$high[-no_int_high])
+row.names(rew_abund) <- sim$trees[[1]]$tip.label[-no_int_low]
 
 # relative abundances of lower
 rew_abund_low <- sweep(rew_abund, 2, colSums(rew_abund), "/")
@@ -150,10 +150,17 @@ rew_abund_low <- sweep(rew_abund, 2, colSums(rew_abund), "/")
 rew_abund_high <- sweep(rew_abund, 1, rowSums(rew_abund), "/")
 
 # run extiction model
-extc_sim <- one.second.extinct.mod_aug(web = sim$networks[[1]]$web,
+extc_sim <- one.second.extinct.mod_aug(web = network,
                                        participant = "lower",
                                        method = "random", 
                                        rewiring = T, 
                                        probabilities.rewiring1 = rew_abund_low, 
                                        probabilities.rewiring2 = rew_abund,
                                        method.rewiring = "one.try.single.partner")
+
+# calculate percentages of remaining sp
+extc_lo_per <- extc_sim[[1]][, 4]/nrow(network)
+extc_hi_per <- extc_sim[[1]][, 5]/ncol(network)
+
+plot(1-extc_lo_per, extc_hi_per, type = "l", xlab = "animals persisting",
+     ylab = "plants removed")
