@@ -5,7 +5,7 @@
 # probabilities.rewiring1 - A matrix with probabilities of rewiring, must be the same dimensions of the web (i.e. network). See section Methods in Vizentin-Bugoni et al. [in review] for details). This matrix is required in step ii of framework (default probabilities.rewiring1 = NULL).
 # probabilities.rewiring2 - A matrix with probabilities of rewiring, must be the same dimensions of web. See section Methods in Vizentin-Bugoni et al. [in review] for details. This matrix is required in step iii of framework (default probabilities.rewiring2 = NULL).
 # method.rewiring = Type of method used to trial rewiring, partial match to "one.try.single.partner", "multiple.trials.single.partner", "multiple.trials.multiples.partners", "one.try.each.partner" and "multiple.trials.each.partner". See section Methods in Vizentin-Bugoni et al. [in review] for details; (default method.rewiring = "one.try.single.partner").
-one.second.extinct.mod <- function(web, participant = "higher", method = "abun", ext.row = NULL, ext.col = NULL, 
+one.second.extinct.mod_aug <- function(web, participant = "higher", method = "abun", ext.row = NULL, ext.col = NULL, 
                                    rewiring = FALSE, probabilities.rewiring1 = NULL, probabilities.rewiring2 = NULL,
                                    method.rewiring = "one.try.single.partner") {
   dead <- matrix(nrow = 0, ncol = 3)
@@ -39,12 +39,14 @@ one.second.extinct.mod <- function(web, participant = "higher", method = "abun",
   }
   repeat {
     ext.temp <- extinction.mod(m2, participant = participant, method = method, ext.row = ext.row, ext.col = ext.col)
+    # extinction.mod returns list w/ plants (rows; "rexcl") that lost partners and
+    # animals (cols; "cexcl") that lost partners as well as network ("web")
     if(rewiring){
-      if(!is.null(ext.temp$rexcl)){
-        sp.ext <- rownames(ext.temp$rexcl)
-        sp.try.rewiring <- which(ext.temp$rexcl>0)
-        sp.surv <- seq_len(nrow(ext.temp$web))
-        sp.surv <- sp.surv[-1*which(rownames(ext.temp$web) %in% sp.ext)]
+      if(!is.null(ext.temp$rexcl)){ # Plant is extinct, looking for new interaction partners of birds that interacted with lost plant
+        sp.ext <- rownames(ext.temp$rexcl) # name of extc. plant
+        sp.try.rewiring <- which(ext.temp$rexcl>0) # number & position of possible interaction partners (birds) for rewiring
+        sp.surv <- seq_len(nrow(ext.temp$web)) # seq w/ all plant species
+        sp.surv <- sp.surv[-1*which(rownames(ext.temp$web) %in% sp.ext)] # survived plant species
         for(jj in sp.try.rewiring){
           sp.surv.temp <- sp.surv
           go <- TRUE
@@ -56,22 +58,28 @@ one.second.extinct.mod <- function(web, participant = "higher", method = "abun",
           }
           while (go) {
             m <- m+1
-            sp.surv.prob1 <- probabilities.rewiring1[sp.surv.temp, jj]
-            sp.add <- sample(as.character(sp.surv.temp), 1, prob = sp.surv.prob1)
-            sp.surv.prob2 <- probabilities.rewiring2[as.numeric(sp.add), jj]
-            n.add <- rbinom(1, trials, sp.surv.prob2)
+            # choose rewiring partner based on highest abundance, irrespective
+            # if a interaction was formerly observed
+            sp.add <- which.max(probabilities.rewiring1[,jj]) # get name of sp
+            sp.surv.prob2 <- max(probabilities.rewiring1[,jj]) # get rew prob
+            
+            # original code to determine rewiring partner
+            # sp.surv.prob1 <- probabilities.rewiring1[sp.surv.temp, jj] # probs of rewiring to a potential partner
+            # sp.add <- sample(as.character(sp.surv.temp), 1, prob = sp.surv.prob1) # randomly choosing new partner for birds that interacted w/ lost plant
+            # sp.surv.prob2 <- probabilities.rewiring2[as.numeric(sp.add), jj] # prob of rewiring based on rewiring factors
+            n.add <- rbinom(1, trials, sp.surv.prob2) # binomial trail to determine rewiring success
             if(n.add>0){
-              ext.temp$web[as.numeric(sp.add), jj] <- ext.temp$web[as.numeric(sp.add), jj]+n.add
+              ext.temp$web[as.numeric(sp.add), jj] <- ext.temp$web[as.numeric(sp.add), jj]+n.add # update interaction freq in interaction matrix
             }
             if(method.rewiring == 1 | method.rewiring == 2){
               if(!keep.trying){
                 go <- FALSE  
               } else{
-                if((method.rewiring == 1 & n.add>0) | (method.rewiring == 2 & n.add == trials)){
+                if((method.rewiring == 1 & n.add>0) | (method.rewiring == 2 & n.add == trials)){ # if rewiring failed w/ single try or multipe tries and trails left
                   go <- FALSE
                 } else{
-                  sp.surv.temp <- sp.surv.temp[-1*which(sp.surv.temp%in% sp.add)]
-                  trials <- trials-n.add
+                  sp.surv.temp <- sp.surv.temp[-1*which(sp.surv.temp%in% sp.add)] # remove chosen partner with failed new interaction from possible partners
+                  trials <- trials-n.add # update no of trails
                   if(length(sp.surv.temp)<1){
                     go <- FALSE
                   }
@@ -85,44 +93,50 @@ one.second.extinct.mod <- function(web, participant = "higher", method = "abun",
           }
         }
       }
-      if(!is.null(ext.temp$cexcl)){
-        sp.ext <- colnames(ext.temp$cexcl)
-        sp.try.rewiring <- which(ext.temp$cexcl>0)
+      if(!is.null(ext.temp$cexcl)){ # Bird is extinct, looking for new interaction partners of plants that interacted with lost bird
+        sp.ext <- colnames(ext.temp$cexcl)  # name of extc. bird
+        sp.try.rewiring <- which(ext.temp$cexcl>0) # number & position of interaction partners (plants) for possible rewiring
         sp.surv <- seq_len(ncol(ext.temp$web))
-        sp.surv <- sp.surv[-1*which(colnames(ext.temp$web) %in% sp.ext)]
+        sp.surv <- sp.surv[-1*which(colnames(ext.temp$web) %in% sp.ext)] # survived bird species
         for(ii in sp.try.rewiring){
-          sp.surv.temp <- sp.surv
+          sp.surv.temp <- sp.surv 
           go <- TRUE
           m <- 0
-          if(method.rewiring == 1 | method.rewiring == 3){
+          if(method.rewiring == 1 | method.rewiring == 3){ # define no of trails
             trials <- 1
           } else {
             trials <- ext.temp$cexcl[ii, 1]
           }
           while (go) {
             m <- m+1
-            sp.surv.prob1 <- probabilities.rewiring1[ii, sp.surv.temp]
-            sp.add <- sample(as.character(sp.surv.temp), 1, prob = sp.surv.prob1)
-            sp.surv.prob2 <- probabilities.rewiring2[ii, as.numeric(sp.add)]
-            n.add <- rbinom(1, trials, sp.surv.prob2)
+            # choose rewiring partner based on highest abundance, irrespective
+            # if a interaction was formerly observed
+            sp.add <- which.max(probabilities.rewiring1[, ii]) # get name of sp
+            sp.surv.prob2 <- max(probabilities.rewiring1[, ii]) # get rew prob
+            
+            # original code to determine rewiring partner
+            # sp.surv.prob1 <- probabilities.rewiring1[ii, sp.surv.temp] # probs of rewiring to a potential partner (either random or anbundance)
+            # sp.add <- sample(as.character(sp.surv.temp), 1, prob = sp.surv.prob1) # randomly choosing new partner for plants that interacted w/ lost bird
+            # sp.surv.prob2 <- probabilities.rewiring2[ii, as.numeric(sp.add)] # prob of rewiring based on chosen rewiring factor (e.g. morphology)
+            n.add <- rbinom(1, trials, sp.surv.prob2) # binomial trail to determine rewiring success
             if(n.add>0){
-              ext.temp$web[ii, as.numeric(sp.add)] <- ext.temp$web[ii, as.numeric(sp.add)]+n.add
+              ext.temp$web[ii, as.numeric(sp.add)] <- ext.temp$web[ii, as.numeric(sp.add)]+n.add # update interaction freq in interaction matrix
             }
-            if(method.rewiring == 1 | method.rewiring == 2){
+            if(method.rewiring == 1 | method.rewiring == 2){ 
               if(!keep.trying){
                 go <- FALSE  
               } else{
-                if((method.rewiring == 1 & n.add>0) | (method.rewiring == 2 & n.add == trials)){
-                  go <- FALSE
+                if((method.rewiring == 1 & n.add>0) | (method.rewiring == 2 & n.add == trials)){ # if rewiring failed w/ single try or multipe tries and trails left
+                  go <- FALSE 
                 } else{
-                  sp.surv.temp <- sp.surv.temp[-1*which(sp.surv.temp%in% sp.add)]
-                  trials <- trials-n.add
+                  sp.surv.temp <- sp.surv.temp[-1*which(sp.surv.temp%in% sp.add)] # remove chosen partner with failed new interaction from possible partners
+                  trials <- trials-n.add # update no of trails
                   if(length(sp.surv.temp)<1){
                     go <- FALSE
                   }
                 }
               }
-            } else {
+            } else { # only run when using multiple.trials.multiples.partners
               if(ext.temp$cexcl[ii, 1] == m){
                 go <- FALSE
               }
