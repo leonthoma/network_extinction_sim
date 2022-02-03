@@ -1,9 +1,21 @@
 # first test using tapnet to simulate network
+setwd("~/Documents/Uni/M.sc/Master Thesis/Networks/models/")
 
 library(tapnet)
+source("tapnet_helper.R")
 library(phytools)
 library(bipartite)
 library(vegan)
+library(ape)
+library(MPSEM)
+
+# read species names and make df 
+animals <- read.csv("animal-names.csv", colClasses = c("NULL", "character"),
+                    stringsAsFactors = F)
+plants <- read.csv("flower-and-plant-names.csv", stringsAsFactors = F)
+sp_names <- data.frame("plants" = plants,
+                       "animals" = animals[1:nrow(plants),],
+                       stringsAsFactors = F)
 
 # simulation
 simnet <- simulate_tapnet(nlower = 10, nhigher = 10, ntraits_nopem = 2,
@@ -15,6 +27,10 @@ phytools::plotTree(simnet$trees$low)
 phytools::plotTree(simnet$trees$high)
 par(mfrow = c(1,1))
 
+# computing phylogenetic distances
+cophenetic(simnet$trees$low)
+cophenetic(simnet$trees$high)
+
 # overview of network matrices
 head(simnet$networks[[1]]$abuns)
 head(simnet$networks[[1]]$traits)
@@ -25,99 +41,17 @@ head(simnet$networks[[1]]$I_mat)
 plotweb(simnet$networks[[1]]$I_mat)
 visweb(simnet$networks[[1]]$I_mat)
 
-# altering simnetfromtap fy
-simnetfromtap1 <- function (traits,
-                            abuns,
-                            paramsList,
-                            pems,
-                            tmatch_type_pem,
-                            tmatch_type_obs,
-                            ctrb_list) 
-{
-  stopifnot(length(ctrb_list) == 3)
-  if (!is.null(traits$low)) 
-    traits$low <- traits$low[order(rownames(traits$low)), 
-                             , drop = FALSE]
-  if (!is.null(traits$high)) 
-    traits$high <- traits$high[order(rownames(traits$high)), 
-                               , drop = FALSE]
-  abuns$low <- abuns$low[order(names(abuns$low))]
-  abuns$high <- abuns$high[order(names(abuns$high))]
-  pems$low <- pems$low[order(rownames(pems$low)), , drop = FALSE]
-  pems$high <- pems$high[order(rownames(pems$high)), , drop = FALSE]
-  if (is.null(traits$high) | is.null(traits$low)) {
-    T_mat <- matrix(1, nrow = length(abuns$low), ncol = length(abuns$high))
-    T_mat <- T_mat/sum(T_mat)
-  }
-  else {
-    T_mat <- tmatch(t(outer(traits$high[, 1], traits$low[, 1], "-")),
-                    type = tmatch_type_obs[1], width = paramsList[[5]][1])
-    rownames(T_mat) <- rownames(traits$low)
-    colnames(T_mat) <- rownames(traits$high)
-    T_mat <- T_mat/sum(T_mat)
-    if (ncol(traits$low) > 1) {
-      if (length(tmatch_type_obs) == 1) 
-        tmatch_type_obs <- rep(tmatch_type_obs, ncol(traits$low))
-      if (length(paramsList[[5]]) == 1) 
-        paramsList[[5]] <- rep(paramsList[[5]], ncol(traits$low))
-      for (i in 2:ncol(traits$low)) {
-        T_mat_next <- tmatch(t(outer(traits$high[, i], traits$low[, i], "-")),
-                             type = tmatch_type_obs[i], 
-                             width = paramsList[[5]][i])
-        rownames(T_mat) <- rownames(traits$low)
-        colnames(T_mat) <- rownames(traits$high)
-        T_mat_next <- T_mat_next/sum(T_mat_next)
-        T_mat <- T_mat * T_mat_next
-      }
-    }
-  }
-  nspec_low <- length(abuns$low)
-  nspec_high <- length(abuns$high)
-  a_mat_low <- matrix(rep(paramsList[[1]], nspec_low), nrow = nspec_low, 
-                      byrow = TRUE)
-  a_mat_high <- matrix(rep(paramsList[[2]], nspec_high), nrow = nspec_high, 
-                       byrow = TRUE)
-  lat_low <- as.vector(scale(rowSums(a_mat_low * pems[[1]])))
-  lat_high <- as.vector(scale(rowSums(a_mat_high * pems[[2]]))) + 
-    paramsList[[3]]
-  L_mat <- tmatch(t(outer(lat_high, lat_low, "-")), type = tmatch_type_pem, 
-                  width = paramsList[[4]])
-  rownames(L_mat) <- rownames(pems[[1]])
-  colnames(L_mat) <- rownames(pems[[2]])
-  L_mat <- L_mat/sum(L_mat)
-  A_mat <- as.matrix(abuns$low) %*% t(abuns$high)
-  # Set contributions
-  A_ctrb <- switch(ctrb_list[[1]], "low" = 1.9, "high" = .1)
-  L_ctrb <- switch(ctrb_list[[2]], "low" = 1.9, "high" = .1)
-  T_ctrb <- switch(ctrb_list[[3]], "low" = 1.9, "high" = .1)
-  
-  A_mat <- A_mat^A_ctrb 
-  A_mat <- A_mat/sum(A_mat)
-  if (is.null(paramsList[["delta"]])) {
-    L_mat <- L_mat^1.9
-    T_mat <- T_mat^.1
-    LT <- (L_mat * T_mat)/sum(L_mat * T_mat)
-  }
-  else {
-    delta <- paramsList[["delta"]]
-    L_mat <- L_mat^1.9
-    T_mat <- T_mat^.1
-    LT <- (L_mat * T_mat)^(plogis(delta))/sum((L_mat * T_mat)^(plogis(delta)))
-  }
-  I_mat <- A_mat * LT
-  I_mat <- I_mat/sum(I_mat)
-  #return(I_mat)
-  return(list(I_mat, L_mat, T_mat))
-}
+# load altered simnetfromtap fy
+source("simnetfromtap_aug.R")
 
 # initial simulation
-sim <- simulate_tapnet(nlower = 10, nhigher = 10, ntraits_nopem = 2,
-                       ntraits_pem = 0, abuns = "lognormal", Nobs = 420)
+sim <- tapnet::simulate_tapnet(nlower = 26, nhigher = 14, ntraits_nopem = 4,
+                       ntraits_pem = 2, abuns = "lognormal", Nobs = 1111)
 dimnames(sim$networks[[1]]$web) <- dimnames(sim$networks[[1]]$I_mat)
 # use parms form initial sim
 
 # abun
-sim1 <- simnetfromtap1(traits = sim$traits_all,
+sim1 <- simnetfromtap_aug(traits = sim$traits_all,
                        abuns = sim$networks[[1]]$abuns,
                        paramsList = sim$sim_params,
                        pems = sim$networks[[1]]$pems,
@@ -189,3 +123,37 @@ nestedness(sim1web)
 nestedness(sim2web)
 nestedness(sim3web)
 
+# extinction model
+
+source("rewiring_vizentin-bugoni_2019/Functions/extinction.mod.R")
+source("rewiring_vizentin-bugoni_2019/Functions/one.second.extinct.mod.R")
+source("rewiring_vizentin-bugoni_2019/Functions/calc.mean.one.second.extinct.mod.R")
+source("rewiring_vizentin-bugoni_2019/Functions/matrix.p1.R")
+source("rewiring_vizentin-bugoni_2019/Functions/IC.R") # calc of 95 percent confidence interval
+
+# remove sp w/o interactions from web
+no_int_low <- which(rowSums(sim$networks[[1]]$web) == 0)
+no_int_high <- which(colSums(sim$networks[[1]]$web) == 0)
+
+network <- sim$networks[[1]]$web[-no_int_low, -no_int_high]
+
+# rewiring probabilites
+# pairwise relative abundances
+rew_abund <- sim$networks[[1]]$abuns$low[-c(1, 4, 13, 19, 21)] %*%
+  t(sim$networks[[1]]$abuns$high[-c(3, 5)]) # hardcoding no_int_low/high due to weird sorting in network obj
+row.names(rew_abund) <- sim$trees[[1]]$tip.label[-c(1, 4, 13, 19, 21)]
+
+# relative abundances of lower
+rew_abund_low <- sweep(rew_abund, 2, colSums(rew_abund), "/")
+
+# relative abundances of higher
+rew_abund_high <- sweep(rew_abund, 1, rowSums(rew_abund), "/")
+
+# run extiction model
+extc_sim <- one.second.extinct.mod_aug(web = sim$networks[[1]]$web,
+                                       participant = "lower",
+                                       method = "random", 
+                                       rewiring = T, 
+                                       probabilities.rewiring1 = rew_abund_low, 
+                                       probabilities.rewiring2 = rew_abund,
+                                       method.rewiring = "one.try.single.partner")
