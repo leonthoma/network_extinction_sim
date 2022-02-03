@@ -8,8 +8,8 @@
 one.second.extinct.mod_aug <- function(web, participant = "higher", method = "abun", ext.row = NULL, ext.col = NULL, 
                                    rewiring = FALSE, probabilities.rewiring1 = NULL, probabilities.rewiring2 = NULL,
                                    method.rewiring = "one.try.single.partner") {
-  dead <- matrix(nrow = 0, ncol = 3)
-  colnames(dead) <- c("no", "ext.lower", "ext.higher")
+  dead <- matrix(nrow = 0, ncol = 5)
+  colnames(dead) <- c("no", "ext.lower", "ext.higher", "n.lower", "n.higher")
   m2 <- web
   i <- 1
   METHOD.REWIRING = c("one.try.single.partner", "multiple.trials.single.partner", "multiple.trials.multiples.partners", "one.try.each.partner", "multiple.trials.each.partner")
@@ -41,12 +41,15 @@ one.second.extinct.mod_aug <- function(web, participant = "higher", method = "ab
     ext.temp <- extinction.mod(m2, participant = participant, method = method, ext.row = ext.row, ext.col = ext.col)
     # extinction.mod returns list w/ plants (rows; "rexcl") that lost partners and
     # animals (cols; "cexcl") that lost partners as well as network ("web")
+    n_hi <- NCOL(ext.temp$web) # initial number of sp in high trophic level
+    n_lo <- NROW(ext.temp$web) # initial number of sp in low trophic level
     if(rewiring){
       if(!is.null(ext.temp$rexcl)){ # Plant is extinct, looking for new interaction partners of birds that interacted with lost plant
         sp.ext <- rownames(ext.temp$rexcl) # name of extc. plant
         sp.try.rewiring <- which(ext.temp$rexcl>0) # number & position of possible interaction partners (birds) for rewiring
         sp.surv <- seq_len(nrow(ext.temp$web)) # seq w/ all plant species
         sp.surv <- sp.surv[-1*which(rownames(ext.temp$web) %in% sp.ext)] # survived plant species
+        #n_lo <- n_lo - length(sp.ext) # update no of sp in low trophic level
         for(jj in sp.try.rewiring){
           sp.surv.temp <- sp.surv
           go <- TRUE
@@ -98,6 +101,7 @@ one.second.extinct.mod_aug <- function(web, participant = "higher", method = "ab
         sp.try.rewiring <- which(ext.temp$cexcl>0) # number & position of interaction partners (plants) for possible rewiring
         sp.surv <- seq_len(ncol(ext.temp$web))
         sp.surv <- sp.surv[-1*which(colnames(ext.temp$web) %in% sp.ext)] # survived bird species
+        #n_hi <- n_hi - length(sp.ext) # update no of sp in high trophic level
         for(ii in sp.try.rewiring){
           sp.surv.temp <- sp.surv 
           go <- TRUE
@@ -146,7 +150,9 @@ one.second.extinct.mod_aug <- function(web, participant = "higher", method = "ab
       }
     }
     n <- ext.temp$web
-    dead <- rbind(dead, c(i, attributes(m2 <- empty(n, count = TRUE))$empty))
+    dead <- rbind(dead, c(i, attributes(m2 <- empty(n, count = TRUE))$empty,
+                  n_lo - as.vector(attributes(m2 <- empty(n, count = TRUE))$empty[1]),
+                  n_hi - as.vector(attributes(m2 <- empty(n, count = TRUE))$empty[2])))
     if (participant == "lower" & NROW(m2) < 2) 
       break
     if (participant == "higher" & NCOL(m2) < 2) 
@@ -163,7 +169,7 @@ one.second.extinct.mod_aug <- function(web, participant = "higher", method = "ab
     }
     i <- i + 1
   }
-  dead2 <- rbind(dead, c(NROW(dead) + 1, NROW(m2), NCOL(m2)))
+  dead2 <- rbind(dead, c(NROW(dead) + 1, NROW(m2), NCOL(m2), 0, 0))
   if (participant == "lower" & method == "degree") {
     if (length(table(dead[, 2])) > 1) 
       dead2[, 2] <- 1
@@ -188,3 +194,4 @@ one.second.extinct.mod_aug <- function(web, participant = "higher", method = "ab
   attr(out, "exterminated")
   return(out)
 }
+
