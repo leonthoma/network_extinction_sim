@@ -44,70 +44,86 @@ plotweb(simnet$networks[[1]]$I_mat)
 visweb(simnet$networks[[1]]$I_mat)
 
 # initial simulation ----
-sim <- simulate_tapnet_aug(nlower = 26, nhigher = 14, ntraits_nopem = 4,
-                       ntraits_pem = 2, abuns = "lognormal", Nobs = 1111,
-                       names = sp_names, Nwebs = 2)
-dimnames(sim$networks[[1]]$web) <- dimnames(sim$networks[[1]]$I_mat)
 
-# remove sp w/o interactions from web
-# library(dplyr)
-# library(purrr)
-# 
-# clean <- function(x) {
-#   df <-  
-#   filter(rowSums(x) == 0) %>% 
-#     filter(colSums(x) == 0)
-# }
-# 
-# clean(sim$networks[[1]]$web)
-
+# fy for deleting rows/cols without interactions; if multiple networks shall be
+# used pass list of lists (NOT vector i.e. c())
 clean <- function(x) {
-  n_nets <- length(x) # no of networks
+  if (is.null(names(x))) {
+    n_nets <- length(x) # no of networks when multiple networks are passed
+  } else {
+    n_nets <- 1 # no of networks when single network is passed
+  }
+  
   out <- vector(mode = "list", length = n_nets) # list for webs of all networks
   names(out) <- paste("Net", 1:n_nets)
   
   # iterate over all networks
   for (i in seq(n_nets)) {
-    network <- list() # list for webs of each network
-    n_webs <- length(x[[i]]$networks) # no of webs in tapnet object
+    network <- list # list for webs of each network
+    
+    # calculate no of webs in x
+    if (is.null(names(x)))
+      n_webs <- length(x[[i]]) # for list of networks
+    else
+      n_webs <- length(x) # for single network
+    
     
     # iterate over all web 
     for (j in seq(n_webs)) {
-      web <- x[[i]]$networks[[j]]$web # get web
+      if (is.null(names(x))) {
+        web <- as.data.frame(x[[i]][j]) # get web for list of networks
+        colnames(web) <- colnames(init_sim$networks[[1]]$web) # manually set names
+      } else {
+      web <- x[[j]] # get web for single network
+      }
       
-      # sp w/o interactions
+      # sp w/o any interactions
       no_int_low <- which(rowSums(web) == 0) # lower trophic level
       no_int_high <- which(colSums(web) == 0) # higher trophic level
   
-      # exclude if missing interactions occur
+      # exclude if rows/cols w/ no interactions occur
       if (!length(no_int_low) == 0)
         network[[j]] <- web[-no_int_low, ]
       if (!length(no_int_high) == 0)
         network[[j]] <- web[, -no_int_high]
     }
-    out[[i]] <- network
+    # if every sp has at least one interaction return intial network
+    if (length(no_int_low) == 0 & length(no_int_high) == 0)  
+      out[[i]] <- x[[i]]
+    else out[[i]] <- network
   }
   return(out)
 }
 
-# use parms form initial sim
+# create initial network for community variables
+init_sim <- simulate_tapnet_aug(nlower = 26, nhigher = 14, ntraits_nopem = 4,
+                       ntraits_pem = 2, abuns = "lognormal", Nobs = 1111,
+                       names = sp_names)
+
+source("simnetfromtap_ctrb.R")
+
 # Atl
-sim1 <- simnetfromtap_aug(traits = sim$traits_all,
-                       abuns = sim$networks[[1]]$abuns,
-                       paramsList = sim$sim_params,
-                       pems = sim$networks[[1]]$pems,
-                       tmatch_type_pem = "normal",
-                       tmatch_type_obs = "normal",
-                       ctrb_vec = c("high", "low", "low"))
-sim1web <- matrix(rmultinom(1, 1111, sim1[[1]]), nrow = nrow(sim1[[1]]),
-                  ncol = ncol(sim1[[1]]))
-dimnames(sim1web) <- dimnames(sim$networks[[1]]$I_mat)
+sim1 <- simnetfromtap_ctrb(traits = sim$traits_all,
+                          abuns = sim$networks[[1]]$abuns,
+                          paramsList = sim$sim_params,
+                          pems = sim$networks[[1]]$pems,
+                          tmatch_type_pem = "normal",
+                          tmatch_type_obs = "normal",
+                          ctrb_vec = c("high", "low", "low"),
+                          Nwebs = 1,
+                          Nobs = 1111)
+clean(sim1)
 
-# remove sp w/o interactions from web
-no_int_low <- which(rowSums(sim1web) == 0)
-no_int_high <- which(colSums(sim1web) == 0)
-
-sim1web <- sim1web[-no_int_low, -no_int_high]
+# sim1 <- simnetfromtap_aug(traits = sim$traits_all,
+#                        abuns = sim$networks[[1]]$abuns,
+#                        paramsList = sim$sim_params,
+#                        pems = sim$networks[[1]]$pems,
+#                        tmatch_type_pem = "normal",
+#                        tmatch_type_obs = "normal",
+#                        ctrb_vec = c("high", "low", "low"))
+# sim1web <- matrix(rmultinom(1, 1111, sim1), nrow = nrow(sim1),
+#                   ncol = ncol(sim1))
+# dimnames(sim1web) <- dimnames(sim$networks[[1]]$I_mat)
 
 # atL
 sim2 <- simnetfromtap_aug(traits = sim$traits_all,
@@ -117,15 +133,9 @@ sim2 <- simnetfromtap_aug(traits = sim$traits_all,
                        tmatch_type_pem = "normal",
                        tmatch_type_obs = "normal",
                        ctrb_vec = c("low", "high", "low"))
-sim2web <- matrix(rmultinom(1, 1111, sim2[[1]]), nrow = nrow(sim2[[1]]),
-                  ncol = ncol(sim2[[1]]))
+sim2web <- matrix(rmultinom(1, 1111, sim2), nrow = nrow(sim2),
+                  ncol = ncol(sim2))
 dimnames(sim2web) <- dimnames(sim$networks[[1]]$I_mat)
-
-# remove sp w/o interactions from web
-no_int_low <- which(rowSums(sim2web) == 0)
-no_int_high <- which(colSums(sim2web) == 0)
-
-sim2web <- sim2web[-no_int_low, -no_int_high]
 
 # aTl
 sim3 <- simnetfromtap_aug(traits = sim$traits_all,
@@ -135,15 +145,9 @@ sim3 <- simnetfromtap_aug(traits = sim$traits_all,
                        tmatch_type_pem = "normal",
                        tmatch_type_obs = "normal",
                        ctrb_vec = c("low", "low", "high"))
-sim3web <- matrix(rmultinom(1, 1111, sim3[[1]]), nrow = nrow(sim3[[1]]),
-                  ncol = ncol(sim3[[1]]))
+sim3web <- matrix(rmultinom(1, 1111, sim3), nrow = nrow(sim3),
+                  ncol = ncol(sim3))
 dimnames(sim3web) <- dimnames(sim$networks[[1]]$I_mat)
-
-# remove sp w/o interactions from web
-no_int_low <- which(rowSums(sim3web) == 0)
-no_int_high <- which(colSums(sim3web) == 0)
-
-sim3web <- sim3web[-no_int_low, -no_int_high]
 
 # ATL
 sim4 <- simnetfromtap_aug(traits = sim$traits_all,
@@ -153,15 +157,9 @@ sim4 <- simnetfromtap_aug(traits = sim$traits_all,
                        tmatch_type_pem = "normal",
                        tmatch_type_obs = "normal",
                        ctrb_vec = c("high", "high", "high"))
-sim4web <- matrix(rmultinom(1, 1111, sim4[[1]]), nrow = nrow(sim4[[1]]),
-                  ncol = ncol(sim4[[1]]))
+sim4web <- matrix(rmultinom(1, 1111, sim4), nrow = nrow(sim4),
+                  ncol = ncol(sim4))
 dimnames(sim4web) <- dimnames(sim$networks[[1]]$I_mat)
-
-# remove sp w/o interactions from web
-no_int_low <- which(rowSums(sim4web) == 0)
-no_int_high <- which(colSums(sim4web) == 0)
-
-# sim4web <- sim4web[-no_int_low, -no_int_high] # indexing error if all sp had interactions
 
 # visualize
 plotweb(sim$networks[[1]]$web)
