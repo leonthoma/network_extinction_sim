@@ -67,9 +67,19 @@ simnetfromtap_aug <- function(traits,
   A_mat <- as.matrix(abuns$low) %*% t(abuns$high)
   
   # Get contributions
-  A_ctrb <- switch(ctrb_vec[[1]], "low" = 1.9, "high" = .1)
-  L_ctrb <- switch(ctrb_vec[[2]], "low" = 1.9, "high" = .1)
-  T_ctrb <- switch(ctrb_vec[[3]], "low" = 1.9, "high" = .1)
+  # if no contributions are specified use 1 as exponent for each community var
+  if (is.null(ctrb_vec)) {
+    A_ctrb <- 1
+    L_ctrb <- 1
+    T_ctrb <- 1
+  }
+  
+  # if contributions are specified choose val according to setting
+  if (!is.null(ctrb_vec)) {
+    A_ctrb <- switch(ctrb_vec[[1]], "low" = 1.9, "high" = .1)
+    L_ctrb <- switch(ctrb_vec[[2]], "low" = 1.9, "high" = .1)
+    T_ctrb <- switch(ctrb_vec[[3]], "low" = 1.9, "high" = .1)
+  }
   
   A_mat <- A_mat^A_ctrb # set contribution
   A_mat <- A_mat/sum(A_mat)
@@ -86,8 +96,8 @@ simnetfromtap_aug <- function(traits,
   }
   I_mat <- A_mat * LT
   I_mat <- I_mat/sum(I_mat)
-  #return(I_mat)
-  return(list(I_mat, L_mat, T_mat)) # use only for verfication
+  return(I_mat)
+  #return(list(I_mat, L_mat, T_mat)) # use only for verfication
 }
 
 tmatch <- function(delta_t, # Vector of pairwise trait differences (higher - lower)
