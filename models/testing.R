@@ -1,7 +1,7 @@
 # first test using tapnet to simulate network
 setwd("~/Documents/Uni/M.sc/Master Thesis/Networks/models/")
 
-#library(tapnet)
+library(tapnet)
 source("tapnet_helper.R")
 source("simnetfromtap_aug.R")
 source("./tapnet/tapnet/R/simulate_tapnet.R")
@@ -19,7 +19,7 @@ sp_names <- data.frame("plants" = plants,
                        "animals" = animals[1:nrow(plants),],
                        stringsAsFactors = F)
 
-# simulation
+# simulation -----
 simnet <- simulate_tapnet(nlower = 10, nhigher = 10, ntraits_nopem = 2,
                           ntraits_pem = 0, abuns = "lognormal", Nobs = 420)
 
@@ -43,17 +43,52 @@ head(simnet$networks[[1]]$I_mat)
 plotweb(simnet$networks[[1]]$I_mat)
 visweb(simnet$networks[[1]]$I_mat)
 
-# initial simulation
+# initial simulation ----
 sim <- simulate_tapnet_aug(nlower = 26, nhigher = 14, ntraits_nopem = 4,
                        ntraits_pem = 2, abuns = "lognormal", Nobs = 1111,
-                       names = sp_names)
+                       names = sp_names, Nwebs = 2)
 dimnames(sim$networks[[1]]$web) <- dimnames(sim$networks[[1]]$I_mat)
 
 # remove sp w/o interactions from web
-no_int_low <- which(rowSums(sim$networks[[1]]$web) == 0)
-no_int_high <- which(colSums(sim$networks[[1]]$web) == 0)
+# library(dplyr)
+# library(purrr)
+# 
+# clean <- function(x) {
+#   df <-  
+#   filter(rowSums(x) == 0) %>% 
+#     filter(colSums(x) == 0)
+# }
+# 
+# clean(sim$networks[[1]]$web)
 
-network <- sim$networks[[1]]$web[-no_int_low, -no_int_high]
+clean <- function(x) {
+  n_nets <- length(x) # no of networks
+  out <- vector(mode = "list", length = n_nets) # list for webs of all networks
+  names(out) <- paste("Net", 1:n_nets)
+  
+  # iterate over all networks
+  for (i in seq(n_nets)) {
+    network <- list() # list for webs of each network
+    n_webs <- length(x[[i]]$networks) # no of webs in tapnet object
+    
+    # iterate over all web 
+    for (j in seq(n_webs)) {
+      web <- x[[i]]$networks[[j]]$web # get web
+      
+      # sp w/o interactions
+      no_int_low <- which(rowSums(web) == 0) # lower trophic level
+      no_int_high <- which(colSums(web) == 0) # higher trophic level
+  
+      # exclude if missing interactions occur
+      if (!length(no_int_low) == 0)
+        network[[j]] <- web[-no_int_low, ]
+      if (!length(no_int_high) == 0)
+        network[[j]] <- web[, -no_int_high]
+    }
+    out[[i]] <- network
+  }
+  return(out)
+}
 
 # use parms form initial sim
 # Atl
@@ -248,11 +283,11 @@ extc_hi_per_ATL <- extc_sim_ATL[[1]][, 5]/ncol(sim4web)*100
 #        y = "Animals persiting [%]")
 
 # plot
-plot(1-extc_lo_per, extc_hi_per, type = "l", ylab = "animals persisting",
+plot(rev(extc_lo_per), extc_hi_per, type = "l", ylab = "animals persisting",
      xlab = "plants removed", main = "Extinction cascade w/ abundance rewiring")
-lines(1-extc_lo_per_Atl, extc_hi_per_Atl, col = "firebrick", lty = 2) # Atl
-lines(1-extc_lo_per_atL, extc_hi_per_atL, col = "dodgerblue", lty = 3) # atL
-lines(1-extc_lo_per_aTl, extc_hi_per_aTl, col = "darkseagreen", lty = 4) # aTl
+lines(rev(extc_lo_per_Atl), extc_hi_per_Atl, col = "firebrick", lty = 2) # Atl
+lines(rev(extc_lo_per_atL), extc_hi_per_atL, col = "dodgerblue", lty = 3) # atL
+lines(rev(extc_lo_per_aTl), extc_hi_per_aTl, col = "darkseagreen", lty = 4) # aTl
 #lines(1-extc_lo_per_ATL, extc_hi_per_ATL, col = "sienna") # ATL
 legend("bottomleft",
        title = "Community var importances",
