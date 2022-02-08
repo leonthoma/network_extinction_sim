@@ -9,6 +9,7 @@ library(phytools)
 library(bipartite)
 library(vegan)
 library(ape)
+library(purrr)
 library(MPSEM)
 
 # read species names and make df 
@@ -19,7 +20,7 @@ sp_names <- data.frame("plants" = plants,
                        "animals" = animals[1:nrow(plants),],
                        stringsAsFactors = F)
 
-# simulation -----
+# test simulation -----
 simnet <- simulate_tapnet(nlower = 10, nhigher = 10, ntraits_nopem = 2,
                           ntraits_pem = 0, abuns = "lognormal", Nobs = 420)
 
@@ -44,68 +45,16 @@ plotweb(simnet$networks[[1]]$I_mat)
 visweb(simnet$networks[[1]]$I_mat)
 
 # initial simulation ----
-
-# fy for deleting rows/cols without interactions; if multiple networks shall be
-# used pass list of lists (NOT vector i.e. c())
-clean <- function(x, single = T) {
-  if (single == T) {
-    n_nets <- 1 # no of networks when single network is passed
-  } else {
-    n_nets <- length(x) # no of networks when multiple networks are passed
-  }
-  
-  out <- vector(mode = "list", length = n_nets) # list for webs of all networks
-  names(out) <- paste("Net", 1:n_nets)
-  
-  # iterate over all networks
-  for (i in seq(n_nets)) {
-    # calculate no of webs in x
-    if (single == T) {
-      n_webs <- length(x) # for single network
-    } else {
-      n_webs <- length(x[[i]]) # for list of networks
-    }
-    
-    network <- vector(mode = "list", length = n_webs) # list for webs of each network
-    names(network) <- paste("Web", 1:n_webs)
-    
-    # iterate over all webs
-    for (j in seq(n_webs)) {
-      if (single == T) {
-        web <- x[[j]] # get web for single network
-      } else {
-        web <- as.data.frame(x[[i]][j]) # get web for list of networks
-        colnames(web) <- colnames(init_sim$networks[[1]]$web) # manually set names
-      }
-      
-      # exclude rows w/ no interactions
-      no_int_low <- which(rowSums(web) == 0) # get sp w/o any interactions
-      if (!length(no_int_low) == 0) {
-        network_temp <- web[-no_int_low, ] # delete sp w/o any interactions
-      } else {
-        network_temp <- web # if all sp had at least one interactions use initial web
-      }
-      
-      # exclude cols w/ no interactions
-      no_int_high <- which(colSums(network_temp) == 0) # get sp w/o any interactions
-      if (!length(no_int_high) == 0) {
-        network_temp <- network_temp[, -no_int_high] # delete sp w/o any interactions
-      }
-      network[[j]] <- network_temp
-    }
-    out[[i]] <- network
-  }
-  return(out)
-}
-
 # create initial network for community variables
 init_sim <- simulate_tapnet_aug(nlower = 26, nhigher = 14, ntraits_nopem = 4,
                        ntraits_pem = 2, abuns = "lognormal", Nobs = 1111,
                        names = sp_names)
 
-source("simnetfromtap_ctrb.R")
 
-# Create simulated networks with setting contributions
+# Create simulated networks with setting contributions ----
+source("simnetfromtap_ctrb.R")
+source("clean.R")
+
 sims <- list()
 
 # list w/ ctrb_vecs
@@ -114,7 +63,6 @@ ctrb_list <- list("Atl" = c("high", "low", "low"),
                   "atL" = c("low", "low", "high"),
                   "ATL" = c("high", "high", "high"))
 
-library(purrr)
 sims <- purrr::map(.x = ctrb_list, ~ simnetfromtap_ctrb(ctrb_vec = .x,
   traits = init_sim$traits_all,
   abuns = init_sim$networks[[1]]$abuns,
@@ -122,77 +70,19 @@ sims <- purrr::map(.x = ctrb_list, ~ simnetfromtap_ctrb(ctrb_vec = .x,
   pems = init_sim$networks[[1]]$pems,
   tmatch_type_pem = "normal",
   tmatch_type_obs = "normal",
-  Nwebs = 1,
+  Nwebs = 2,
   Nobs = 1111))
 
-sims_clean <- purrr::map(sims, clean)
-# Atl
-sim1 <- simnetfromtap_ctrb(traits = init_sim$traits_all,
-                          abuns = init_sim$networks[[1]]$abuns,
-                          paramsList = init_sim$sim_params,
-                          pems = init_sim$networks[[1]]$pems,
-                          tmatch_type_pem = "normal",
-                          tmatch_type_obs = "normal",
-                          ctrb_vec = c("high", "low", "low"),
-                          Nwebs = 1,
-                          Nobs = 1111)
-clean(sim1)
+sims <- clean(sims, single = F)
 
-# sim1 <- simnetfromtap_aug(traits = sim$traits_all,
-#                        abuns = sim$networks[[1]]$abuns,
-#                        paramsList = sim$sim_params,
-#                        pems = sim$networks[[1]]$pems,
-#                        tmatch_type_pem = "normal",
-#                        tmatch_type_obs = "normal",
-#                        ctrb_vec = c("high", "low", "low"))
-# sim1web <- matrix(rmultinom(1, 1111, sim1), nrow = nrow(sim1),
-#                   ncol = ncol(sim1))
-# dimnames(sim1web) <- dimnames(sim$networks[[1]]$I_mat)
+# visualize ----
+for (i in seq(sims)) {
+  for (j in seq(sims[[i]])) {
+    plotweb(sims[[i]][[j]])
+  }
+}
 
-# atL
-sim2 <- simnetfromtap_aug(traits = sim$traits_all,
-                       abuns = sim$networks[[1]]$abuns,
-                       paramsList = sim$sim_params,
-                       pems = sim$networks[[1]]$pems,
-                       tmatch_type_pem = "normal",
-                       tmatch_type_obs = "normal",
-                       ctrb_vec = c("low", "high", "low"))
-sim2web <- matrix(rmultinom(1, 1111, sim2), nrow = nrow(sim2),
-                  ncol = ncol(sim2))
-dimnames(sim2web) <- dimnames(sim$networks[[1]]$I_mat)
-
-# aTl
-sim3 <- simnetfromtap_aug(traits = sim$traits_all,
-                       abuns = sim$networks[[1]]$abuns,
-                       paramsList = sim$sim_params,
-                       pems = sim$networks[[1]]$pems,
-                       tmatch_type_pem = "normal",
-                       tmatch_type_obs = "normal",
-                       ctrb_vec = c("low", "low", "high"))
-sim3web <- matrix(rmultinom(1, 1111, sim3), nrow = nrow(sim3),
-                  ncol = ncol(sim3))
-dimnames(sim3web) <- dimnames(sim$networks[[1]]$I_mat)
-
-# ATL
-sim4 <- simnetfromtap_aug(traits = sim$traits_all,
-                       abuns = sim$networks[[1]]$abuns,
-                       paramsList = sim$sim_params,
-                       pems = sim$networks[[1]]$pems,
-                       tmatch_type_pem = "normal",
-                       tmatch_type_obs = "normal",
-                       ctrb_vec = c("high", "high", "high"))
-sim4web <- matrix(rmultinom(1, 1111, sim4), nrow = nrow(sim4),
-                  ncol = ncol(sim4))
-dimnames(sim4web) <- dimnames(sim$networks[[1]]$I_mat)
-
-# visualize
-plotweb(sim$networks[[1]]$web)
-plotweb(sim1web)
-plotweb(sim2web)
-plotweb(sim3web)
-plotweb(sim4web)
-
-# basic metrics
+# basic metrics ----
 # connectance
 connectance <- function(web) {
   sum(web != 0) / (nrow(web) * ncol(web))
@@ -210,7 +100,7 @@ nestedness(sim1web)
 nestedness(sim2web)
 nestedness(sim3web)
 
-# extinction model
+# extinction model ----
 
 source("rewiring_vizentin-bugoni_2019/Functions/extinction.mod.R")
 source("rewiring_vizentin-bugoni_2019/Functions/one.second.extinct.mod.R")
@@ -218,11 +108,11 @@ source("rewiring_vizentin-bugoni_2019/Functions/calc.mean.one.second.extinct.mod
 source("rewiring_vizentin-bugoni_2019/Functions/matrix.p1.R")
 source("rewiring_vizentin-bugoni_2019/Functions/IC.R") # calc of 95 percent confidence interval
 
-# rewiring probabilites
+  # rewiring probabilites
 # pairwise relative abundances
-rew_abund <- sim$networks[[1]]$abuns$low[-no_int_low] %*%
-  t(sim$networks[[1]]$abuns$high[-no_int_high])
-row.names(rew_abund) <- sim$trees[[1]]$tip.label[-no_int_low]
+rew_abund <- init_sim$networks[[1]]$abuns$low %*%
+  t(init_sim$networks[[1]]$abuns$high)
+row.names(rew_abund) <- init_sim$trees[[1]]$tip.label
 
 # relative abundances of lower
 rew_abund_low <- sweep(rew_abund, 2, colSums(rew_abund), "/")
@@ -230,67 +120,94 @@ rew_abund_low <- sweep(rew_abund, 2, colSums(rew_abund), "/")
 # relative abundances of higher
 rew_abund_high <- sweep(rew_abund, 1, rowSums(rew_abund), "/")
 
-# run extinction models
-# original
-extc_sim <- one.second.extinct.mod_aug(web = network,
-                                       participant = "lower",
-                                       method = "random", 
-                                       rewiring = T, 
-                                       probabilities.rewiring1 = rew_abund_low, 
-                                       probabilities.rewiring2 = rew_abund,
-                                       method.rewiring = "one.try.single.partner")
+# fy to simulate extinctions for a nested list of networks; n_sims is no of extc
+# simulations, n_nets is no of networks in list, n_webs is no of webs per network
+run_extc <- function(web,
+                     participant,
+                     method,
+                     rewiring,
+                     probabilities.rewiring1,
+                     probabilities.rewiring2,
+                     method.rewiring,
+                     n_sims,
+                     n_nets,
+                     n_webs) {
+  
+  # list for all models
+  out <- vector(mode = "list", length = n_nets)
+  names(out) <- paste("Net", 1:n_nets)
+  
+  # iterate over no of nets
+  for (i in seq(n_nets)) {
+    # iterate over no of webs
+    out_temp <- vector(mode = "list", length = n_webs)
+    names(out_temp) <- paste("Web", 1:n_webs)
+    
+    for (j in seq(n_webs)) {
+      web_temp <- web[[i]][[j]] # get web
+      
+      # model extinctions
+      res <- replicate(n_sims, simplify = F, 
+                       one.second.extinct.mod_aug(web = web_temp,
+                                                  participant = participant,
+                                                  method = method,
+                                                  rewiring = rewiring,
+                                                  probabilities.rewiring1 = probabilities.rewiring1,
+                                                  probabilities.rewiring2 = probabilities.rewiring2,
+                                                  method.rewiring = method.rewiring))
+    out_temp[[j]] <- res # add extc sim of webs
+      }
+  out[[i]] <- out_temp # add extc sim of nets
+  }
+  return(out)
+}
 
-# Atl
-extc_sim_Atl <- one.second.extinct.mod_aug(web = sim1web,
-                                       participant = "lower",
-                                       method = "random", 
-                                       rewiring = T, 
-                                       probabilities.rewiring1 = rew_abund_low, 
-                                       probabilities.rewiring2 = rew_abund,
-                                       method.rewiring = "one.try.single.partner")
+  # run extinction models 
+extc_sims <- run_extc(web = sims,
+                      participant = "lower",
+                      method = "random",
+                      rewiring = T,
+                      probabilities.rewiring1 = rew_abund_low,
+                      probabilities.rewiring2 = rew_abund,
+                      method.rewiring = "one.try.single.partner",
+                      n_sims = 2,
+                      n_nets = 4,
+                      n_webs = 2)
 
-# atL
-extc_sim_atL <- one.second.extinct.mod_aug(web = sim2web,
-                                           participant = "lower",
-                                           method = "random", 
-                                           rewiring = T, 
-                                           probabilities.rewiring1 = rew_abund_low, 
-                                           probabilities.rewiring2 = rew_abund,
-                                           method.rewiring = "one.try.single.partner")
+# function to calculate percentages of remaining species
+per_surv <- function(extc_sims,
+                     n_sims,
+                     n_nets,
+                     n_webs) {
+  
+  out <- vector(mode = "list", length = n_nets) # set list for lo/hi percentages  
+  names(out) <- paste("Net", 1:n_nets)
+  
+  for(i in seq(n_nets)) {
+    
+    web_temp <- vector(mode = "list", length = n_webs)
+    names(web_temp) <- paste("Web", 1:n_webs)
+    
+    for(j in seq(n_webs)) {
+      
+      sim_temp <- vector(mode = "list", length = n_sims)
+      names(sim_temp) <- paste("Sim", 1:n_sims)
+      
+      for(k in seq(n_sims)) {
+        lo <- extc_sims[[i]][[j]][[k]][[1]][, 4]/nrow(sims[[i]][[j]])*100
+        hi <- extc_sims[[i]][[j]][[k]][[1]][, 5]/ncol(sims[[i]][[j]])*100
+        
+        sim_temp[[k]] <- data.frame("low" = lo, "high" = hi)
+      }
+      web_temp[[j]] <- sim_temp
+    }
+    out[[i]] <- web_temp
+  }
+  return(out)
+}
 
-# aTl
-extc_sim_aTl <- one.second.extinct.mod_aug(web = sim3web,
-                                           participant = "lower",
-                                           method = "random", 
-                                           rewiring = T, 
-                                           probabilities.rewiring1 = rew_abund_low, 
-                                           probabilities.rewiring2 = rew_abund,
-                                           method.rewiring = "one.try.single.partner")
-
-# ATL
-extc_sim_ATL <- one.second.extinct.mod_aug(web = sim4web,
-                                           participant = "lower",
-                                           method = "random", 
-                                           rewiring = T, 
-                                           probabilities.rewiring1 = rew_abund_low, 
-                                           probabilities.rewiring2 = rew_abund,
-                                           method.rewiring = "one.try.single.partner")
-
-# calculate percentages of remaining sp
-extc_lo_per <- extc_sim[[1]][, 4]/nrow(network)*100
-extc_hi_per <- extc_sim[[1]][, 5]/ncol(network)*100
-
-extc_lo_per_Atl <- extc_sim_Atl[[1]][, 4]/nrow(sim1web)*100
-extc_hi_per_Atl <- extc_sim_Atl[[1]][, 5]/ncol(sim1web)*100
-
-extc_lo_per_atL <- extc_sim_atL[[1]][, 4]/nrow(sim2web)*100
-extc_hi_per_atL <- extc_sim_atL[[1]][, 5]/ncol(sim2web)*100
-
-extc_lo_per_aTl <- extc_sim_aTl[[1]][, 4]/nrow(sim3web)*100
-extc_hi_per_aTl <- extc_sim_aTl[[1]][, 5]/ncol(sim3web)*100
-
-extc_lo_per_ATL <- extc_sim_ATL[[1]][, 4]/nrow(sim4web)*100
-extc_hi_per_ATL <- extc_sim_ATL[[1]][, 5]/ncol(sim4web)*100
+  # calculate percentages of remaining sp
+sp_remain <- per_surv(extc_sims, n_sims = 2, n_nets = 4, n_webs = 2)
 
 # library(ggplot2)
 #  
