@@ -47,11 +47,11 @@ visweb(simnet$networks[[1]]$I_mat)
 
 # fy for deleting rows/cols without interactions; if multiple networks shall be
 # used pass list of lists (NOT vector i.e. c())
-clean <- function(x) {
-  if (is.null(names(x))) {
-    n_nets <- length(x) # no of networks when multiple networks are passed
-  } else {
+clean <- function(x, single = T) {
+  if (single == T) {
     n_nets <- 1 # no of networks when single network is passed
+  } else {
+    n_nets <- length(x) # no of networks when multiple networks are passed
   }
   
   out <- vector(mode = "list", length = n_nets) # list for webs of all networks
@@ -59,38 +59,41 @@ clean <- function(x) {
   
   # iterate over all networks
   for (i in seq(n_nets)) {
-    network <- list # list for webs of each network
-    
     # calculate no of webs in x
-    if (is.null(names(x)))
-      n_webs <- length(x[[i]]) # for list of networks
-    else
+    if (single == T) {
       n_webs <- length(x) # for single network
+    } else {
+      n_webs <- length(x[[i]]) # for list of networks
+    }
     
+    network <- vector(mode = "list", length = n_webs) # list for webs of each network
+    names(network) <- paste("Web", 1:n_webs)
     
-    # iterate over all web 
+    # iterate over all webs
     for (j in seq(n_webs)) {
-      if (is.null(names(x))) {
+      if (single == T) {
+        web <- x[[j]] # get web for single network
+      } else {
         web <- as.data.frame(x[[i]][j]) # get web for list of networks
         colnames(web) <- colnames(init_sim$networks[[1]]$web) # manually set names
-      } else {
-      web <- x[[j]] # get web for single network
       }
       
-      # sp w/o any interactions
-      no_int_low <- which(rowSums(web) == 0) # lower trophic level
-      no_int_high <- which(colSums(web) == 0) # higher trophic level
-  
-      # exclude if rows/cols w/ no interactions occur
-      if (!length(no_int_low) == 0)
-        network[[j]] <- web[-no_int_low, ]
-      if (!length(no_int_high) == 0)
-        network[[j]] <- web[, -no_int_high]
+      # exclude rows w/ no interactions
+      no_int_low <- which(rowSums(web) == 0) # get sp w/o any interactions
+      if (!length(no_int_low) == 0) {
+        network_temp <- web[-no_int_low, ] # delete sp w/o any interactions
+      } else {
+        network_temp <- web # if all sp had at least one interactions use initial web
+      }
+      
+      # exclude cols w/ no interactions
+      no_int_high <- which(colSums(network_temp) == 0) # get sp w/o any interactions
+      if (!length(no_int_high) == 0) {
+        network_temp <- network_temp[, -no_int_high] # delete sp w/o any interactions
+      }
+      network[[j]] <- network_temp
     }
-    # if every sp has at least one interaction return intial network
-    if (length(no_int_low) == 0 & length(no_int_high) == 0)  
-      out[[i]] <- x[[i]]
-    else out[[i]] <- network
+    out[[i]] <- network
   }
   return(out)
 }
@@ -102,11 +105,32 @@ init_sim <- simulate_tapnet_aug(nlower = 26, nhigher = 14, ntraits_nopem = 4,
 
 source("simnetfromtap_ctrb.R")
 
+# Create simulated networks with setting contributions
+sims <- list()
+
+# list w/ ctrb_vecs
+ctrb_list <- list("Atl" = c("high", "low", "low"),
+                  "aTl" = c("low", "high", "low"),
+                  "atL" = c("low", "low", "high"),
+                  "ATL" = c("high", "high", "high"))
+
+library(purrr)
+sims <- purrr::map(.x = ctrb_list, ~ simnetfromtap_ctrb(ctrb_vec = .x,
+  traits = init_sim$traits_all,
+  abuns = init_sim$networks[[1]]$abuns,
+  paramsList = init_sim$sim_params,
+  pems = init_sim$networks[[1]]$pems,
+  tmatch_type_pem = "normal",
+  tmatch_type_obs = "normal",
+  Nwebs = 1,
+  Nobs = 1111))
+
+sims_clean <- purrr::map(sims, clean)
 # Atl
-sim1 <- simnetfromtap_ctrb(traits = sim$traits_all,
-                          abuns = sim$networks[[1]]$abuns,
-                          paramsList = sim$sim_params,
-                          pems = sim$networks[[1]]$pems,
+sim1 <- simnetfromtap_ctrb(traits = init_sim$traits_all,
+                          abuns = init_sim$networks[[1]]$abuns,
+                          paramsList = init_sim$sim_params,
+                          pems = init_sim$networks[[1]]$pems,
                           tmatch_type_pem = "normal",
                           tmatch_type_obs = "normal",
                           ctrb_vec = c("high", "low", "low"),
