@@ -222,8 +222,12 @@ sp_remain <- per_surv(extc_sims, n_sims = 2, n_nets = 4, n_webs = 2)
 #        y = "Animals persiting [%]")
 
 # plot
-plot(rev(extc_lo_per), extc_hi_per, type = "l", ylab = "animals persisting",
-     xlab = "plants removed", main = "Extinction cascade w/ abundance rewiring")
+plot(rev(sp_remain$`Net 1`$`Web 1`$`Sim 1`$low),
+     sp_remain$`Net 1`$`Web 1`$`Sim 1`$high,
+     type = "l",
+     ylab = "animals persisting",
+     xlab = "plants removed",
+     main = "Extinction cascade w/ abundance rewiring")
 lines(rev(extc_lo_per_Atl), extc_hi_per_Atl, col = "firebrick", lty = 2) # Atl
 lines(rev(extc_lo_per_atL), extc_hi_per_atL, col = "dodgerblue", lty = 3) # atL
 lines(rev(extc_lo_per_aTl), extc_hi_per_aTl, col = "darkseagreen", lty = 4) # aTl
