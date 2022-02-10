@@ -66,21 +66,24 @@ one.second.extinct.mod_aug <- function(web, participant = "higher", method = "ab
           while (go) {
             m <- m+1
             
-            # choose rewiring partner based on highest abundance, irrespective
-            # if a interaction was formerly observed
+            # choose rewiring partner based on highest abundance
             if (method.rewiring == "abund") {
-            sp.add <- which.max(probabilities.rewiring1[sp.surv.temp, jj]) # get name & pos of sp
-            sp.surv.prob2 <- max(probabilities.rewiring1[sp.surv.temp, jj]) # get rew prob
+            sp.add <- which.max(probabilities.rewiring1[sp.try.rewiring, jj]) # get name & pos of sp
+            sp.surv.prob2 <- max(probabilities.rewiring1[sp.try.rewiring, jj]) # get rew prob
             }
             
-            # choose rewiring partner based on closest phylogenetic distance,
-            # irrespective if an interaction was formerly observed
+            # choose rewiring partner based on closest phylogenetic distance
             if (method.rewiring == "phylo") {
               phylo_rew <- probabilities.rewiring1$low # choose trophic level
               
               # use second highest value since distance to self is always 0
-              sp.surv.prob2 <- as.numeric(tail(head(sort(phylo_rew[sp.surv.temp, jj], decreasing = F), 2), 1)) # get rew prob
-              sp.add <- which(phylo_rew[sp.surv.temp, jj] == sp.surv.prob2) # get name & pos of sp
+              sp.surv.prob2 <- as.numeric(tail(head(sort(phylo_rew[sp.try.rewiring, jj], decreasing = F), 2), 1)) # get rew prob
+              sp.add <- which(phylo_rew[sp.try.rewiring, jj] == sp.surv.prob2) # get name & pos of sp
+              
+              # if multiple species have same distance, randomly choose one
+              if (length(sp.add) != 1){
+                sp.add <- sample(sp.add, 1)
+              }
             }
             
             # # choose rewiring partner based on smallest difference in trait
@@ -94,7 +97,14 @@ one.second.extinct.mod_aug <- function(web, participant = "higher", method = "ab
             # sp.surv.prob1 <- probabilities.rewiring1[sp.surv.temp, jj] # probs of rewiring to a potential partner
             # sp.add <- sample(as.character(sp.surv.temp), 1, prob = sp.surv.prob1) # randomly choosing new partner for birds that interacted w/ lost plant
             # sp.surv.prob2 <- probabilities.rewiring2[as.numeric(sp.add), jj] # prob of rewiring based on rewiring factors
-            n.add <- rbinom(1, trials, sp.surv.prob2) # binomial trail to determine rewiring success
+            
+            # binomial trail to determine rewiring success
+            if (method.rewiring == "abund") {
+            n.add <- rbinom(1, trials, sp.surv.prob2) 
+            } else {
+              n.add <- rbinom(1, trials, 0.5) # simple binom trail 50/50 chance
+            }
+            
             if(n.add>0){
               ext.temp$web[as.numeric(sp.add), jj] <- ext.temp$web[as.numeric(sp.add), jj]+n.add # update interaction freq in interaction matrix
             }
@@ -137,21 +147,24 @@ one.second.extinct.mod_aug <- function(web, participant = "higher", method = "ab
           }
           while (go) {
             m <- m+1
-            # choose rewiring partner based on highest abundance, irrespective
-            # if a interaction was formerly observed
+            # choose rewiring partner based on highest abundance
             if (method.rewiring == "abund") {
-            sp.add <- which.max(probabilities.rewiring1[sp.surv.temp, ii]) # get name of sp
-            sp.surv.prob2 <- max(probabilities.rewiring1[sp.surv.temp, ii]) # get rew prob
+            sp.add <- which.max(probabilities.rewiring1[ii, sp.try.rewiring]) # get name of sp
+            sp.surv.prob2 <- max(probabilities.rewiring1[ii, sp.try.rewiring]) # get rew prob
             }
             
-            # choose rewiring partner based on closest phylogenetic distance,
-            # irrespective if an interaction was formerly observed
+            # choose rewiring partner based on closest phylogenetic distance
             if (method.rewiring == "phylo") {
               phylo_rew <- probabilities.rewiring1$high # choose trophic level
               
               # use second highest value since distance to self is always 0
-              sp.surv.prob2 <- as.numeric(tail(head(sort(phylo_rew[sp.surv.temp, ii], decreasing = F), 2), 1)) # get rew prob
-              sp.add <- which(phylo_rew[sp.surv.temp, ii] == sp.surv.prob2) # get name & pos of sp
+              sp.surv.prob2 <- as.numeric(tail(head(sort(phylo_rew[ii, sp.try.rewiring], decreasing = F), 2), 1)) # get rew prob
+              sp.add <- which(phylo_rew[ii, sp.try.rewiring] == sp.surv.prob2) # get name & pos of sp
+              
+              # if multiple species have same distance, randomly choose one
+              if (length(sp.add) != 1){
+                sp.add <- sample(sp.add, 1)
+              }
             }
             
             # # choose rewiring partner based on smallest difference in trait
@@ -165,7 +178,14 @@ one.second.extinct.mod_aug <- function(web, participant = "higher", method = "ab
             # sp.surv.prob1 <- probabilities.rewiring1[ii, sp.surv.temp] # probs of rewiring to a potential partner (either random or anbundance)
             # sp.add <- sample(as.character(sp.surv.temp), 1, prob = sp.surv.prob1) # randomly choosing new partner for plants that interacted w/ lost bird
             # sp.surv.prob2 <- probabilities.rewiring2[ii, as.numeric(sp.add)] # prob of rewiring based on chosen rewiring factor (e.g. morphology)
-            n.add <- rbinom(1, trials, sp.surv.prob2) # binomial trail to determine rewiring success
+            
+            # binomial trail to determine rewiring success
+            if (method.rewiring == "abund") {
+              n.add <- rbinom(1, trials, sp.surv.prob2) 
+            } else {
+              n.add <- rbinom(1, trials, 0.5) # simple binom trail 50/50 chance
+            }
+            
             if(n.add>0){
               ext.temp$web[ii, as.numeric(sp.add)] <- ext.temp$web[ii, as.numeric(sp.add)]+n.add # update interaction freq in interaction matrix
             }
@@ -219,18 +239,18 @@ one.second.extinct.mod_aug <- function(web, participant = "higher", method = "ab
   }
   if (nrow(dead) + 1 != nrow(dead2)) 
     stop("PANIC! Something went wrong with the extinct sequence! Please contact the author to fix this!!")
-  if (participant == "lower") 
-    supposed.length <- NROW(dead2) + 1 # add a line for initial network state
-  if (participant == "higher") 
-    supposed.length <- NCOL(dead2)
-  if (participant == "both") 
-    supposed.length <- NROW(dead2) + 1 # add a line for initial network state
-  if (NROW(dead2) + 1 != supposed.length) {
-    missing <- supposed.length - NROW(dead2)
-    addit1 <- (NROW(dead2) + 1):(NROW(dead2) + missing)
-    addit2n3 <- rep(0, times = missing)
-    dead2 <- rbind(dead2, as.matrix(data.frame(addit1, addit2n3, addit2n3, 0, 0)))
-  }
+  # if (participant == "lower") 
+  #   supposed.length <- NROW(dead2) + 1 # add a line for initial network state
+  # if (participant == "higher") 
+  #   supposed.length <- NCOL(dead2)
+  # if (participant == "both") 
+  #   supposed.length <- NROW(dead2) + 1 # add a line for initial network state
+  # if (NROW(dead2) + 1 != supposed.length) {
+  #   missing <- supposed.length - NROW(dead2)
+  #   addit1 <- (NROW(dead2) + 1):(NROW(dead2) + missing)
+  #   addit2n3 <- rep(0, times = missing)
+  #   dead2 <- rbind(dead2, as.matrix(data.frame(addit1, addit2n3, addit2n3, 0, 0)))
+  # }
   out <- list(dead2, ext.temp$web)
   class(out) <- "bipartite"
   attr(out, "exterminated") <- c("both", "lower", "higher")[pmatch(participant, c("both", "lower", "higher"))]
