@@ -7,25 +7,29 @@
 # method.rewiring = Type of method used to trial rewiring, partial match to "one.try.single.partner", "multiple.trials.single.partner", "multiple.trials.multiples.partners", "one.try.each.partner" and "multiple.trials.each.partner". See section Methods in Vizentin-Bugoni et al. [in review] for details; (default method.rewiring = "one.try.single.partner").
 one.second.extinct.mod_aug <- function(web, participant = "higher", method = "abun", ext.row = NULL, ext.col = NULL, 
                                    rewiring = FALSE, probabilities.rewiring1 = NULL, probabilities.rewiring2 = NULL,
-                                   method.rewiring = "one.try.single.partner") {
+                                   mode.rewiring = "one.try.single.partner", method.rewiring = NULL) {
   dead <- matrix(nrow = 0, ncol = 5)
   colnames(dead) <- c("no", "ext.lower", "ext.higher", "n.lower", "n.higher")
+  dead <- cbind(0, 0, 0, NROW(web), NCOL(web)) # initial state of network
   m2 <- web
   i <- 1
   METHOD.REWIRING = c("one.try.single.partner", "multiple.trials.single.partner", "multiple.trials.multiples.partners", "one.try.each.partner", "multiple.trials.each.partner")
-  method.rewiring <- pmatch(method.rewiring, METHOD.REWIRING)
-  if (length(method.rewiring) > 1) {
-    stop("\n Only one argument is accepted in method.rewiring \n")
+  mode.rewiring <- pmatch(mode.rewiring, METHOD.REWIRING)
+  if(!any(c("NULL", "abund", "phylo", "trait") %in% method.rewiring)) {
+    stop("\n Invalid rewiring method. Choose either NULL, abund, phylo or trait \n")
   }
-  if (is.na(method.rewiring)) {
-    stop("\n Invalid method.rewiring \n")
+  if (length(mode.rewiring) > 1) {
+    stop("\n Only one argument is accepted in mode.rewiring \n")
   }
-  if(method.rewiring == 4 | method.rewiring == 5){
+  if (is.na(mode.rewiring)) {
+    stop("\n Invalid mode.rewiring \n")
+  }
+  if(mode.rewiring == 4 | mode.rewiring == 5){
     keep.trying <- TRUE
   } else {
     keep.trying <- FALSE
   }
-  method.rewiring <- ifelse(method.rewiring == 4, 1, ifelse(method.rewiring == 5, 2, method.rewiring))
+  mode.rewiring <- ifelse(mode.rewiring == 4, 1, ifelse(mode.rewiring == 5, 2, mode.rewiring))
   if(rewiring){
     if(any(web%%1!=0)){
       stop("\n If rewiring is TRUE the web must must contain only integers \n")
@@ -54,17 +58,37 @@ one.second.extinct.mod_aug <- function(web, participant = "higher", method = "ab
           sp.surv.temp <- sp.surv
           go <- TRUE
           m <- 0
-          if(method.rewiring == 1 | method.rewiring == 3){
+          if(mode.rewiring == 1 | mode.rewiring == 3){
             trials <- 1
           } else {
             trials <- ext.temp$rexcl[1, jj]
           }
           while (go) {
             m <- m+1
+            
             # choose rewiring partner based on highest abundance, irrespective
             # if a interaction was formerly observed
-            sp.add <- which.max(probabilities.rewiring1[sp.surv.temp, jj]) # get name of sp
+            if (method.rewiring == "abund") {
+            sp.add <- which.max(probabilities.rewiring1[sp.surv.temp, jj]) # get name & pos of sp
             sp.surv.prob2 <- max(probabilities.rewiring1[sp.surv.temp, jj]) # get rew prob
+            }
+            
+            # choose rewiring partner based on closest phylogenetic distance,
+            # irrespective if an interaction was formerly observed
+            if (method.rewiring == "phylo") {
+              phylo_rew <- probabilities.rewiring1$low # choose trophic level
+              
+              # use second highest value since distance to self is always 0
+              sp.surv.prob2 <- as.numeric(tail(head(sort(phylo_rew[sp.surv.temp, jj], decreasing = F), 2), 1)) # get rew prob
+              sp.add <- which(phylo_rew[sp.surv.temp, jj] == sp.surv.prob2) # get name & pos of sp
+            }
+            
+            # # choose rewiring partner based on smallest difference in trait
+            # # matching, irrespective if an interaction was formerly observed
+            # if (method.rewiring == "trait") {
+            #   sp.add <- 
+            #   sp.surv.prob2 <-
+            # }
             
             # original code to determine rewiring partner
             # sp.surv.prob1 <- probabilities.rewiring1[sp.surv.temp, jj] # probs of rewiring to a potential partner
@@ -74,11 +98,11 @@ one.second.extinct.mod_aug <- function(web, participant = "higher", method = "ab
             if(n.add>0){
               ext.temp$web[as.numeric(sp.add), jj] <- ext.temp$web[as.numeric(sp.add), jj]+n.add # update interaction freq in interaction matrix
             }
-            if(method.rewiring == 1 | method.rewiring == 2){
+            if(mode.rewiring == 1 | mode.rewiring == 2){
               if(!keep.trying){
                 go <- FALSE  
               } else{
-                if((method.rewiring == 1 & n.add>0) | (method.rewiring == 2 & n.add == trials)){ # if rewiring failed w/ single try or multipe tries and trails left
+                if((mode.rewiring == 1 & n.add>0) | (mode.rewiring == 2 & n.add == trials)){ # if rewiring failed w/ single try or multipe tries and trails left
                   go <- FALSE
                 } else{
                   sp.surv.temp <- sp.surv.temp[-1*which(sp.surv.temp%in% sp.add)] # remove chosen partner with failed new interaction from possible partners
@@ -106,7 +130,7 @@ one.second.extinct.mod_aug <- function(web, participant = "higher", method = "ab
           sp.surv.temp <- sp.surv 
           go <- TRUE
           m <- 0
-          if(method.rewiring == 1 | method.rewiring == 3){ # define no of trails
+          if(mode.rewiring == 1 | mode.rewiring == 3){ # define no of trails
             trials <- 1
           } else {
             trials <- ext.temp$cexcl[ii, 1]
@@ -115,8 +139,27 @@ one.second.extinct.mod_aug <- function(web, participant = "higher", method = "ab
             m <- m+1
             # choose rewiring partner based on highest abundance, irrespective
             # if a interaction was formerly observed
+            if (method.rewiring == "abund") {
             sp.add <- which.max(probabilities.rewiring1[sp.surv.temp, ii]) # get name of sp
             sp.surv.prob2 <- max(probabilities.rewiring1[sp.surv.temp, ii]) # get rew prob
+            }
+            
+            # choose rewiring partner based on closest phylogenetic distance,
+            # irrespective if an interaction was formerly observed
+            if (method.rewiring == "phylo") {
+              phylo_rew <- probabilities.rewiring1$high # choose trophic level
+              
+              # use second highest value since distance to self is always 0
+              sp.surv.prob2 <- as.numeric(tail(head(sort(phylo_rew[sp.surv.temp, ii], decreasing = F), 2), 1)) # get rew prob
+              sp.add <- which(phylo_rew[sp.surv.temp, ii] == sp.surv.prob2) # get name & pos of sp
+            }
+            
+            # # choose rewiring partner based on smallest difference in trait
+            # # matching, irrespective if an interaction was formerly observed
+            # if (method.rewiring == "trait") {
+            #   sp.add <- 
+            #     sp.surv.prob2 <-
+            # }
             
             # original code to determine rewiring partner
             # sp.surv.prob1 <- probabilities.rewiring1[ii, sp.surv.temp] # probs of rewiring to a potential partner (either random or anbundance)
@@ -126,11 +169,11 @@ one.second.extinct.mod_aug <- function(web, participant = "higher", method = "ab
             if(n.add>0){
               ext.temp$web[ii, as.numeric(sp.add)] <- ext.temp$web[ii, as.numeric(sp.add)]+n.add # update interaction freq in interaction matrix
             }
-            if(method.rewiring == 1 | method.rewiring == 2){ 
+            if(mode.rewiring == 1 | mode.rewiring == 2){ 
               if(!keep.trying){
                 go <- FALSE  
               } else{
-                if((method.rewiring == 1 & n.add>0) | (method.rewiring == 2 & n.add == trials)){ # if rewiring failed w/ single try or multipe tries and trails left
+                if((mode.rewiring == 1 & n.add>0) | (mode.rewiring == 2 & n.add == trials)){ # if rewiring failed w/ single try or multipe tries and trails left
                   go <- FALSE 
                 } else{
                   sp.surv.temp <- sp.surv.temp[-1*which(sp.surv.temp%in% sp.add)] # remove chosen partner with failed new interaction from possible partners
@@ -169,7 +212,7 @@ one.second.extinct.mod_aug <- function(web, participant = "higher", method = "ab
     }
     i <- i + 1
   }
-  dead2 <- rbind(dead, c(NROW(dead) + 1, NROW(m2), NCOL(m2), 0, 0))
+  dead2 <- rbind(dead, c(NROW(dead) + 1, NROW(m2), NCOL(m2), 0, 0)) # add last line of dead (i.e. all sp extc)
   if (participant == "lower" & method == "degree") {
     if (length(table(dead[, 2])) > 1) 
       dead2[, 2] <- 1
@@ -177,16 +220,16 @@ one.second.extinct.mod_aug <- function(web, participant = "higher", method = "ab
   if (nrow(dead) + 1 != nrow(dead2)) 
     stop("PANIC! Something went wrong with the extinct sequence! Please contact the author to fix this!!")
   if (participant == "lower") 
-    supposed.length <- NROW(dead2)
+    supposed.length <- NROW(dead2) + 1 # add a line for initial network state
   if (participant == "higher") 
     supposed.length <- NCOL(dead2)
   if (participant == "both") 
-    supposed.length <- NROW(dead2)
-  if (NROW(dead2) != supposed.length) {
+    supposed.length <- NROW(dead2) + 1 # add a line for initial network state
+  if (NROW(dead2) + 1 != supposed.length) {
     missing <- supposed.length - NROW(dead2)
     addit1 <- (NROW(dead2) + 1):(NROW(dead2) + missing)
     addit2n3 <- rep(0, times = missing)
-    dead2 <- rbind(dead2, as.matrix(data.frame(addit1, addit2n3, addit2n3)))
+    dead2 <- rbind(dead2, as.matrix(data.frame(addit1, addit2n3, addit2n3, 0, 0)))
   }
   out <- list(dead2, ext.temp$web)
   class(out) <- "bipartite"
