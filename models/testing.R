@@ -53,7 +53,7 @@ init_sim <- simulate_tapnet_aug(nlower = 26, nhigher = 14, ntraits_nopem = 4,
 
 # Create simulated networks with setting contributions ----
 source("simnetfromtap_ctrb.R")
-source("clean.R")
+#source("clean.R")
 
 sims <- list()
 
@@ -73,9 +73,9 @@ sims <- purrr::map(.x = ctrb_list, ~ simnetfromtap_ctrb(ctrb_vec = .x,
   Nwebs = 2,
   Nobs = 1111))
 
-sims <- clean(sims, single = F)
+#sims <- clean(sims, single = F) # DON'T RUN ! Causes false indexing in extc. sim
 
-# visualize ----
+# visualize networks ----
 for (i in seq(sims)) {
   for (j in seq(sims[[i]])) {
     plotweb(sims[[i]][[j]])
@@ -120,6 +120,15 @@ rew_abund_low <- sweep(rew_abund, 2, colSums(rew_abund), "/")
 # relative abundances of higher
 rew_abund_high <- sweep(rew_abund, 1, rowSums(rew_abund), "/")
 
+# phylogenetic distances
+rew_phylo_lo <- cophenetic.phylo(init_sim$trees$low) 
+rew_phylo_hi <- cophenetic.phylo(init_sim$trees$high) 
+
+rew_phylo <- list("low" = rew_phylo_lo, "high" = rew_phylo_hi)
+
+# traits
+rew_trait <- init_sim$traits_all
+
 # fy to simulate extinctions for a nested list of networks; n_sims is no of extc
 # simulations, n_nets is no of networks in list, n_webs is no of webs per network
 run_extc <- function(web,
@@ -128,14 +137,19 @@ run_extc <- function(web,
                      rewiring,
                      probabilities.rewiring1,
                      probabilities.rewiring2,
-                     method.rewiring,
+                     mode.rewiring,
+                     method.rewiring = method.rewiring,
                      n_sims,
                      n_nets,
                      n_webs) {
   
   # list for all models
   out <- vector(mode = "list", length = n_nets)
-  names(out) <- paste("Net", 1:n_nets)
+  if (n_nets == 4) {
+    names(out) <- c("Atl", "aTl", "atL", "ATL")
+  } else {
+    names(out) <- paste("Net", 1:n_nets)
+  }
   
   # iterate over no of nets
   for (i in seq(n_nets)) {
@@ -154,6 +168,7 @@ run_extc <- function(web,
                                                   rewiring = rewiring,
                                                   probabilities.rewiring1 = probabilities.rewiring1,
                                                   probabilities.rewiring2 = probabilities.rewiring2,
+                                                  mode.rewiring = mode.rewiring,
                                                   method.rewiring = method.rewiring))
     out_temp[[j]] <- res # add extc sim of webs
       }
@@ -163,16 +178,77 @@ run_extc <- function(web,
 }
 
   # run extinction models 
-extc_sims <- run_extc(web = sims,
-                      participant = "lower",
-                      method = "random",
-                      rewiring = T,
-                      probabilities.rewiring1 = rew_abund_low,
-                      probabilities.rewiring2 = rew_abund,
-                      method.rewiring = "one.try.single.partner",
-                      n_sims = 2,
-                      n_nets = 4,
-                      n_webs = 2)
+extc_sims_abund_lower <- run_extc(web = sims,
+                                  participant = "lower",
+                                  method = "random",
+                                  rewiring = T,
+                                  probabilities.rewiring1 = rew_abund_low,
+                                  probabilities.rewiring2 = rew_abund,
+                                  mode.rewiring = "one.try.single.partner",
+                                  method.rewiring = "abund",
+                                  n_sims = 2,
+                                  n_nets = 4,
+                                  n_webs = 2)
+
+extc_sims_abund_higher <- run_extc(web = sims,
+                                  participant = "higher",
+                                  method = "random",
+                                  rewiring = T,
+                                  probabilities.rewiring1 = rew_abund_high,
+                                  probabilities.rewiring2 = rew_abund,
+                                  mode.rewiring = "one.try.single.partner",
+                                  method.rewiring = "abund",
+                                  n_sims = 2,
+                                  n_nets = 4,
+                                  n_webs = 2)
+
+extc_sims_phylo_lower <- run_extc(web = sims,
+                                  participant = "lower",
+                                  method = "random",
+                                  rewiring = T,
+                                  probabilities.rewiring1 = rew_phylo,
+                                  probabilities.rewiring2 = rew_phylo,
+                                  mode.rewiring = "one.try.single.partner",
+                                  method.rewiring = "phylo",
+                                  n_sims = 2,
+                                  n_nets = 4,
+                                  n_webs = 2)
+
+extc_sims_phylo_higher <- run_extc(web = sims,
+                                  participant = "higher",
+                                  method = "random",
+                                  rewiring = T,
+                                  probabilities.rewiring1 = rew_phylo,
+                                  probabilities.rewiring2 = rew_phylo,
+                                  mode.rewiring = "one.try.single.partner",
+                                  method.rewiring = "phylo",
+                                  n_sims = 2,
+                                  n_nets = 4,
+                                  n_webs = 2)
+
+extc_sims_trait_lower <- run_extc(web = sims,
+                                   participant = "lower",
+                                   method = "random",
+                                   rewiring = T,
+                                   probabilities.rewiring1 = rew_trait,
+                                   probabilities.rewiring2 = rew_trait,
+                                   mode.rewiring = "one.try.single.partner",
+                                   method.rewiring = "trait",
+                                   n_sims = 2,
+                                   n_nets = 4,
+                                   n_webs = 2)
+
+extc_sims_trait_higher <- run_extc(web = sims,
+                                   participant = "higher",
+                                   method = "random",
+                                   rewiring = T,
+                                   probabilities.rewiring1 = rew_trait,
+                                   probabilities.rewiring2 = rew_trait,
+                                   mode.rewiring = "one.try.single.partner",
+                                   method.rewiring = "trait",
+                                   n_sims = 2,
+                                   n_nets = 4,
+                                   n_webs = 2)
 
 # function to calculate percentages of remaining species
 per_surv <- function(extc_sims,
@@ -180,8 +256,12 @@ per_surv <- function(extc_sims,
                      n_nets,
                      n_webs) {
   
-  out <- vector(mode = "list", length = n_nets) # set list for lo/hi percentages  
+  out <- vector(mode = "list", length = n_nets) # set list for lo/hi percentages
+  if (n_nets == 4) {
+    names(out) <- c("Atl", "aTl", "atL", "ATL")
+  } else {
   names(out) <- paste("Net", 1:n_nets)
+  }
   
   for(i in seq(n_nets)) {
     
@@ -207,8 +287,26 @@ per_surv <- function(extc_sims,
 }
 
   # calculate percentages of remaining sp
-sp_remain <- per_surv(extc_sims, n_sims = 2, n_nets = 4, n_webs = 2)
+sp_remain_abund_lower <- per_surv(extc_sims_abund_lower, n_sims = 2, n_nets = 4, n_webs = 2)
+sp_remain_abund_higher <- per_surv(extc_sims_abund_higher, n_sims = 2, n_nets = 4, n_webs = 2)
 
+sp_remain_phylo_lower <- per_surv(extc_sims_phylo_lower, n_sims = 2, n_nets = 4, n_webs = 2)
+sp_remain_phylo_higher <- per_surv(extc_sims_phylo_higher, n_sims = 2, n_nets = 4, n_webs = 2)
+
+sp_remain_trait_lower <- per_surv(extc_sims_trait_lower, n_sims = 2, n_nets = 4, n_webs = 2)
+sp_remain_trait_higher <- per_surv(extc_sims_trait_higher, n_sims = 2, n_nets = 4, n_webs = 2)
+
+sp_remain <- list("lower" = list(sp_remain_abund_lower,
+                                 sp_remain_trait_lower,
+                                 sp_remain_phylo_lower),
+                  "higher" = list(sp_remain_abund_higher,
+                                  sp_remain_trait_higher,
+                                  sp_remain_phylo_higher))
+
+names(sp_remain$lower) <- c("Abund", "Trait", "Phylo")
+names(sp_remain$higher) <- c("Abund", "Trait", "Phylo")
+
+# visualize extinction models ----
 # library(ggplot2)
 #  
 # ggplot() +
@@ -222,19 +320,50 @@ sp_remain <- per_surv(extc_sims, n_sims = 2, n_nets = 4, n_webs = 2)
 #        y = "Animals persiting [%]")
 
 # plot
-plot(rev(sp_remain$`Net 1`$`Web 1`$`Sim 1`$low),
-     sp_remain$`Net 1`$`Web 1`$`Sim 1`$high,
-     type = "l",
-     ylab = "animals persisting",
-     xlab = "plants removed",
-     main = "Extinction cascade w/ abundance rewiring")
-lines(rev(extc_lo_per_Atl), extc_hi_per_Atl, col = "firebrick", lty = 2) # Atl
-lines(rev(extc_lo_per_atL), extc_hi_per_atL, col = "dodgerblue", lty = 3) # atL
-lines(rev(extc_lo_per_aTl), extc_hi_per_aTl, col = "darkseagreen", lty = 4) # aTl
-#lines(1-extc_lo_per_ATL, extc_hi_per_ATL, col = "sienna") # ATL
-legend("bottomleft",
-       title = "Community var importances",
-       legend = c("Original","Atl", "atL", "aTl"),
-       col = c("black", "firebrick", "dodgerblue", "darkseagreen"),
-       lty = 1:4)
+plot_extc <- function(perc_remain, trophic_level, com_importance) {
+  # set indexing
+  idx1 <- switch(trophic_level, "lower" = 1, "higher" = 2) 
+  idx2 <- switch(com_importance, "Atl" = 1, "aTl" = 2, "atL" = 3, "ATL" = 4)
+  
+  # subset to correct dataframes
+  sub_list_low <- function(x) {
+    perc_remain[[idx1]][[x]][[idx2]][[1]][[1]][[1]]
+  }
+  
+  sub_list_high <- function(x) {
+    perc_remain[[idx1]][[x]][[idx2]][[1]][[1]][[2]]
+  }
+  
+  data_low <- map(.x = 1:3, sub_list_low)
+  data_high <- map(.x = 1:3, sub_list_high)
+  
+  # make plots
+  plot(rev(data_low[[1]]), data_high[[1]],
+       type = "l",
+       ylab = "animals persisting",
+       xlab = "plants removed",
+       main = paste("Extinction cascade", com_importance))
+  lines(rev(data_low[[2]]), data_high[[2]],
+        col = "firebrick", lty = 2)
+  lines(rev(data_low[[3]]), data_high[[3]],
+        col = "dodgerblue", lty = 3)
+  legend("bottomleft",
+         title = "Rewiring method",
+         legend = c("Abundance", "Phylogeny", "Trait"),
+         col = c("black", "firebrick", "dodgerblue"),
+         lty = 1:3)
+}
+
+plot_extc(sp_remain, "lower", "Atl") # lower sp extc first; abundance based networks
+plot_extc(sp_remain, "higher", "Atl") # higher sp extc first; abundance based networks
+
+plot_extc(sp_remain, "lower", "aTl") # lower sp extc first; trait based networks
+plot_extc(sp_remain, "higher", "aTl") # higher sp extc first; trait based networks
+
+plot_extc(sp_remain, "lower", "atL") # lower sp extc first; phylogeny based networks
+plot_extc(sp_remain, "higher", "atL") # higher sp extc first; phylogeny based networks
+
+plot_extc(sp_remain, "lower", "ATL") # lower sp extc first; 
+plot_extc(sp_remain, "higher", "ATL") # higher sp extc first; 
+
 
