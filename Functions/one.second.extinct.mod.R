@@ -9,8 +9,14 @@ one.second.extinct.mod_aug <- function(web, participant = "higher", method = "ab
                                    rewiring = FALSE, probabilities.rewiring1 = NULL, probabilities.rewiring2 = NULL,
                                    mode.rewiring = "one.try.single.partner", method.rewiring = NULL) {
   dead <- matrix(nrow = 0, ncol = 5)
+  # correct for sp w/o any interactions
+  n_sp_low <- length(which(rowSums(web) == 0))
+  n_sp_hi <- length(which(colSums(web) == 0))
+  
+  dead <- cbind(0, 0, 0, NROW(web) - n_sp_low, NCOL(web) - n_sp_hi) # initial state of network
+  
   colnames(dead) <- c("no", "ext.lower", "ext.higher", "n.lower", "n.higher")
-  dead <- cbind(0, 0, 0, NROW(web), NCOL(web)) # initial state of network
+  
   m2 <- web
   i <- 1
   METHOD.REWIRING = c("one.try.single.partner", "multiple.trials.single.partner", "multiple.trials.multiples.partners", "one.try.each.partner", "multiple.trials.each.partner")
@@ -72,11 +78,57 @@ one.second.extinct.mod_aug <- function(web, participant = "higher", method = "ab
             sp.close.rel <- sample(sp.close.rel, 1)
           }
           
-          # check if remaining sp (sp.rem) interacted with closest relative of extc sp (sp.close.rel)
+          # get interaction partners of closest relative (sp.close.rel)
           check.int <- which(ext.temp$web[which(rownames(ext.temp$web) %in% sp.close.rel), ] > 0)
           
-          # match interacting sp of closest relative(check.int) to remaining sp (sp.rem)
-          sp.try.rewiring <- sp.rem[which(check.int %in% sp.rem)]
+          # match interacting sp of interaction partnets of closest relative (check.int) to remaining sp (sp.rem)
+          sp.try.rewiring <- sp.rem[which(sp.rem %in% check.int)]
+        }
+        
+        if (method.rewiring == "trait") {
+          # get trait values
+          trait_rew <- probabilities.rewiring1$low
+          
+          # remaining species
+          sp.rem <- which(ext.temp$rexcl>0)
+          
+          if (length(sp.rem) != 0) {
+            
+            # finding sp with most similar traits
+            find.closest <- function(match.to, idx) {
+              out <- which.min(abs(trait_rew[-match.to, idx] - trait_rew[match.to, idx]))
+              
+              if (out >= match.to) out <- out + 1
+              return(out)
+            }
+            
+            sp.ext.idx <- which(rownames(trait_rew) %in% sp.ext) # get idx of sp.ext (NOT THE SAME IN ext.temp$web !!)
+            closest <- map_dbl(.x = c(1:ncol(trait_rew)), ~find.closest(match.to = sp.ext.idx,
+                                                                        idx = .x))
+            
+            # select sp with most trait matches; random for ties
+            if (length(unique(closest)) != length(closest)) {
+              best.match <- as.numeric(names(which(table(closest) > 1)))
+              
+              if(length(best.match) != 1) {
+                best.match <- sample(best.match, 1)
+              }
+            } else {
+              best.match <- sample(closest, 1)
+            }
+            
+            # get name of closest sp
+            sp.closest <- rownames(trait_rew[best.match, ])
+            
+            # get interaction partners of closest sp
+            check.int <- which(ext.temp$web[which(rownames(ext.temp$web) %in% sp.closest), ] > 0)
+            
+            # match interacting sp of closest relative(check.int) to remaining sp (sp.rem)
+            sp.try.rewiring <- sp.rem[which(sp.rem %in% check.int)]
+          } else { 
+            sp.try.rewiring <- numeric(0L) # set sp.try.rewiring to zero length if no sp. remain
+          }
+          
         }
         
         sp.surv <- seq_len(nrow(ext.temp$web)) # seq w/ all plant species
@@ -107,12 +159,11 @@ one.second.extinct.mod_aug <- function(web, participant = "higher", method = "ab
                 sp.add <- which(rownames(ext.temp$web) %in% sp.close.rel)
               }
               
-              # # choose rewiring partner based on smallest difference in trait
-              # # matching, irrespective if an interaction was formerly observed
-              # if (method.rewiring == "trait") {
-              #   sp.add <- 
-              #   sp.surv.prob2 <-
-              # }
+              # choose rewiring partner based on smallest difference in trait
+              # matching, irrespective if an interaction was formerly observed
+              if (method.rewiring == "trait") {
+                sp.add <- which(rownames(ext.temp$web) %in% sp.closest)
+              }
               
               # original code to determine rewiring partner
               # sp.surv.prob1 <- probabilities.rewiring1[sp.surv.temp, jj] # probs of rewiring to a potential partner
@@ -125,9 +176,9 @@ one.second.extinct.mod_aug <- function(web, participant = "higher", method = "ab
               } else {
               n.add <- rbinom(1, trials, 0.5) # simple binom trail 50/50 chance
               }
-              } else {
-                n.add <- 0
-                }
+            } else {
+              n.add <- 0
+              }
             
             if(n.add>0){
               ext.temp$web[as.numeric(sp.add), jj] <- ext.temp$web[as.numeric(sp.add), jj]+n.add # update interaction freq in interaction matrix
@@ -182,7 +233,52 @@ one.second.extinct.mod_aug <- function(web, participant = "higher", method = "ab
           check.int <- which(ext.temp$web[, which(colnames(ext.temp$web) %in% sp.close.rel)] > 0)
           
           # match interacting sp of closest relative(check.int) to remaining sp (sp.rem)
-          sp.try.rewiring <- sp.rem[which(check.int %in% sp.rem)]
+          sp.try.rewiring <- sp.rem[which(sp.rem %in% check.int)]
+        }
+        
+        if (method.rewiring == "trait") {
+          # get trait values
+          trait_rew <- probabilities.rewiring1$low
+          
+          # remaining species
+          sp.rem <- which(ext.temp$rexcl>0)
+          
+          if (length(sp.rem) != 0) {
+            
+          # finding sp with most similar traits
+          find.closest <- function(match.to, idx) {
+            out <- which.min(abs(trait_rew[-match.to, idx] - trait_rew[match.to, idx]))
+            
+            if(out >= match.to) out <- out + 1
+            return(out)
+          }
+          
+          sp.ext.idx <- which(rownames(trait_rew) %in% sp.ext) # get idx of sp.ext (NOT THE SAME IN ext.temp$web !!)
+          closest <- map_dbl(.x = c(1:ncol(trait_rew)), ~find.closest(match.to = sp.ext.idx,
+                                                                      idx = .x))
+          
+          # select sp with most trait matches; random for ties
+          if (length(unique(closest)) != length(closest)) {
+            best.match <- as.numeric(names(which(table(closest) > 1)))
+            
+            if(length(best.match) != 1) {
+              best.match <- sample(best.match, 1)
+            }
+          } else {
+            best.match <- sample(closest, 1)
+          }
+          
+          # get name of closest sp
+          sp.closest <- rownames(trait_rew[best.match, ])
+          
+          # get interaction partners of closest sp
+          check.int <- which(ext.temp$web[which(rownames(ext.temp$web) %in% sp.closest), ] > 0)
+          
+          # match interacting sp of closest relative(check.int) to remaining sp (sp.rem)
+          sp.try.rewiring <- sp.rem[which(sp.rem %in% check.int)]
+          } else {
+            sp.try.rewiring <- numeric(0L) # set sp.try.rewiring to zero length if no sp. remain
+            }
         }
         
         sp.surv <- seq_len(ncol(ext.temp$web))
@@ -213,12 +309,11 @@ one.second.extinct.mod_aug <- function(web, participant = "higher", method = "ab
                 sp.add <- which(colnames(ext.temp$web) %in% sp.close.rel)
               }
               
-              # # choose rewiring partner based on smallest difference in trait
-              # # matching, irrespective if an interaction was formerly observed
-              # if (method.rewiring == "trait") {
-              #   sp.add <- 
-              #     sp.surv.prob2 <-
-              # }
+              # choose rewiring partner based on smallest difference in trait
+              # matching, irrespective if an interaction was formerly observed
+              if (method.rewiring == "trait") {
+                sp.add <- which(rownames(ext.temp$web) %in% sp.closest)
+              }
               
               # original code to determine rewiring partner
               # sp.surv.prob1 <- probabilities.rewiring1[ii, sp.surv.temp] # probs of rewiring to a potential partner (either random or anbundance)
@@ -262,9 +357,17 @@ one.second.extinct.mod_aug <- function(web, participant = "higher", method = "ab
       }
     }
     n <- ext.temp$web
-    dead <- rbind(dead, c(i, attributes(m2 <- empty(n, count = TRUE))$empty,
-                  n_lo - as.vector(attributes(m2 <- empty(n, count = TRUE))$empty[1]),
-                  n_hi - as.vector(attributes(m2 <- empty(n, count = TRUE))$empty[2])))
+    if (i == 1){
+      init_ext.lower <- attributes(m2 <- empty(n, count = TRUE))$empty[1] - n_sp_low
+      init_ext.higher <- attributes(m2 <- empty(n, count = TRUE))$empty[2] - n_sp_hi
+      dead <- rbind(dead, c(i, init_ext.lower, init_ext.higher,
+                            n_lo - as.vector(attributes(m2 <- empty(n, count = TRUE))$empty[1]),
+                            n_hi - as.vector(attributes(m2 <- empty(n, count = TRUE))$empty[2])))
+    } else {
+      dead <- rbind(dead, c(i, attributes(m2 <- empty(n, count = TRUE))$empty,
+                    n_lo - as.vector(attributes(m2 <- empty(n, count = TRUE))$empty[1]),
+                    n_hi - as.vector(attributes(m2 <- empty(n, count = TRUE))$empty[2])))
+    }
     if (participant == "lower" & NROW(m2) < 2) 
       break
     if (participant == "higher" & NCOL(m2) < 2) 
