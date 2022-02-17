@@ -8,22 +8,19 @@ simnetfromtap_ctrb <- function(traits,
                                ctrb_vec = c(NULL),
                                Nwebs,
                                Nobs) {
-  out <- vector(mode = "list", length = Nwebs)
-  names(out) <- paste("Web", 1:Nwebs)
+  # create networks
+  sim <- simnetfromtap_aug(traits = traits,
+                           abuns = abuns,
+                           paramsList = paramsList,
+                           pems = pems,
+                           tmatch_type_pem = tmatch_type_pem,
+                           tmatch_type_obs = tmatch_type_obs,
+                           ctrb_vec = ctrb_vec)
+  # get web from Imat
+  simweb <- matrix(rmultinom(1, Nobs, sim), nrow = nrow(sim),
+                   ncol = ncol(sim))
+  # set sp names
+  dimnames(simweb) <- dimnames(init_sim$networks[[1]]$I_mat)
   
-  for (i in 1:Nwebs) {
-    sim <- simnetfromtap_aug(traits = traits,
-                             abuns = abuns,
-                             paramsList = paramsList,
-                             pems = pems,
-                             tmatch_type_pem = tmatch_type_pem,
-                             tmatch_type_obs = tmatch_type_obs,
-                             ctrb_vec = ctrb_vec)
-    simweb <- matrix(rmultinom(1, Nobs, sim), nrow = nrow(sim),
-                     ncol = ncol(sim))
-    dimnames(simweb) <- dimnames(init_sim$networks[[1]]$I_mat)
-    
-    out[[i]] <- simweb
-  }
-  return(out)
+  return(simweb)
 }
