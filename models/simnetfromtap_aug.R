@@ -5,14 +5,15 @@
 # ctrb_vec specify either "high" or "low".
 
 simnetfromtap_aug <- function(traits,
-                               abuns,
-                               paramsList,
-                               pems,
-                               tmatch_type_pem,
-                               tmatch_type_obs,
-                               ctrb_vec = c(NULL))
+                              abuns,
+                              paramsList,
+                              pems,
+                              tmatch_type_pem,
+                              tmatch_type_obs,
+                              ctrb_vec = c(NULL),
+                              initial_sim = FALSE)
 { if (!is.null(ctrb_vec)){
-  if (length(ctrb_vec) != 3) stop("ctrb_vec has to be a character vector of length 3")
+  if (length(ctrb_vec) != 3) warning("ctrb_vec has to be a character vector of length 3, otherwise default imporatance of community variables is used")
   }
   if (!is.null(traits$low)) 
     traits$low <- traits$low[order(rownames(traits$low)), 
@@ -96,8 +97,13 @@ simnetfromtap_aug <- function(traits,
   }
   I_mat <- A_mat * LT
   I_mat <- I_mat/sum(I_mat)
-  return(I_mat)
-  #return(list(I_mat, L_mat, T_mat)) # use only for verfication
+  
+  if (initial_sim == TRUE) {
+    return(list("A_mat" = A_mat, "T_mat" = T_mat,
+                "L_mat" = L_mat, "I_mat" = I_mat))
+  } else {
+    return(list("I_mat" = I_mat))
+  }
 }
 
 tmatch <- function(delta_t, # Vector of pairwise trait differences (higher - lower)
