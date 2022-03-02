@@ -4,15 +4,15 @@ setwd("~/Documents/Uni/M.sc/Master Thesis/Networks/models/")
 library(tapnet)
 source("tapnet_helper.R")
 source("simnetfromtap_aug.R")
-source("./tapnet/tapnet/R/simulate_tapnet.R")
-library(phytools)
+source("simulate_tapnet.R")
 library(bipartite)
+library(phytools)
 # library(vegan)
 library(ape)
+library(MPSEM)
 library(purrr)
 library(dplyr)
 library(data.table)
-# library(MPSEM)
 
 # read species names and make df 
 animals <- read.csv("animal-names.csv", colClasses = c("NULL", "character"),
@@ -48,9 +48,9 @@ sp_names <- data.frame("plants" = plants,
 
 # initial simulation ----
 # create initial network for community variables
-init_sim <- simulate_tapnet_aug(nlower = 26, nhigher = 14, ntraits_nopem = 4,
+init_sim <- simulate_tapnet_aug(nlower = 20, nhigher = 30, ntraits_nopem = 2,
                                 ntraits_pem = 2, abuns = "lognormal", Nobs = 1111,
-                                names = sp_names)
+                                names = sp_names, initial_sim = T)
 
 # set no of webs, nets and simulations
 n_nets <- 4
@@ -80,7 +80,7 @@ sims <- map(.x = ctrb_list, ~ simnetfromtap_ctrb(ctrb_vec = .x,
 #sims <- clean(sims, single = F) # DON'T RUN ! Causes false indexing in extc. sim
 
 # visualize networks ----
-map(sims, ~plotweb(.x))
+map(map(sims, 1), ~ plotweb(.x))
 
 # basic metrics ----
 # connectance
@@ -100,34 +100,66 @@ nestedness(sim1web)
 nestedness(sim2web)
 nestedness(sim3web)
 
-# extinction model ----
+# rewiring probabilites ----
+# # function to normalize values to range 0,1
+# feature_scale <- function(x, method = "simple") {
+#   if (method == "simple") {
+#     out <- (abs(x)/max(abs(x)))
+#   }
+#   
+#   if (method == "minmax") {
+#     out <- (abs(x) - min(abs(x))) / (max(abs(x)) - min(abs(x)))
+#   }
+#   return(out)
+# }
+# 
+# # pairwise relative abundances
+# rew_abund <- init_sim$rew_probs[[1]]$A_mat
+# 
+# # relative abundances of lower
+# rew_abund_low <- sweep(rew_abund, 2, colSums(rew_abund), "/")
+# 
+# # relative abundances of higher
+# rew_abund_high <- sweep(rew_abund, 1, rowSums(rew_abund), "/")
+# 
+# # traits
+# rew_trait <- init_sim$rew_probs[[1]]$T_mat
+# 
+# # relative traits of lower
+# rew_trait_low <- sweep(rew_trait, 2, colSums(rew_trait), "/")
+# 
+# # relative traits of higher
+# rew_trait_high <- sweep(rew_trait, 1, rowSums(rew_trait), "/")
+# 
+# # phylogeny
+# rew_phylo <- init_sim$rew_probs[[1]]$L_mat
+# 
+# # relative latent traits of lower
+# rew_phylo_low <- sweep(rew_phylo, 2, colSums(rew_phylo), "/")
+# 
+# # relative latent traits of higher
+# rew_phylo_high <- sweep(rew_phylo, 1, rowSums(rew_phylo), "/")
+
+# rewiring partner choice ----
+  # abundances
+  abunds <- init_sim$networks[[1]]$abuns
+  
+  # traits 
+  traits <- init_sim$networks[[1]]$traits
+  
+  # phylogenetic distances
+  library(ape)
+  
+  phylos <- list("low" = cophenetic.phylo(init_sim$trees$low), 
+                    "high" = cophenetic.phylo(init_sim$trees$high))
+  
+# run extinction models ----
 
 source("rewiring_vizentin-bugoni_2019/Functions/extinction.mod.R")
-source("rewiring_vizentin-bugoni_2019/Functions/one.second.extinct.mod.R")
+source("one.second.extinct.mod.R")
 source("rewiring_vizentin-bugoni_2019/Functions/calc.mean.one.second.extinct.mod.R")
 source("rewiring_vizentin-bugoni_2019/Functions/matrix.p1.R")
 source("rewiring_vizentin-bugoni_2019/Functions/IC.R") # calc of 95 percent confidence interval
-
-# rewiring probabilites
-# pairwise relative abundances
-rew_abund <- init_sim$networks[[1]]$abuns$low %*%
-  t(init_sim$networks[[1]]$abuns$high)
-row.names(rew_abund) <- init_sim$trees[[1]]$tip.label
-
-# relative abundances of lower
-rew_abund_low <- sweep(rew_abund, 2, colSums(rew_abund), "/")
-
-# relative abundances of higher
-rew_abund_high <- sweep(rew_abund, 1, rowSums(rew_abund), "/")
-
-# phylogenetic distances
-rew_phylo_lo <- cophenetic.phylo(init_sim$trees$low) 
-rew_phylo_hi <- cophenetic.phylo(init_sim$trees$high) 
-
-rew_phylo <- list("low" = rew_phylo_lo, "high" = rew_phylo_hi)
-
-# traits
-rew_trait <- init_sim$traits_all
 
 # fy to simulate extinctions for a nested list of networks; n_sims is no of extc
 # simulations, n_nets is no of networks in list, n_webs is no of webs per network
@@ -135,49 +167,53 @@ run_extc <- function(web,
                      participant,
                      method,
                      rewiring,
-                     probabilities.rewiring1,
-                     mode.rewiring,
-                     method.rewiring = method.rewiring,
+                     partner.choice,
+                     interactions,
+                     method.rewiring,
                      n_sims,
-                     n_nets) {
+                     y) {
   
-  map(.x = web,
-      ~ replicate(n_sims, simplify = F, 
-                  one.second.extinct.mod_aug(web = .x,
+map(web, ~replicate(n_sims, simplify = F, 
+                  one.second.extinct.mod_aug(web = pluck(.x, 1), 
                                              participant = participant,
                                              method = method,
                                              rewiring = rewiring,
-                                             probabilities.rewiring1 = probabilities.rewiring1,
-                                             mode.rewiring = mode.rewiring,
+                                             partner.choice = partner.choice,
+                                             interactions = pluck(.x, 2),
                                              method.rewiring = method.rewiring)))
 }
 
-# run extinction models 
+# only use Atl, aTl, and atL for extc sims
+n_nets <- 3 
+sims <- sims[-4] # delete ATL
+
 # initial extinction on lower level
-extc_sims_lower <- map2(.x = list("abund" = rew_abund_low, "trait" = rew_trait, "phylo" = rew_phylo),
-     .y = c("abund", "trait", "phylo"),
-     ~ run_extc(web = sims,
-                participant = "lower",
-                method = "random",
-                rewiring = T,
-                probabilities.rewiring1 = .x,
-                mode.rewiring = "one.try.single.partner",
-                method.rewiring = .y,
-                n_sims = n_sims,
-                n_nets = n_nets))
+extc_sims_lower <- map2(.x = list("abund" = abunds,
+                                  "trait" = traits,
+                                  "phylo" = phylos),
+                        .y = c("abund", "trait", "phylo"),
+                        ~ run_extc(web = sims,
+                                   participant = "lower",
+                                   method = "random",
+                                   rewiring = T,
+                                   partner.choice = .x, 
+                                   interactions = sims,
+                                   method.rewiring = .y,
+                                   n_sims = n_sims))
 
 # initial extiction on higher level
-extc_sims_higher <- map2(.x = list("abund" = rew_abund_low, "trait" = rew_trait, "phylo" = rew_phylo),
+extc_sims_higher <- map2(.x = list("abund" = abunds,
+                                   "trait" = traits,
+                                   "phylo" = phylos),
                         .y = c("abund", "trait", "phylo"),
                         ~ run_extc(web = sims,
                                    participant = "higher",
                                    method = "random",
                                    rewiring = T,
-                                   probabilities.rewiring1 = .x,
-                                   mode.rewiring = "one.try.single.partner",
+                                   partner.choice = .x,
+                                   interactions = sims,
                                    method.rewiring = .y,
-                                   n_sims = n_sims,
-                                   n_nets = n_nets))
+                                   n_sims = n_sims))
 
 # compute means of all simulations
 source("list_means.R")
@@ -200,8 +236,8 @@ per_surv <- function(x, y, lower = T) {
   
   extc_in_network <- ifelse(isTRUE(lower), 1, 2)
   
-  map(c("Atl" = 1, "aTl" = 2, "atL" = 3, "ATL" = 4),
-      ~ list_divide(pluck(extc_sims_lower_mean, extc_in_network, y, .x)))
+  map(c("Atl" = 1, "aTl" = 2, "atL" = 3),
+      ~ list_divide(pluck(x, extc_in_network, y, .x)))
 }
 
 
@@ -212,13 +248,13 @@ sp_remain_lower <- list("lower" = map(rew_names, ~ per_surv(extc_sims_lower_mean
 
 # initial extinction on higher level
 sp_remain_higher <- list("lower" = map(rew_names, ~ per_surv(extc_sims_higher_mean, y = .x)),
-                         "higher" = map(rew_names, ~ per_surv(extc_sims_hgiher_mean, y = .x, lower = F)))
+                         "higher" = map(rew_names, ~ per_surv(extc_sims_higher_mean, y = .x, lower = F)))
 
 # visualize extinction models ----
 library(ggplot2)
 
 plot_extc <- function(x){
-  com_vars <- c("Atl" = 1, "aTl" = 2, "atL" = 3, "ATL" = 4)
+  com_vars <- c("Atl" = 1, "aTl" = 2, "atL" = 3)
   map(com_vars, ~ ggplot() + 
         geom_line(aes(rev(pluck(x, 1, 1, .x)), pluck(x, 2, 1, .x),
                       color = "Abundance"), linetype = 1) +
