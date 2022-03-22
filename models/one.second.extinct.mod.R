@@ -6,11 +6,22 @@
 # probabilities.rewiring2 - A matrix with probabilities of rewiring, must be the same dimensions of web. See section Methods in Vizentin-Bugoni et al. [in review] for details. This matrix is required in step iii of framework (default probabilities.rewiring2 = NULL).
 # method.rewiring = Type of method used to trial rewiring, partial match to "one.try.single.partner", "multiple.trials.single.partner", "multiple.trials.multiples.partners", "one.try.each.partner" and "multiple.trials.each.partner". See section Methods in Vizentin-Bugoni et al. [in review] for details; (default method.rewiring = "one.try.single.partner").
 # 
-# participant <- "lower"
-# partner.choice <- choice_abund
-# method.rewiring <- "abund"
+# method <-  "random"
+# participant <- "higher"
+# partner.choice <- phylos
+# method.rewiring <- "phylo"
 # interactions <- sims$aTl$I_mat
 # web <- sims$aTl$web
+
+# one.second.extinct.mod_aug(web = web,
+#                            participant = participant,
+#                            method = "random",
+#                            rewiring = T,
+#                            partner.choice = partner.choice,
+#                            interactions = interactions,
+#                            method.rewiring = method.rewiring)
+
+
 
 one.second.extinct.mod_aug <- function(web,
                                        participant = "higher",
@@ -67,8 +78,26 @@ one.second.extinct.mod_aug <- function(web,
     ext.temp <- extinction.mod(m2, participant = participant, method = method, ext.row = ext.row, ext.col = ext.col)
     # extinction.mod returns list w/ plants (rows; "rexcl") that lost partners and
     # animals (cols; "cexcl") that lost partners as well as network ("web")
-    n_lo <- which(rowSums(m2) != 0) # initial number of sp in low trophic level
-    n_hi <- which(colSums(m2) != 0) # initial number of sp in high trophic level
+    #n_lo <- names(which(rowSums(m2) != 0)) # initial number of sp in low trophic level
+    #n_hi <- names(which(colSums(m2) != 0)) # initial number of sp in high trophic level
+    
+    # handle edge case where extc. sp has only dead interactions
+    if (sum(ext.temp$rexcl, ext.temp$cexcl) == 0) {
+      j <- 1
+      while (j >= 10) {
+        
+        # add max number of iterations before break; if still not valid stop sim and restart with initial imat
+        ext.temp <- extinction.mod(m2, participant = participant, method = method, ext.row = ext.row, ext.col = ext.col)
+        
+        #n_lo <- names(which(rowSums(m2) != 0)) # initial number of sp in low trophic level
+        #n_hi <- names(which(colSums(m2) != 0)) # initial number of sp in high trophic level
+        
+        j <- j + 1
+        
+        if (sum(ext.temp$rexcl, ext.temp$cexcl) != 0)
+          break
+      }
+    }
     
     if(rewiring){
       if(!is.null(ext.temp$rexcl)){ # Plant is extinct, looking for new interaction partners of birds that interacted with lost plant
@@ -76,13 +105,18 @@ one.second.extinct.mod_aug <- function(web,
         sp.try.rewiring <- which(ext.temp$rexcl>0) # number & position of interaction partners (higher trophic level)
         Nobs <- sum(m2)# - sum(m2[sp.ext, ]) # no of obs interactions
         
+        # # handle edge case where ext. sp has only dead interactions
+        # if(sum(m2[sp.ext, ]) == 0) {
+        #   n_lo <- c(n_lo, sp.ext) # add ext. sp to n_lo to preserve in choice vals
+        # }
+        
         # Choice of rewiring partner
         if (method.rewiring == "abund") {
           if (i == 1) {
             choice_abund <- partner.choice$low # get values
             }
 
-          choice_abund <- choice_abund[which(names(choice_abund) %in% names(n_lo))] # drop sp w/o any interactions
+          choice_abund <- choice_abund[which(names(choice_abund) %in% rownames(interactions))] # drop sp w/o any interactions
           
           sp.ext.idx <- which(names(choice_abund) %in% sp.ext) # get idx of sp.ext (NOT THE SAME IN ext.temp$web !!)
           
@@ -99,7 +133,7 @@ one.second.extinct.mod_aug <- function(web,
             choice_trait <- partner.choice$low # get values
           }
           
-          choice_trait <- choice_trait[which(rownames(choice_trait) %in% names(n_lo)), ] # drop sp w/o any interactions
+          choice_trait <- choice_trait[which(rownames(choice_trait) %in% rownames(interactions)), , drop = F] # drop sp w/o any interactions
   
           sp.ext.idx <- which(rownames(choice_trait) %in% sp.ext) # get idx of sp.ext (NOT THE SAME IN ext.temp$web !!)
           
@@ -120,17 +154,12 @@ one.second.extinct.mod_aug <- function(web,
             choice_phylo <- partner.choice$low # get values
           }
           
-          choice_phylo <- choice_phylo[which(rownames(choice_phylo) %in% names(n_lo)), which(colnames(choice_phylo) %in% names(n_lo))] # drop sp w/o any interactions
+          choice_phylo <- choice_phylo[which(rownames(choice_phylo) %in% rownames(interactions)), which(colnames(choice_phylo) %in% rownames(interactions)), drop = F] # drop sp w/o any interactions
           
           sp.ext.idx <- which(rownames(choice_phylo) %in% sp.ext) # get idx of sp.ext (NOT THE SAME IN ext.temp$web !!)
-          if (length(sp.ext.idx) == 0) {
-            warning("something went wrong")
-            print(sp.ext)
-            print(rownames(choice_phylo))
-            print(i)
-            print(names(n_lo))}
           
           # get closest relative
+          if (length(sp.ext.idx) == 1) {
           close.rel <-  min(choice_phylo[-sp.ext.idx, sp.ext.idx]) # get distance
           sp.close.rel.tmp <- names(which(choice_phylo[, sp.ext.idx] == close.rel)) # closest sp
           
@@ -142,7 +171,14 @@ one.second.extinct.mod_aug <- function(web,
           }
           
           rew.partner <- which(rownames(m2) %in% sp.close.rel)
-          choice_phylo <- choice_phylo[-sp.ext.idx, -sp.ext.idx] # delete extc sp
+          choice_phylo <- choice_phylo[-sp.ext.idx, -sp.ext.idx, drop = F] # delete extc sp
+          } else {
+            print(i)
+            print(sp.ext)
+            print(rownames(interactions))
+            print(rownames(choice_phylo))
+            warning("This shouldn't have happend")
+          }
         }
         
         # Shift interaction probability from old interaction (sp.ext + sp.try.rewiring) to new interaction (rew.partner + sp.try.rewiring)
@@ -158,13 +194,18 @@ one.second.extinct.mod_aug <- function(web,
         sp.try.rewiring <- which(ext.temp$cexcl>0) # number & position of interaction partners (lower trophic level)
         Nobs <- sum(m2)# - sum(m2[, sp.ext]) # no of obs interactions
         
+        # # handle edge case where ext. sp has only dead interactions
+        # if(sum(m2[, sp.ext]) == 0) {
+        #   n_hi <- c(n_hi, sp.ext) # add ext. sp to n_lo to preserve in choice vals
+        # }
+        
         # Choice of rewiring partner
         if (method.rewiring == "abund") {
           if (i == 1) {
             choice_abund <- partner.choice$high # get values
           }
           
-          choice_abund <- choice_abund[which(names(choice_abund) %in% names(n_hi))] # drop sp w/o any interactions
+          choice_abund <- choice_abund[which(names(choice_abund) %in% colnames(interactions))] # drop sp w/o any interactions
           
           sp.ext.idx <- which(names(choice_abund) %in% sp.ext) # get idx of sp.ext (NOT THE SAME IN ext.temp$web !!)
           
@@ -181,7 +222,7 @@ one.second.extinct.mod_aug <- function(web,
             choice_trait <- partner.choice$high # get values
           }
           
-          choice_trait <- choice_trait[which(rownames(choice_trait) %in% names(n_hi)), ] # drop sp w/o any interactions
+          choice_trait <- choice_trait[which(rownames(choice_trait) %in% colnames(interactions)), , drop = F] # drop sp w/o any interactions
           
           sp.ext.idx <- which(rownames(choice_trait) %in% sp.ext) # get idx of sp.ext (NOT THE SAME IN ext.temp$web !!)
           
@@ -202,11 +243,12 @@ one.second.extinct.mod_aug <- function(web,
             choice_phylo <- partner.choice$high # get values
           }
           
-          choice_phylo <- choice_phylo[which(rownames(choice_phylo) %in% names(n_hi)), which(colnames(choice_phylo) %in% names(n_hi))] # drop sp w/o any interactions
+          choice_phylo <- choice_phylo[which(rownames(choice_phylo) %in% colnames(interactions)), which(colnames(choice_phylo) %in% colnames(interactions)), drop = F] # drop sp w/o any interactions
           
           sp.ext.idx <- which(rownames(choice_phylo) %in% sp.ext) # get idx of sp.ext (NOT THE SAME IN ext.temp$web !!)
           
           # get closest relative
+          if (length(sp.ext.idx) == 1) {
           close.rel <-  min(choice_phylo[-sp.ext.idx, sp.ext.idx]) # get distance
           sp.close.rel.tmp <- names(which(choice_phylo[, sp.ext.idx] == close.rel)) # closest sp
           
@@ -218,7 +260,14 @@ one.second.extinct.mod_aug <- function(web,
           }
           
           rew.partner <- which(colnames(m2) %in% sp.close.rel)
-          choice_phylo <- choice_phylo[-sp.ext.idx, -sp.ext.idx] # delete extc sp
+          choice_phylo <- choice_phylo[-sp.ext.idx, -sp.ext.idx, drop = F] # delete extc sp
+          } else {
+            print(i)
+            print(sp.ext)
+            print(rownames(interactions))
+            print(rownames(choice_phylo))
+            warning("This shouldn't have happend")
+          }
         }
       
       # Shift interaction probability from old interaction (sp.ext + sp.try.rewiring) to new interaction (rew.partner + sp.try.rewiring)
@@ -232,10 +281,100 @@ one.second.extinct.mod_aug <- function(web,
     # removed rows and cols
     rem_r_c <- empty(ext.temp$web, count = T)
     
+    # remaining sp
+    rem_low <- as.vector(attributes(rem_r_c)$dimnames[[1]])
+    rem_high <- as.vector(attributes(rem_r_c)$dimnames[[2]])
+  
+    # compare dead interaction sp with extc sp
+    if (i > 1) {
+      if (length(dead_low) != 0) {
+        ext_low <- length(rownames(m2[-which(rownames(m2) %in% names(dead_low)), , drop = F])) - length(rem_low)
+      } else {
+        ext_low <- attributes(rem_r_c)$empty[1]
+      }
+      if (length(dead_high) != 0) {
+        ext_high <- length(colnames(m2[, -which(colnames(m2) %in% names(dead_high)), drop = F])) - length(rem_high)
+      } else {
+        ext_high <- attributes(rem_r_c)$empty[2]
+      }
+    } else {
+      ext_low <- attributes(rem_r_c)$empty[1]
+      ext_high <- attributes(rem_r_c)$empty[2]
+    }
+    
     # track no of extc and no of remaining sp
-    dead <- rbind(dead, c(i, attributes(rem_r_c)$empty,
-                          nrow(m2) - as.vector(attributes(rem_r_c)$empty[1]),
-                          ncol(m2) - as.vector(attributes(rem_r_c)$empty[2])))
+    if (i == 1) {
+      dead <- rbind(dead, c(i, ext_low, ext_high,
+                            nrow(m2) - ext_low,
+                            ncol(m2) - ext_high))  
+    } else {
+      dead <- rbind(dead, c(i, ext_low, ext_high,
+                            nrow(m2) - ext_low,
+                            ncol(m2) - ext_high))
+    }
+    
+    if (vis.steps == T) {
+      plotweb(m2)
+    }
+  
+    # update I_mat
+    if (participant == "lower") {
+      interactions <- interactions[-which(rownames(interactions) == sp.ext), , drop = F]
+    }
+    
+    if (participant == "higher") {
+      interactions <- interactions[, -which(colnames(interactions) == sp.ext), drop = F]
+    }
+    
+    drop_rows <- which(!(rownames(interactions) %in% rownames(rem_r_c)))
+    drop_cols <- which(!(colnames(interactions) %in% colnames(rem_r_c)))
+    
+    # get dead interactions in I_mat
+    if (i == 1) {
+      dead_low <- numeric(0L)
+      dead_high <- numeric(0L)
+    } # set initial values
+    
+    retain_low <- which(rownames(interactions) %in% names(dead_low))
+    retain_high <- which(colnames(interactions) %in% names(dead_high))
+    
+    if (!length(retain_low) == 0) {
+      drop_rows <- drop_rows[-which(drop_rows %in% retain_low)]
+    } # retain dead interactions
+    
+    if (!length(drop_rows) == 0) {
+      if (class(interactions) == "numeric") {
+        interactions <- interactions[-drop_rows] # edge case for last col
+      } else {
+    interactions <- interactions[-drop_rows, , drop = F]
+      }
+    }
+
+    if (!length(retain_high) == 0) {
+      drop_cols <- drop_cols[-which(drop_cols %in% retain_high)]
+    } # retain dead interactions
+    
+    if (!length(drop_cols) == 0) {
+      if (class(interactions) == "numeric") {
+        interactions <- interactions[-drop_cols] # edge case for last row
+      } else {
+      interactions <- interactions[, -drop_cols, drop = F]
+      }
+    }
+    
+    # calculate new web w/ updated I_mat
+    if (class(interactions) != "numeric") {
+      m2 <- matrix(rmultinom(1, Nobs, interactions), nrow = nrow(interactions),
+                  ncol = ncol(interactions))
+      dimnames(m2) <- dimnames(interactions)
+      
+      # get dead interactions
+      dead_low <- which(rowSums(m2) == 0)
+      dead_high <- which(colSums(m2) == 0)
+      
+    } else {
+      break
+    }
     
     if (participant == "lower" & NROW(m2) < 2) 
       break
@@ -252,50 +391,10 @@ one.second.extinct.mod_aug <- function(web,
       ext.col <- ext.col[-1]
     }
     
-    if (vis.steps == T) {
-      plotweb(m2)
-    }
-    
     i <- i + 1
-    
-    # update I_mat
-    drop_rows <- which(!(rownames(m2) %in% rownames(rem_r_c)))
-    drop_cols <- which(!(colnames(m2) %in% colnames(rem_r_c)))
-    
-    if (!length(drop_rows) == 0) {
-      if (class(interactions) == "numeric") {
-        interactions <- interactions[-drop_rows] # edge case for last col
-      } else {
-    interactions <- interactions[-drop_rows, ]
-      }
-    }
-    
-    if (!length(drop_cols) == 0) {
-      if (class(interactions) == "numeric") {
-        interactions <- interactions[-drop_cols] # edge case for last row
-      } else {
-      interactions <- interactions[, -drop_cols]
-      }
-    }
-    
-    # calculate new web w/ updated I_mat
-    if (class(interactions) != "numeric") {
-      m2 <- matrix(rmultinom(1, Nobs, interactions), nrow = nrow(interactions),
-                  ncol = ncol(interactions))
-      dimnames(m2) <- dimnames(interactions)
-    } else {
-      break
-    }
-# 
-#     # filter sp w/o any interactions
-#     sp_low_m2 <- which(rowSums(m2) != 0)
-#     sp_hi_m2 <- which(colSums(m2) != 0)
-# 
-#     # drop sp w/o any interactions
-#     m2 <- m2[sp_low_m2, sp_hi_m2]
-    
   }
-  dead2 <- rbind(dead, c(NROW(dead), NROW(rem_r_c), NCOL(rem_r_c), 0, 0)) # add last line of dead (i.e. all sp extc)
+  # dead2 <- dead
+  dead2 <- rbind(dead, c(NROW(dead), nrow(m2), ncol(m2), 0, 0)) # add last line of dead (i.e. all sp extc)
   if (participant == "lower" & method == "degree") {
     if (length(table(dead[, 2])) > 1) 
       dead2[, 2] <- 1
