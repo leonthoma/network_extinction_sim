@@ -54,7 +54,7 @@ init_sim <- simulate_tapnet_aug(nlower = 20, nhigher = 30, ntraits_nopem = 2,
 
 # set no of webs, nets and simulations
 n_nets <- 4
-n_sims <- 2
+n_sims <- 100
 
 # Create simulated networks with setting contributions ----
 source("simnetfromtap_ctrb.R")
@@ -187,6 +187,21 @@ map(web, ~replicate(n_sims, simplify = F,
 n_nets <- 3 
 sims <- sims[-4] # delete ATL
 
+# original web
+extc_sims_lower_org <- map2(.x = list("abund" = abunds,
+                                      "trait" = traits,
+                                      "phylo" = phylos),
+                            .y = c("abund", "trait", "phylo"),
+                            ~ replicate(n_sims, simplify = F, 
+                                 one.second.extinct.mod_aug(web = init_sim$networks[[1]]$web, 
+                                                            participant = "lower",
+                                                            method = "random",
+                                                            rewiring = T,
+                                                            partner.choice = .x,
+                                                            interactions = init_sim$networks[[1]]$I_mat,
+                                                            method.rewiring = .y)))
+
+
 # initial extinction on lower level
 extc_sims_lower <- map2(.x = list("abund" = abunds,
                                   "trait" = traits,
@@ -219,6 +234,10 @@ extc_sims_higher <- map2(.x = list("abund" = abunds,
 source("list_means.R")
 
 rew_names <- c("abund" = 1, "trait" = 2, "phylo" = 3)
+
+# initial extinction on lower level org
+extc_sims_lower_org_mean <- list("lower" = list_mean(extc_sims_lower_org)),
+                                 "higher" = map(rew_names, ~ list_mean(extc_sims_lower_org, y = .x, lower = F)))
 
 # initial extinction on lower level
 extc_sims_lower_mean <- list("lower" = map(rew_names, ~ list_mean(extc_sims_lower, y = .x)),
@@ -258,9 +277,9 @@ plot_extc <- function(x){
   map(com_vars, ~ ggplot() + 
         geom_line(aes(rev(pluck(x, 1, 1, .x)), pluck(x, 2, 1, .x),
                       color = "Abundance"), linetype = 1) +
-        geom_line(aes(rev(pluck(x, 2, 2, .x)), pluck(x, 2, 2, .x),
+        geom_line(aes(rev(pluck(x, 1, 2, .x)), pluck(x, 2, 2, .x),
                       color = "Traits"), linetype = 2) +
-        geom_line(aes(rev(pluck(x, 2, 3, .x)), pluck(x, 2, 3, .x),
+        geom_line(aes(rev(pluck(x, 1, 3, .x)), pluck(x, 2, 3, .x),
                       color = "Phylogeny"), linetype = 3) +
         scale_color_manual(name = "Rewiring Method",
                            values = c("Abundance" = "black",
