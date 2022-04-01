@@ -187,7 +187,7 @@ map(web, ~replicate(n_sims, simplify = F,
 n_nets <- 3 
 sims <- sims[-4] # delete ATL
 
-# original web
+# original web lower level
 extc_sims_lower_org <- map2(.x = list("abund" = abunds,
                                       "trait" = traits,
                                       "phylo" = phylos),
@@ -200,6 +200,20 @@ extc_sims_lower_org <- map2(.x = list("abund" = abunds,
                                                             partner.choice = .x,
                                                             interactions = init_sim$networks[[1]]$I_mat,
                                                             method.rewiring = .y)))
+
+# original web lower level
+extc_sims_higher_org <- map2(.x = list("abund" = abunds,
+                                      "trait" = traits,
+                                      "phylo" = phylos),
+                            .y = c("abund", "trait", "phylo"),
+                            ~ replicate(n_sims, simplify = F, 
+                                        one.second.extinct.mod_aug(web = init_sim$networks[[1]]$web, 
+                                                                   participant = "higher",
+                                                                   method = "random",
+                                                                   rewiring = T,
+                                                                   partner.choice = .x,
+                                                                   interactions = init_sim$networks[[1]]$I_mat,
+                                                                   method.rewiring = .y)))
 
 
 # initial extinction on lower level
@@ -236,8 +250,12 @@ source("list_means.R")
 rew_names <- c("abund" = 1, "trait" = 2, "phylo" = 3)
 
 # initial extinction on lower level org
-extc_sims_lower_org_mean <- list("lower" = list_mean(extc_sims_lower_org)),
-                                 "higher" = map(rew_names, ~ list_mean(extc_sims_lower_org, y = .x, lower = F)))
+extc_sims_lower_org_mean <- list("lower" = map(rew_names, ~ list_mean(extc_sims_lower_org, y = .x, original = T)),
+                                 "higher" = map(rew_names, ~ list_mean(extc_sims_lower_org, y = .x, lower = F, original = T)))
+
+# initial extinction on lower level org
+extc_sims_higher_org_mean <- list("lower" = map(rew_names, ~ list_mean(extc_sims_higher_org, y = .x, original = T)),
+                                 "higher" = map(rew_names, ~ list_mean(extc_sims_higher_org, y = .x, lower = F, original = T)))
 
 # initial extinction on lower level
 extc_sims_lower_mean <- list("lower" = map(rew_names, ~ list_mean(extc_sims_lower, y = .x)),
@@ -248,19 +266,31 @@ extc_sims_higher_mean <- list("lower" = map(rew_names, ~ list_mean(extc_sims_hig
                              "higher" = map(rew_names, ~ list_mean(extc_sims_higher, y = .x, lower = F)))
 
 # function to calculate percentages of remaining species
-per_surv <- function(x, y, lower = T) {
+per_surv <- function(x, y, lower = T, original = F) {
   list_divide <- function(x) {
     x / x[1] * 100
   }
   
   extc_in_network <- ifelse(isTRUE(lower), 1, 2)
   
+  if (original == T) {
+    list_divide(pluck(x, extc_in_network, y))
+  } else {
   map(c("Atl" = 1, "aTl" = 2, "atL" = 3),
       ~ list_divide(pluck(x, extc_in_network, y, .x)))
+  }
 }
 
 
 # calculate percentages of remaining sp
+# initial extinction on lower level original web
+sp_remain_lower_org <- list("lower" = map(rew_names, ~ per_surv(extc_sims_lower_org_mean, y = .x, original = T)),
+                        "higher" = map(rew_names, ~ per_surv(extc_sims_lower_org_mean, y = .x, lower = F, original = T)))
+
+# initial extinction on higher level original web
+sp_remain_higher_org <- list("lower" = map(rew_names, ~ per_surv(extc_sims_higher_org_mean, y = .x, original = T)),
+                         "higher" = map(rew_names, ~ per_surv(extc_sims_higher_org_mean, y = .x, lower = F, original = T)))
+
 # initial extinction on lower level
 sp_remain_lower <- list("lower" = map(rew_names, ~ per_surv(extc_sims_lower_mean, y = .x)),
                         "higher" = map(rew_names, ~ per_surv(extc_sims_lower_mean, y = .x, lower = F)))
@@ -290,5 +320,49 @@ plot_extc <- function(x){
       )
 }
 
+plot_extc_alt <- function(x, lower = F){
+  com_vars <- c("abund" = 1, "trait" = 2, "phylo" = 3)
+  if (lower == T) {
+  map(com_vars, ~ ggplot() + 
+        geom_line(aes(rev(pluck(x, 1, .x, 1)), pluck(x, 2, .x, 1),
+                      color = "Atl"), linetype = 1) +
+        geom_line(aes(rev(pluck(x, 1, .x, 2)), pluck(x, 2, .x, 2),
+                      color = "aTl"), linetype = 2) +
+        geom_line(aes(rev(pluck(x, 1, .x, 3)), pluck(x, 2, .x, 3),
+                      color = "atL"), linetype = 3) +
+        geom_line(aes(rev(pluck(sp_remain_lower_org, 1, .x)), pluck(sp_remain_lower_org, 2, .x),
+                      color = "original"), linetype = 4) +
+        scale_color_manual(name = "Rewiring Method",
+                           values = c("Atl" = "black",
+                                      "aTl" = "firebrick",
+                                      "atL" = "dodgerblue",
+                                      "original" = "burlywood4")) +
+        labs(x = "plants removed", y = "animals persisting",
+             title = paste("Extinction cascade", names(com_vars[.x])))
+  )
+  } else {
+    map(com_vars, ~ ggplot() + 
+          geom_line(aes(rev(pluck(x, 1, .x, 1)), pluck(x, 2, .x, 1),
+                        color = "Atl"), linetype = 1) +
+          geom_line(aes(rev(pluck(x, 1, .x, 2)), pluck(x, 2, .x, 2),
+                        color = "aTl"), linetype = 2) +
+          geom_line(aes(rev(pluck(x, 1, .x, 3)), pluck(x, 2, .x, 3),
+                        color = "atL"), linetype = 3) +
+          geom_line(aes(rev(pluck(sp_remain_higher_org, 1, .x)), pluck(sp_remain_higher_org, 2, .x),
+                        color = "original"), linetype = 4) +
+          scale_color_manual(name = "Rewiring Method",
+                             values = c("Atl" = "black",
+                                        "aTl" = "firebrick",
+                                        "atL" = "dodgerblue",
+                                        "original" = "burlywood4")) +
+          labs(x = "plants removed", y = "animals persisting",
+               title = paste("Extinction cascade", names(com_vars[.x])))
+    ) 
+  }
+}
+
 plot_extc(sp_remain_lower)
 plot_extc(sp_remain_higher)
+
+plot_extc_alt(sp_remain_lower, lower = T)
+plot_extc_alt(sp_remain_higher)

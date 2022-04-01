@@ -24,5 +24,6 @@ simnetfromtap_ctrb <- function(traits,
   # set sp names
   dimnames(simweb) <- dimnames(init_sim$networks[[1]]$I_mat)
   
-  return(simweb)
+  return(list("web" = simweb,
+              "I_mat" = sim$I_mat))
 }

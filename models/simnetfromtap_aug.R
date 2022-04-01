@@ -12,9 +12,10 @@ simnetfromtap_aug <- function(traits,
                               tmatch_type_obs,
                               ctrb_vec = c(NULL),
                               initial_sim = FALSE)
-{ if (!is.null(ctrb_vec)){
-  if (length(ctrb_vec) != 3) warning("ctrb_vec has to be a character vector of length 3, otherwise default imporatance of community variables is used")
-  }
+{ if (length(ctrb_vec) != 3){
+  warning("Invalid ctrb_vec. Default importances of community variables used")
+}
+  
   if (!is.null(traits$low)) 
     traits$low <- traits$low[order(rownames(traits$low)), 
                              , drop = FALSE]
