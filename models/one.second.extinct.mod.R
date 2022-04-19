@@ -5,23 +5,6 @@
 # probabilities.rewiring - A matrix with probabilities of rewiring, must be the same dimensions of the web (i.e. network). See section Methods in Vizentin-Bugoni et al. [in review] for details). This matrix is required in step ii of framework (default probabilities.rewiring = NULL).
 # probabilities.rewiring2 - A matrix with probabilities of rewiring, must be the same dimensions of web. See section Methods in Vizentin-Bugoni et al. [in review] for details. This matrix is required in step iii of framework (default probabilities.rewiring2 = NULL).
 # method.rewiring = Type of method used to trial rewiring, partial match to "one.try.single.partner", "multiple.trials.single.partner", "multiple.trials.multiples.partners", "one.try.each.partner" and "multiple.trials.each.partner". See section Methods in Vizentin-Bugoni et al. [in review] for details; (default method.rewiring = "one.try.single.partner").
-# 
-# method <-  "random"
-# participant <- "higher"
-# partner.choice <- phylos
-# method.rewiring <- "phylo"
-# interactions <- sims$aTl$I_mat
-# web <- sims$aTl$web
-
-# one.second.extinct.mod_aug(web = web,
-#                            participant = participant,
-#                            method = "random",
-#                            rewiring = T,
-#                            partner.choice = partner.choice,
-#                            interactions = interactions,
-#                            method.rewiring = method.rewiring)
-
-
 
 one.second.extinct.mod_aug <- function(web,
                                        participant = "higher",
@@ -29,9 +12,9 @@ one.second.extinct.mod_aug <- function(web,
                                        ext.row = NULL,
                                        ext.col = NULL, 
                                        rewiring = FALSE,
-                                       partner.choice,
-                                       interactions,
-                                       method.rewiring = NULL,
+                                       partner.choice = NULL,
+                                       interactions = NULL,
+                                       method.rewiring = "NULL",
                                        make.bipartite = F,
                                        adapt = T,
                                        vis.steps = F) {
@@ -86,6 +69,8 @@ one.second.extinct.mod_aug <- function(web,
     ext.temp <- extinction.mod(m2, participant = participant, method = method, ext.row = ext.row, ext.col = ext.col)
     # extinction.mod returns list w/ plants (rows; "rexcl") that lost partners and
     # animals (cols; "cexcl") that lost partners as well as network ("web")
+    
+    Nobs <- sum(m2)# - sum(m2[sp.ext, ]) # no of obs interactions
 
     # handle edge case where extc. sp has only dead interactions
     if (sum(ext.temp$rexcl, ext.temp$cexcl) == 0) {
@@ -112,7 +97,6 @@ one.second.extinct.mod_aug <- function(web,
         if(!is.null(ext.temp$rexcl)){ # Plant is extinct, looking for new interaction partners of birds that interacted with lost plant
           sp.ext <- rownames(ext.temp$rexcl) # name of extc. plant
           sp.try.rewiring <- which(ext.temp$rexcl>0) # number & position of interaction partners (higher trophic level)
-          Nobs <- sum(m2)# - sum(m2[sp.ext, ]) # no of obs interactions
           
           # Choice of rewiring partner
           if (method.rewiring == "abund") {
@@ -188,7 +172,6 @@ one.second.extinct.mod_aug <- function(web,
         if(!is.null(ext.temp$cexcl)){ # Bird is extinct, looking for new interaction partners of plants that interacted with lost bird
           sp.ext <- colnames(ext.temp$cexcl)  # name of extc. bird
           sp.try.rewiring <- which(ext.temp$cexcl>0) # number & position of interaction partners (lower trophic level)
-          Nobs <- sum(m2)# - sum(m2[, sp.ext]) # no of obs interactions
           
           # Choice of rewiring partner
           if (method.rewiring == "abund") {
@@ -265,12 +248,23 @@ one.second.extinct.mod_aug <- function(web,
     # removed rows and cols
     rem_r_c <- empty(ext.temp$web, count = T)
     
-    # check if choice is updated correctly
-    if (isTRUE(abort)) {
-      choice <- choice # don't delete sp.ext if it had only dead interactions
+    # get extc. sp if no rewiring
+    if (!isTRUE(rewiring)) {
+      if (participant == "lower") {
+        sp.ext <- rownames(ext.temp$rexcl)
       } else {
-        choice <- choice_tmp # delete sp.ext
+        sp.ext <- colnames(ext.temp$cexcl)
+      }
+    }
+    
+    # check if choice is updated correctly
+    if(isTRUE(rewiring)) {
+      if (isTRUE(abort)) {
+        choice <- choice # don't delete sp.ext if it had only dead interactions
+        } else {
+          choice <- choice_tmp # delete sp.ext
         }
+      }
     
     # remaining sp
     rem_low <- as.vector(attributes(rem_r_c)$dimnames[[1]])
@@ -407,12 +401,16 @@ one.second.extinct.mod_aug <- function(web,
     
     # reset
     skip <- F
-    abort <- F
+    # abort <- F
     
   }
 
   # Add last line of dead
-  dead2 <- rbind(dead, c(NROW(dead), nrow(interactions), ncol(interactions), 0L, 0L)) # add last line of dead (i.e. all sp extc)
+  if (abort == T) {
+    dead2 <- rbind(dead, c(NROW(dead), tail(dead, 1)[, "n.lower"], tail(dead, 1)[, "n.lower"], 0L, 0L)) # add last line of dead (i.e. all sp extc)
+  } else {
+    dead2 <- rbind(dead, c(NROW(dead), tail(dead, 1)[, "n.lower"], tail(dead, 1)[, "n.lower"], 0L, 0L)) # add last line of dead (i.e. all sp extc)
+  }
 
   if (participant == "lower" & method == "degree") {
     if (length(table(dead[, 2])) > 1) 
@@ -423,7 +421,7 @@ one.second.extinct.mod_aug <- function(web,
   #   stop("PANIC! Something went wrong with the extinct sequence! Please contact the author to fix this!!")
   # 
   if (make.bipartite == T) {
-    out <- list(dead2, ext.temp$web)
+    out <- dead2
     class(out) <- "bipartite"
     attr(out, "exterminated") <- c("both", "lower", "higher")[pmatch(participant, c("both", "lower", "higher"))]
     attr(out, "exterminated")
