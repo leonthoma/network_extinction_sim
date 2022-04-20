@@ -24,9 +24,9 @@ sp_names <- data.frame("plants" = plants,
 
 ## initial simulation ----
 # set no of nets and simulations
-n_webs <- 101
+n_webs <- 1001
 n_nets <- 4
-n_sims <- 11
+n_sims <- 10
 ctrbs <- c("Atl" = 1, "aTl" = 2, "atL" = 3, "ATL" = 4)
 rew_names <- c("abund", "trait", "phylo")
 
@@ -77,6 +77,7 @@ source("rewiring_vizentin-bugoni_2019/Functions/IC.R") # calc of 95 percent conf
 
 # only use Atl, aTl, and atL for extc sims
 n_nets <- 3
+sims_all <- sims # copy to preserve all contribution importances 
 sims <- map(seq(n_webs), ~ pluck(sims, .x)[-4]) # delete ATL
 
 # original web lower level
@@ -162,7 +163,6 @@ extc_sims_higher <- map(seq(n_webs), function(x) {
                   method.rewiring = .y,
                   n_sims = n_sims,
                   multiple.webs = T))})
-
 
 ## compute means of all simulations ----
 # initial extinction on lower level org
@@ -296,12 +296,12 @@ sp_remain_lower_web_mean_org <- list("lower" =
                                        map(.x = 1:3, function(x) {
                                          map(seq(n_webs), ~ pluck(sp_remain_lower_org, .x, "lower", x))  %>%
                                            as.data.table() %>%
-                                           web_mean() %>%
+                                           match_lengths() %>%
                                            rowMeans()}),
                                      "higher" = map(.x = 1:3, function(x){
                                        map(seq(n_webs), ~ pluck(sp_remain_lower_org, .x, "higher", x))  %>%
                                          as.data.table() %>%
-                                         web_mean() %>%
+                                         match_lengths() %>%
                                          rowMeans()}))
 
 # initial extincion on lower level original web
@@ -309,12 +309,12 @@ sp_remain_higher_web_mean_org <- list("lower" =
                                         map(.x = 1:3, function(x) {
                                           map(seq(n_webs), ~ pluck(sp_remain_higher_org, .x, "lower", x))  %>%
                                             as.data.table() %>%
-                                            web_mean() %>%
+                                            match_lengths() %>%
                                             rowMeans()}),
                                       "higher" = map(.x = 1:3, function(x){
                                         map(seq(n_webs), ~ pluck(sp_remain_higher_org, .x, "higher", x))  %>%
                                           as.data.table() %>%
-                                          web_mean() %>%
+                                          match_lengths() %>%
                                           rowMeans()}))
 
 # initial extincion on lower level, no rewiring
@@ -322,12 +322,12 @@ sp_remain_lower_web_mean_norew <-list("lower" =
                                         map(.x = 1:3, function(x) {
                                           map(seq(n_webs), ~ pluck(sp_remain_lower_norew, .x, "lower", x))  %>%
                                             as.data.table() %>%
-                                            web_mean() %>%
+                                            match_lengths() %>%
                                             rowMeans()}),
                                       "higher" = map(.x = 1:3, function(x){
                                         map(seq(n_webs), ~ pluck(sp_remain_lower_norew, .x, "higher", x))  %>%
                                           as.data.table() %>%
-                                          web_mean() %>%
+                                          match_lengths() %>%
                                           rowMeans()}))
 
 
@@ -336,12 +336,12 @@ sp_remain_higher_web_mean_norew <- list("lower" =
                                           map(.x = 1:3, function(x) {
                                             map(seq(n_webs), ~ pluck(sp_remain_higher_norew, .x, "lower", x))  %>%
                                               as.data.table() %>%
-                                              web_mean() %>%
+                                              match_lengths() %>%
                                               rowMeans()}),
                                         "higher" = map(.x = 1:3, function(x){
                                           map(seq(n_webs), ~ pluck(sp_remain_higher_norew, .x, "higher", x))  %>%
                                             as.data.table() %>%
-                                            web_mean() %>%
+                                            match_lengths() %>%
                                             rowMeans()}))
 
 # initial extincion on lower level
@@ -349,12 +349,12 @@ sp_remain_lower_web_mean <- list("lower" =
                                    map(.x = 1:3, function(x) map(.x = 1:3, function(y) {
                                      map(seq(n_webs), ~ pluck(sp_remain_lower, .x, "lower", y, x))  %>%
                                        as.data.table() %>%
-                                       web_mean() %>%
+                                       match_lengths() %>%
                                        rowMeans()})),
                                  "higher" = map(.x = 1:3, function(x) map(.x = 1:3, function(y) {
                                    map(seq(n_webs), ~ pluck(sp_remain_lower, .x, "higher", y, x))  %>%
                                      as.data.table() %>%
-                                     web_mean() %>%
+                                     match_lengths() %>%
                                      rowMeans()})))
 
 
@@ -363,10 +363,10 @@ sp_remain_higher_web_mean <- list("lower" =
                                     map(.x = 1:3, function(x) map(.x = 1:3, function(y) {
                                       map(seq(n_webs), ~ pluck(sp_remain_higher, .x, "lower", y, x))  %>%
                                         as.data.table() %>%
-                                        web_mean() %>%
+                                        match_lengths() %>%
                                         rowMeans()})),
                                   "higher" = map(.x = 1:3, function(x) map(.x = 1:3, function(y) {
                                     map(seq(n_webs), ~ pluck(sp_remain_higher, .x, "higher", y, x))  %>%
                                       as.data.table() %>%
-                                      web_mean() %>%
+                                      match_lengths() %>%
                                       rowMeans()})))
