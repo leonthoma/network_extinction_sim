@@ -23,7 +23,7 @@ sp_names <- data.frame("plants" = plants,
                        stringsAsFactors = F)
 
 # initial simulation ----
-n_webs <- 11
+n_webs <- 101
 
 # create initial network for community variables
 init_sim <- map(seq(n_webs), ~ simulate_tapnet_aug(nlower = 20, nhigher = 30, ntraits_nopem = 2,
@@ -32,7 +32,7 @@ init_sim <- map(seq(n_webs), ~ simulate_tapnet_aug(nlower = 20, nhigher = 30, nt
 
 # set no of nets and simulations
 n_nets <- 4
-n_sims <- 100
+n_sims <- 11
 ctrbs <- c("Atl" = 1, "aTl" = 2, "atL" = 3, "ATL" = 4)
 rew_names <- c("abund", "trait", "phylo")
 
@@ -66,52 +66,42 @@ connectance <- function(x) {
   sum(x != 0) / (nrow(x) * ncol(x))
 }
 
-
-# simulate webs for anova
-init_sims_metrics <- map(.x = 1:1000, ~
-  simulate_tapnet_aug(nlower = 20, nhigher = 30, ntraits_nopem = 2,
-                        ntraits_pem = 2, abuns = "lognormal", Nobs = 1111,
-                        names = sp_names, initial_sim = T))
-
-sims_metrics <- map(1:1000, function(x) {
-  map(ctrb_list, ~ simnetfromtap_ctrb(ctrb_vec = .x,
-                     traits = pluck(init_sims_metrics, x)$traits_all,
-                     abuns = pluck(init_sims_metrics, x)$networks[[1]]$abuns,
-                     paramsList = pluck(init_sims_metrics, x)$sim_params,
-                     pems = pluck(init_sims_metrics, x)$networks[[1]]$pems,
-                     tmatch_type_pem = "normal",
-                     tmatch_type_obs = "normal",
-                     Nobs = 1111))})
-
 # histograms
 # empty rows
 par(mfrow = c(3,1))
 map(1:3, function(x) {
-  hist(map(1:1000, ~ length(which(rowSums(sims_metrics[[.x]][[x]]$web) == 0))) %>%
+  hist(map(1:100, ~ length(which(rowSums(sims_metrics[[.x]][[x]]$web) == 0))) %>%
        unlist, xlab = paste("empty rows", names(ctrbs)[x]), main = NULL)})
 
 # empty cols
 map(1:3, function(x) {
-  hist(map(1:1000, ~ length(which(colSums(sims_metrics[[.x]][[x]]$web) == 0))) %>%
+  hist(map(1:100, ~ length(which(colSums(sims_metrics[[.x]][[x]]$web) == 0))) %>%
          unlist, xlab = paste("empty cols", names(ctrbs)[x]), main = NULL)})
 
-# anova of sims from each ctrb separately
-cntc_metrics <- map(ctrbs, function(x) {
-  map(sims_metrics, ~ connectance(pluck(.x, x, "web")))})
+# two dimensional shannon entropy
+H2 <- map(ctrbs, function(x) {
+  map(sims, ~ H2fun(pluck(.x, x, "web"))[[1]])})
 
-cntc_grouped_metrics <- map(ctrbs, ~ pluck(cntc_metrics, .x) %>% 
-  unlist() %>% 
-  data.table("vals" = .) %>%
-  cbind("group" = c(rep("a", 500), rep("b", 500))))
+H2_org <- map(seq(n_webs), ~ H2fun(init_sim[[.x]]$networks[[1]]$web)[[1]]) %>% 
+  unlist() %>%
+  data.table("vals" = .) %>% 
+  cbind("group" = "org") %>% bind_rows()
 
-map(ctrbs, function(x) {
-  anova(lm(pluck(cntc_grouped_metrics, x, "vals") ~ pluck(cntc_grouped_metrics, x, "group")))})
+H2_grouped <- map(ctrbs, function(x) pluck(H2, x) %>%
+                    unlist() %>%
+                    data.table("vals" = .) %>% 
+                    cbind("group" = names(ctrbs)[x])) %>% bind_rows()
 
-map(ctrbs, function(x) {
-  kruskal.test(pluck(cntc_grouped_metrics, x, "vals") ~ pluck(cntc_grouped_metrics, x, "group"))})
+H2_grouped <- bind_rows(H2_org, H2_grouped)
+
+library(ggpubr)
+ggboxplot(data = H2_grouped, x = "group", y = "vals", 
+          color = "group", palette = "npg",
+          order = c("Atl", "aTl", "atL", "ATL", "org"),
+          ylab = "H2", xlab = "Contribution importances", legend = "none") 
 
 # anova of all community variables 
-cntc <- map(sims_metrics, function(x) map(1:4, ~ connectance(pluck(x, .x, "web")))) 
+cntc <- map(sims, function(x) map(1:4, ~ connectance(pluck(x, .x, "web")))) 
 
 cntc_grouped <- map(ctrbs, function(x) map(cntc, ~ pluck(.x, x)) %>%
       unlist() %>%
@@ -373,12 +363,12 @@ sp_remain_lower_web_mean_org <- list("lower" =
                                    map(.x = 1:3, function(x) {
                                      map(seq(n_webs), ~ pluck(sp_remain_lower_org, .x, "lower", x))  %>%
                                        as.data.table() %>%
-                                       web_mean() %>%
+                                       match_lengths() %>%
                                        rowMeans()}),
                                  "higher" = map(.x = 1:3, function(x){
                                    map(seq(n_webs), ~ pluck(sp_remain_lower_org, .x, "higher", x))  %>%
                                      as.data.table() %>%
-                                     web_mean() %>%
+                                     match_lengths() %>%
                                      rowMeans()}))
 
 # initial extincion on lower level original web
@@ -386,12 +376,12 @@ sp_remain_higher_web_mean_org <- list("lower" =
                                        map(.x = 1:3, function(x) {
                                          map(seq(n_webs), ~ pluck(sp_remain_higher_org, .x, "lower", x))  %>%
                                            as.data.table() %>%
-                                           web_mean() %>%
+                                           match_lengths() %>%
                                            rowMeans()}),
                                      "higher" = map(.x = 1:3, function(x){
                                        map(seq(n_webs), ~ pluck(sp_remain_higher_org, .x, "higher", x))  %>%
                                          as.data.table() %>%
-                                         web_mean() %>%
+                                         match_lengths() %>%
                                          rowMeans()}))
 
 # initial extincion on lower level, no rewiring
@@ -399,12 +389,12 @@ sp_remain_lower_web_mean_norew <-list("lower" =
                                         map(.x = 1:3, function(x) {
                                           map(seq(n_webs), ~ pluck(sp_remain_lower_norew, .x, "lower", x))  %>%
                                             as.data.table() %>%
-                                            web_mean() %>%
+                                            match_lengths() %>%
                                             rowMeans()}),
                                       "higher" = map(.x = 1:3, function(x){
                                         map(seq(n_webs), ~ pluck(sp_remain_lower_norew, .x, "higher", x))  %>%
                                           as.data.table() %>%
-                                          web_mean() %>%
+                                          match_lengths() %>%
                                           rowMeans()}))
 
 
@@ -413,39 +403,39 @@ sp_remain_higher_web_mean_norew <- list("lower" =
                                           map(.x = 1:3, function(x) {
                                             map(seq(n_webs), ~ pluck(sp_remain_higher_norew, .x, "lower", x))  %>%
                                               as.data.table() %>%
-                                              web_mean() %>%
+                                              match_lengths() %>%
                                               rowMeans()}),
                                         "higher" = map(.x = 1:3, function(x){
                                           map(seq(n_webs), ~ pluck(sp_remain_higher_norew, .x, "higher", x))  %>%
                                             as.data.table() %>%
-                                            web_mean() %>%
+                                            match_lengths() %>%
                                             rowMeans()}))
 
 # initial extincion on lower level
 sp_remain_lower_web_mean <- list("lower" =
                           map(.x = 1:3, function(x) map(.x = 1:3, function(y) {
-                            map(seq(n_webs), ~ pluck(sp_remain_lower, .x, "lower", y, x))  %>%
+                            map(seq(n_webs), ~ pluck(sp_remain_lower, .x, "lower", x, y))  %>%
                               as.data.table() %>%
-                              web_mean() %>%
+                              match_lengths() %>%
                               rowMeans()})),
                         "higher" = map(.x = 1:3, function(x) map(.x = 1:3, function(y) {
-                          map(seq(n_webs), ~ pluck(sp_remain_lower, .x, "higher", y, x))  %>%
+                          map(seq(n_webs), ~ pluck(sp_remain_lower, .x, "higher", x, y))  %>%
                             as.data.table() %>%
-                            web_mean() %>%
+                            match_lengths() %>%
                             rowMeans()})))
 
 
 # initial extincion on higher level
 sp_remain_higher_web_mean <- list("lower" =
                            map(.x = 1:3, function(x) map(.x = 1:3, function(y) {
-                             map(seq(n_webs), ~ pluck(sp_remain_higher, .x, "lower", y, x))  %>%
+                             map(seq(n_webs), ~ pluck(sp_remain_higher, .x, "lower", x, y))  %>%
                                as.data.table() %>%
-                               web_mean() %>%
+                               match_lengths() %>%
                                rowMeans()})),
                         "higher" = map(.x = 1:3, function(x) map(.x = 1:3, function(y) {
-                          map(seq(n_webs), ~ pluck(sp_remain_higher, .x, "higher", y, x))  %>%
+                          map(seq(n_webs), ~ pluck(sp_remain_higher, .x, "higher", x, y))  %>%
                             as.data.table() %>%
-                            web_mean() %>%
+                            match_lengths() %>%
                             rowMeans()})))
 
 # visualize extinction models ----
@@ -483,62 +473,64 @@ plot_extc_alt(sp_remain_higher_web_mean,
 # 
 # meds_org <- map(1:3, ~ which(pluck(aucs_org, .x) == pluck(auc_meds_org, .x)))
 
-# get auc of every web 
-aucs <- map(.x = 1:3, function(x) map(.x = 1:3, function(y) {
-  map(seq(n_webs), ~ auc(x = pluck(sp_remain_lower, .x, "lower", y, x) %>% 
-                           rev(), 
-                         y = pluck(sp_remain_lower, .x, "higher", y, x)))}))
+# get ci of every web 
+# initial extinction on lower level
+ci_lower <- list("lower" = list("2.5" = conf_int(x = sp_remain_lower,
+                                                 mean = sp_remain_lower_web_mean),
+                                "97.5" = conf_int(x = sp_remain_lower,
+                                                  mean = sp_remain_lower_web_mean,
+                                                  lower = F)),
+                 "higher" = list("2.5" = conf_int(x = sp_remain_lower,
+                                     mean = sp_remain_lower_web_mean,
+                                     trph_lvl = "higher"),
+                                 "97.5" = conf_int(x = sp_remain_lower,
+                                                   mean = sp_remain_lower_web_mean,
+                                                   trph_lvl = "higher",
+                                                   lower = F)))
 
-# get min/max auc
-auc_mins <- map(.x = 1:3, function(x) map(.x = 1:3, ~ pluck(aucs, x, .x) %>%
-                                unlist %>% min)) # min
+# initial extinction on higher level
+ci_higher <- list("lower" = list("2.5" = conf_int(x = sp_remain_higher,
+                                                 mean = sp_remain_higher_web_mean),
+                                "97.5" = conf_int(x = sp_remain_higher,
+                                                  mean = sp_remain_higher_web_mean,
+                                                  lower = F)),
+                 "higher" = list("2.5" = conf_int(x = sp_remain_higher,
+                                                  mean = sp_remain_higher_web_mean,
+                                                  trph_lvl = "higher"),
+                                 "97.5" = conf_int(x = sp_remain_higher,
+                                                   mean = sp_remain_higher_web_mean,
+                                                   trph_lvl = "higher",
+                                                   lower = F)))
 
-auc_maxs <- map(.x = 1:3, function(x) map(.x = 1:3, ~ pluck(aucs, x, .x) %>%
-                                unlist %>% max)) # max
-
-auc_meds <- map(.x = 1:3, function(x) map(.x = 1:3, ~ pluck(aucs, x, .x) %>%
-                                            unlist %>% sort %>% median)) # mean
-
-
-# get min and max positions of sims based on auc
-mins <- map(1:3, function(p) map(1:3, ~ which(
-  pluck(aucs, p, .x) == pluck(auc_mins, p, .x))))
-
-maxs <- map(1:3, function(p) map(1:3, ~ which(
-  pluck(aucs, p, .x) == pluck(auc_maxs, p, .x))))
-
-meds <- map(1:3, function(p) map(1:3, ~ which(
-  pluck(aucs, p, .x) == pluck(auc_meds, p, .x))))
-
-# plot 
+# plot; intital extinction on lower trophic level
 dev_plots <- map(c("Atl" = 1, "aTl" = 2, "atL" = 3), function(x) ggplot() + 
-    geom_line(aes(rev(pluck(sp_remain_lower[[pluck(mins, 1, x)]], 1, x, 1)),
-                  pluck(sp_remain_lower[[pluck(mins, 1, x)]], 2, x, 1),
-                  color = "Abundance"), linetype = 1, size = .15) + # lower
-    geom_line(aes(rev(pluck(sp_remain_lower[[pluck(maxs, 1, x)]], 1, x, 1)),
-                  pluck(sp_remain_lower[[pluck(maxs, 1, x)]], 2, x, 1),
-                  color = "Abundance"), linetype = 1, size = .15) + # upper
-      geom_line(aes(rev(pluck(sp_remain_lower[[pluck(meds, 1, x)]], 1, x, 1)),
-                    pluck(sp_remain_lower[[pluck(meds, 1, x)]], 2, x, 1),
-                    color = "Abundance"), linetype = 1, size = .3) + # median
-    geom_line(aes(rev(pluck(sp_remain_lower[[pluck(mins, 2, x)]], 1, x, 2)),
-                  pluck(sp_remain_lower[[pluck(mins, 2, x)]], 2, x, 2),
-                  color = "Traits"), linetype = 2, size = .15) + # lower
-    geom_line(aes(rev(pluck(sp_remain_lower[[pluck(maxs, 2, x)]], 1, x, 2)),
-                  pluck(sp_remain_lower[[pluck(maxs, 2, x)]], 2, x, 2),
-                  color = "Traits"), linetype = 2, size = .15) + # upper
-      geom_line(aes(rev(pluck(sp_remain_lower[[pluck(meds, 2, x)]], 1, x, 2)),
-                    pluck(sp_remain_lower[[pluck(meds, 2, x)]], 2, x, 2),
-                    color = "Traits"), linetype = 1, size = .3) + # median
-    geom_line(aes(rev(pluck(sp_remain_lower[[pluck(mins, 3, x)]], 1, x, 3)),
-                  pluck(sp_remain_lower[[pluck(mins, 3, x)]], 2, x, 3),
+    # geom_line(aes(rev(pluck(ci_lower, 1, 1, 1, x)),
+    #               pluck(ci_lower, 2, 1, 1, x),
+    #               color = "Abundance"), linetype = 3, size = .15) + # lower
+    # geom_line(aes(rev(pluck(ci_lower, 1, 2, 1, x)),
+    #               pluck(ci_lower, 2, 2, 1, x),
+    #               color = "Abundance"), linetype = 3, size = .15) + # upper
+    #   geom_line(aes(rev(pluck(sp_remain_lower_web_mean, 1, x, 1)),
+    #                 pluck(sp_remain_lower_web_mean, 2, x, 1),
+    #                color = "Abundance"), linetype = 1, size = .5) + # mean
+    # geom_line(aes(rev(pluck(ci_lower, 1, 1, 2, x)),
+    #               pluck(ci_lower, 2, 1, 2, x),
+    #               color = "Traits"), linetype = 2, size = .15) + # lower
+    # geom_line(aes(rev(pluck(ci_lower, 1, 2, 2, x)),
+    #               pluck(ci_lower, 2, 2, 2, x),
+    #               color = "Traits"), linetype = 2, size = .15) + # upper
+    # geom_line(aes(rev(pluck(sp_remain_lower_web_mean, 1, x, 2)),
+    #               pluck(sp_remain_lower_web_mean, 2, x, 2),
+    #               color = "Traits"), linetype = 1, size = .5) + # mean
+    geom_line(aes(rev(pluck(ci_lower, 1, 1, 3, x)),
+                  pluck(ci_lower, 2, 1, 3, x),
                   color = "Phylogeny"), linetype = 3, size = .15) + # lower
-    geom_line(aes(rev(pluck(sp_remain_lower[[pluck(maxs, 3, x)]], 1, x, 3)),
-                  pluck(sp_remain_lower[[pluck(maxs, 3, x)]], 2, x, 3),
+    geom_line(aes(rev(pluck(ci_lower, 1, 2, 3, x)),
+                  pluck(ci_lower, 2, 2, 3, x),
                   color = "Phylogeny"), linetype = 3, size = .15) + # upper
-      geom_line(aes(rev(pluck(sp_remain_lower[[pluck(meds, 3, x)]], 1, x, 3)),
-                    pluck(sp_remain_lower[[pluck(meds, 3, x)]], 2, x, 3),
-                    color = "Phylogeny"), linetype = 1, size = .3) + # median
+    geom_line(aes(rev(pluck(sp_remain_lower_web_mean, 1, x, 3)),
+                  pluck(sp_remain_lower_web_mean, 2, x, 3),
+                  color = "Phylogeny"), linetype = 1, size = .5) + # mean
       scale_color_manual(name = "Rewiring Method",
                          values = c("Abundance" = "black",
                                     "Traits" = "firebrick",
