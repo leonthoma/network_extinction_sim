@@ -120,6 +120,7 @@ extc_sims_lower_norew <- map(seq(n_webs), function(x) {
            n_sims = n_sims,
            multiple.webs = T)})
 
+
 # no rewiring, initial extinction on higher level
 extc_sims_higher_norew <- map(seq(n_webs), function(x) {
   run_extc(web = pluck(sims, x),
@@ -213,6 +214,7 @@ extc_sims_higher_mean_norew <- map(seq(n_webs), function(x) {
                                   lower = F,
                                   original = T)))})
 
+
 # initial extinction on lower level
 extc_sims_lower_mean <- map(seq(n_webs), function(x) {
   list("lower" = map(rew_names,
@@ -244,6 +246,10 @@ sp_remain_lower_org <- map(seq(n_webs), function(x) {
                                       lower = F,
                                       original = T)))})
 
+# add dropped names
+sp_remain_lower_org <- modify_depth(sp_remain_lower_org, 2, 
+                                ~ set_names(.x, nm = c("abund", "trait", "phylo")))
+
 # initial extinction on higher level original web
 sp_remain_higher_org <- map(seq(n_webs), function(x) {
   list("lower" = map(1:3, ~ per_surv(pluck(extc_sims_higher_mean_org, x),
@@ -253,6 +259,10 @@ sp_remain_higher_org <- map(seq(n_webs), function(x) {
                                       y = .x,
                                       lower = F,
                                       original = T)))})
+
+# add dropped names
+sp_remain_higher_org <- modify_depth(sp_remain_higher_org, 2, 
+                                    ~ set_names(.x, nm = c("abund", "trait", "phylo")))
 
 # initial extinction on lower level, no rewiring
 sp_remain_lower_norew <- map(seq(n_webs), function(x) {
@@ -264,6 +274,10 @@ sp_remain_lower_norew <- map(seq(n_webs), function(x) {
                                       lower = F,
                                       original = T)))})
 
+# add dropped names
+sp_remain_lower_norew <- modify_depth(sp_remain_lower_norew, 2, 
+                                       ~ set_names(.x, nm = c("Atl", "aTl", "atL")))
+
 # initial extinction on higher level, no rewiring
 sp_remain_higher_norew <- map(seq(n_webs), function(x) {
   list("lower" = map(1:3, ~ per_surv(pluck(extc_sims_higher_mean_norew, x),
@@ -274,6 +288,10 @@ sp_remain_higher_norew <- map(seq(n_webs), function(x) {
                                       lower = F,
                                       original = T)))})
 
+# add dropped names
+sp_remain_higher_norew <- modify_depth(sp_remain_higher_norew, 2, 
+                                ~ set_names(.x, nm = c("Atl", "aTl", "atL")))
+
 # initial extinction on lower level
 sp_remain_lower <- map(seq(n_webs), function(x) {
   list("lower" = map(1:3, ~ per_surv(pluck(extc_sims_lower_mean, x),
@@ -282,6 +300,10 @@ sp_remain_lower <- map(seq(n_webs), function(x) {
                                       y = .x,
                                       lower = F)))})
 
+# add dropped names
+sp_remain_lower <- modify_depth(sp_remain_lower, 2, 
+                                ~ set_names(.x, nm = c("abund", "trait", "phylo")))
+
 # initial extinction on higher level
 sp_remain_higher <- map(seq(n_webs), function(x) {
   list("lower" = map(1:3, ~ per_surv(pluck(extc_sims_higher_mean, x),
@@ -289,6 +311,10 @@ sp_remain_higher <- map(seq(n_webs), function(x) {
        "higher" = map(1:3, ~ per_surv(pluck(extc_sims_higher_mean, x),
                                       y = .x,
                                       lower = F)))})
+
+# add dropped names
+sp_remain_higher <- modify_depth(sp_remain_higher, 2, 
+                                ~ set_names(.x, nm = c("abund", "trait", "phylo")))
 
 ## mean over all webs ----
 # initial extincion on lower level original web
@@ -304,6 +330,10 @@ sp_remain_lower_web_mean_org <- list("lower" =
                                          match_lengths() %>%
                                          rowMeans()}))
 
+# add dropped names
+sp_remain_lower_web_mean_org <- modify_depth(sp_remain_lower_web_mean_org, 1, 
+                                    ~ set_names(.x, nm = c("abund", "trait", "phylo")))
+
 # initial extincion on lower level original web
 sp_remain_higher_web_mean_org <- list("lower" =
                                         map(.x = 1:3, function(x) {
@@ -317,6 +347,10 @@ sp_remain_higher_web_mean_org <- list("lower" =
                                           match_lengths() %>%
                                           rowMeans()}))
 
+# add dropped names
+sp_remain_higher_web_mean_org <- modify_depth(sp_remain_higher_web_mean_org, 1, 
+                                             ~ set_names(.x, nm = c("abund", "trait", "phylo")))
+
 # initial extincion on lower level, no rewiring
 sp_remain_lower_web_mean_norew <-list("lower" =
                                         map(.x = 1:3, function(x) {
@@ -329,6 +363,10 @@ sp_remain_lower_web_mean_norew <-list("lower" =
                                           as.data.table() %>%
                                           match_lengths() %>%
                                           rowMeans()}))
+
+# add dropped names
+sp_remain_lower_web_mean_norew <- modify_depth(sp_remain_lower_web_mean_norew, 1, 
+                                      ~ set_names(.x, nm = c("Atl", "aTl", "atL")))
 
 
 # initial extincion on higher level
@@ -344,6 +382,10 @@ sp_remain_higher_web_mean_norew <- list("lower" =
                                             match_lengths() %>%
                                             rowMeans()}))
 
+# add dropped names
+sp_remain_higher_web_mean_norew <- modify_depth(sp_remain_higher_web_mean_norew, 1, 
+                                               ~ set_names(.x, nm = c("Atl", "aTl", "atL")))
+
 # initial extincion on lower level
 sp_remain_lower_web_mean <- list("lower" =
                                    map(.x = 1:3, function(x) map(.x = 1:3, function(y) {
@@ -357,6 +399,12 @@ sp_remain_lower_web_mean <- list("lower" =
                                      match_lengths() %>%
                                      rowMeans()})))
 
+# add dropped names
+sp_remain_lower_web_mean <- modify_depth(sp_remain_lower_web_mean, 1, 
+                                ~ set_names(.x, nm = c("abund", "trait", "phylo")))
+
+sp_remain_lower_web_mean <- modify_depth(sp_remain_lower_web_mean, 2, 
+                                         ~ set_names(.x, nm = c("Atl", "aTl", "atL")))
 
 # initial extincion on higher level
 sp_remain_higher_web_mean <- list("lower" =
@@ -370,3 +418,10 @@ sp_remain_higher_web_mean <- list("lower" =
                                       as.data.table() %>%
                                       match_lengths() %>%
                                       rowMeans()})))
+
+# add dropped names
+sp_remain_higher_web_mean <- modify_depth(sp_remain_higher_web_mean, 1, 
+                                         ~ set_names(.x, nm = c("abund", "trait", "phylo")))
+
+sp_remain_higher_web_mean <- modify_depth(sp_remain_higher_web_mean, 2, 
+                                         ~ set_names(.x, nm = c("Atl", "aTl", "atL")))

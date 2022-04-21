@@ -74,18 +74,6 @@ ggboxplot(data = H2_grouped, x = "group", y = "vals",
           ylab = "H2", xlab = "Contribution importances", legend = "none") 
 
 # visualize extinction models ----
-plot_extc(sp_remain_lower_web_mean, save = F, view = T, lower = T)
-plot_extc(sp_remain_higher_web_mean, save = F, view = T)
-
-plot_extc_alt(sp_remain_lower_web_mean,
-              sp_remain_lower_web_mean_org,
-              sp_remain_lower_web_mean_norew,
-              lower = T,
-              save = F)
-plot_extc_alt(sp_remain_higher_web_mean,
-              sp_remain_higher_web_mean_org,
-              sp_remain_higher_web_mean_norew,
-              save = F)
 
 # visualize deviation of sims
 # # get auc of every web original web 
@@ -109,6 +97,62 @@ plot_extc_alt(sp_remain_higher_web_mean,
 # meds_org <- map(1:3, ~ which(pluck(aucs_org, .x) == pluck(auc_meds_org, .x)))
 
 # get ci of every web 
+# initial extinction on lower level original web
+ci_lower_org <- list("lower" = list("2.5" = conf_int(x = sp_remain_lower_org,
+                                                 mean = sp_remain_lower_web_mean_org, norew_org = T),
+                                "97.5" = conf_int(x = sp_remain_lower_org,
+                                                  mean = sp_remain_lower_web_mean_org,
+                                                  lower = F, norew_org = T)),
+                 "higher" = list("2.5" = conf_int(x = sp_remain_lower_org,
+                                                  mean = sp_remain_lower_web_mean_org,
+                                                  trph_lvl = "higher", norew_org = T),
+                                 "97.5" = conf_int(x = sp_remain_lower_org,
+                                                   mean = sp_remain_lower_web_mean_org,
+                                                   trph_lvl = "higher",
+                                                   lower = F, norew_org = T)))
+
+# initial extinction on higher level original web
+ci_higher_org <- list("lower" = list("2.5" = conf_int(x = sp_remain_higher_org,
+                                                  mean = sp_remain_higher_web_mean_org, norew_org = T),
+                                 "97.5" = conf_int(x = sp_remain_higher_org,
+                                                   mean = sp_remain_higher_web_mean_org,
+                                                   lower = F), norew_org = T),
+                  "higher" = list("2.5" = conf_int(x = sp_remain_higher_org,
+                                                   mean = sp_remain_higher_web_mean_org,
+                                                   trph_lvl = "higher", norew_org = T),
+                                  "97.5" = conf_int(x = sp_remain_higher_org,
+                                                    mean = sp_remain_higher_web_mean_org,
+                                                    trph_lvl = "higher",
+                                                    lower = F, norew_org = T)))
+
+# initial extinction on lower level no rewiring
+ci_lower_norew <- list("lower" = list("2.5" = conf_int(x = sp_remain_lower_norew,
+                                                 mean = sp_remain_lower_web_mean_norew, norew_org = T),
+                                "97.5" = conf_int(x = sp_remain_lower_norew,
+                                                  mean = sp_remain_lower_web_mean_norew,
+                                                  lower = F, norew_org = T)),
+                 "higher" = list("2.5" = conf_int(x = sp_remain_lower_norew,
+                                                  mean = sp_remain_lower_web_mean_norew,
+                                                  trph_lvl = "higher", norew_org = T),
+                                 "97.5" = conf_int(x = sp_remain_lower_norew,
+                                                   mean = sp_remain_lower_web_mean_norew,
+                                                   trph_lvl = "higher",
+                                                   lower = F, norew_org = T)))
+
+# initial extinction on higher level no rewiring
+ci_higher_norew <- list("lower" = list("2.5" = conf_int(x = sp_remain_higher_norew,
+                                                  mean = sp_remain_higher_web_mean_norew, norew_org = T),
+                                 "97.5" = conf_int(x = sp_remain_higher_norew,
+                                                   mean = sp_remain_higher_web_mean_norew,
+                                                   lower = F, norew_org = T)),
+                  "higher" = list("2.5" = conf_int(x = sp_remain_higher_norew,
+                                                   mean = sp_remain_higher_web_mean_norew,
+                                                   trph_lvl = "higher", norew_org = T),
+                                  "97.5" = conf_int(x = sp_remain_higher_norew,
+                                                    mean = sp_remain_higher_web_mean_norew,
+                                                    trph_lvl = "higher",
+                                                    lower = F, norew_org = T)))
+
 # initial extinction on lower level
 ci_lower <- list("lower" = list("2.5" = conf_int(x = sp_remain_lower,
                                                  mean = sp_remain_lower_web_mean),
@@ -137,54 +181,26 @@ ci_higher <- list("lower" = list("2.5" = conf_int(x = sp_remain_higher,
                                                     trph_lvl = "higher",
                                                     lower = F)))
 
-# plot; intital extinction on lower trophic level
-dev_plots <- map(c("Atl" = 1, "aTl" = 2, "atL" = 3), function(x) ggplot() + 
-                   # geom_line(aes(rev(pluck(ci_lower, 1, 1, 1, x)),
-                   #               pluck(ci_lower, 2, 1, 1, x),
-                   #               color = "Abundance"), linetype = 3, size = .15) + # lower
-                   # geom_line(aes(rev(pluck(ci_lower, 1, 2, 1, x)),
-                   #               pluck(ci_lower, 2, 2, 1, x),
-                   #               color = "Abundance"), linetype = 3, size = .15) + # upper
-                   #   geom_line(aes(rev(pluck(sp_remain_lower_web_mean, 1, x, 1)),
-                   #                 pluck(sp_remain_lower_web_mean, 2, x, 1),
-                   #                color = "Abundance"), linetype = 1, size = .5) + # mean
-                   # geom_line(aes(rev(pluck(ci_lower, 1, 1, 2, x)),
-                   #               pluck(ci_lower, 2, 1, 2, x),
-                 #               color = "Traits"), linetype = 2, size = .15) + # lower
-                 # geom_line(aes(rev(pluck(ci_lower, 1, 2, 2, x)),
-                 #               pluck(ci_lower, 2, 2, 2, x),
-                 #               color = "Traits"), linetype = 2, size = .15) + # upper
-                 # geom_line(aes(rev(pluck(sp_remain_lower_web_mean, 1, x, 2)),
-                 #               pluck(sp_remain_lower_web_mean, 2, x, 2),
-                 #               color = "Traits"), linetype = 1, size = .5) + # mean
-                 geom_line(aes(rev(pluck(ci_lower, 1, 1, 3, x)),
-                               pluck(ci_lower, 2, 1, 3, x),
-                               color = "Phylogeny"), linetype = 3, size = .15) + # lower
-                   geom_line(aes(rev(pluck(ci_lower, 1, 2, 3, x)),
-                                 pluck(ci_lower, 2, 2, 3, x),
-                                 color = "Phylogeny"), linetype = 3, size = .15) + # upper
-                   geom_line(aes(rev(pluck(sp_remain_lower_web_mean, 1, x, 3)),
-                                 pluck(sp_remain_lower_web_mean, 2, x, 3),
-                                 color = "Phylogeny"), linetype = 1, size = .5) + # mean
-                   scale_color_manual(name = "Rewiring Method",
-                                      values = c("Abundance" = "black",
-                                                 "Traits" = "firebrick",
-                                                 "Phylogeny" = "dodgerblue")) +
-                   labs(x = "plants removed", y = "animals persisting",
-                        title = paste("Extinction cascade", names(ctrbs)[x]))
-)
+plot_extc(sp_remain_lower_web_mean, ci_lower, save = F, view = T, lower = T)
+plot_extc(sp_remain_higher_web_mean, ci_higher, save = F, view = T)
 
-dev_plots
 
-map(1:3, ~ ggsave(
-  paste("deviation extinction cascade lower trophic level",
-        names(c("Atl" = 1, "aTl" = 2, "atL" = 3)[.x])),
-  path = paste0(getwd(), "/plot_sink"),
-  plot = dev_plots[[.x]],
-  device = "pdf",
-  width = 1900,
-  height = 1205,
-  units = "px"))
+plot_extc_alt(x = sp_remain_lower_web_mean,
+              org = sp_remain_lower_web_mean_org,
+              norew = sp_remain_lower_web_mean_norew,
+              ci = ci_lower, 
+              ci_org = ci_lower_org,
+              ci_norew = ci_lower_norew,
+              lower = T,
+              save = F)
+
+plot_extc_alt(sp_remain_higher_web_mean,
+              sp_remain_higher_web_mean_org,
+              sp_remain_higher_web_mean_norew,
+              ci_higher,
+              ci_higher_org,
+              ci_higher_norew,
+              save = F)
 
 # Deviance of all networks for one scenario
 map(c("Abund" = 1, "Traits" = 2, "Phylo" = 3), ~ ggplot() +
