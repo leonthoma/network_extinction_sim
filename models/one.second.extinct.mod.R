@@ -40,6 +40,14 @@ one.second.extinct.mod_aug <- function(web,
   
   colnames(dead) <- c("no", "ext.lower", "ext.higher", "n.lower", "n.higher")
   
+  # create dummy if participant option both is used
+  if (participant == "both") {
+    partis <- participant
+  }
+  
+  # set initial choice
+  choice_low <- NULL
+  choice_high <- NULL
   
   # get interaction vals & drop sp w/o any interactions
   # interactions <- interactions[which(rownames(interactions) %in% names(sp_low)),
@@ -94,61 +102,65 @@ one.second.extinct.mod_aug <- function(web,
     }
     if (!isTRUE(abort)) {
       if (rewiring) {
-        if(!is.null(ext.temp$rexcl)){ # Plant is extinct, looking for new interaction partners of birds that interacted with lost plant
+        if (!is.null(ext.temp$rexcl)){ # Plant is extinct, looking for new interaction partners of birds that interacted with lost plant
           sp.ext <- rownames(ext.temp$rexcl) # name of extc. plant
           sp.try.rewiring <- which(ext.temp$rexcl>0) # number & position of interaction partners (higher trophic level)
           
+          # overwrite participant if using option both
+          if (partis == "both")
+            participant <- "lower"
+          
           # Choice of rewiring partner
           if (method.rewiring == "abund") {
-            if (i == 1) {
-              choice <- partner.choice$low # get values
+            if (i == 1 | is.null(choice_low)) {
+              choice_low <- partner.choice$low # get values
               }
   
-            choice <- choice[which(names(choice) %in% rownames(interactions))] # drop sp w/o any interactions
+            choice_low <- choice_low[which(names(choice_low) %in% rownames(interactions))] # drop sp w/o any interactions
             
-            sp.ext.idx <- which(names(choice) %in% sp.ext) # get idx of sp.ext (NOT THE SAME IN ext.temp$web !!)
+            sp.ext.idx <- which(names(choice_low) %in% sp.ext) # get idx of sp.ext (NOT THE SAME IN ext.temp$web !!)
             
             # get sp w/ highest abund
-            sp.high.abund <- names(which.max(choice[-sp.ext.idx]))
+            sp.high.abund <- names(which.max(choice_low[-sp.ext.idx]))
             
             rew.partner <- which(rownames(m2) %in% sp.high.abund)
-            choice_tmp <- choice[-sp.ext.idx] # delete extc sp
+            choice_low_tmp <- choice_low[-sp.ext.idx] # delete extc sp
           }
           
           # choose rewiring partner based on most similar trait
           if (method.rewiring == "trait") {
-            if (i == 1) {
-              choice <- partner.choice$low # get values
+            if (i == 1 | is.null(choice_low)) {
+              choice_low <- partner.choice$low # get values
             }
             
-            choice <- choice[which(rownames(choice) %in% rownames(interactions)), , drop = F] # drop sp w/o any interactions
+            choice_low <- choice_low[which(rownames(choice_low) %in% rownames(interactions)), , drop = F] # drop sp w/o any interactions
     
-            sp.ext.idx <- which(rownames(choice) %in% sp.ext) # get idx of sp.ext (NOT THE SAME IN ext.temp$web !!)
+            sp.ext.idx <- which(rownames(choice_low) %in% sp.ext) # get idx of sp.ext (NOT THE SAME IN ext.temp$web !!)
             
             # calculate euclidean distances
-            trait.dist <- as.matrix(dist(choice, diag = T, upper = T)) 
+            trait.dist <- as.matrix(dist(choice_low, diag = T, upper = T)) 
             
             # find sp w/ smallest trait dist
             sp.closest <- names(which.min(trait.dist[-sp.ext.idx, sp.ext.idx]))
               
             # match interacting sp of closest relative(check.int) to remaining sp (sp.rem)
             rew.partner <- which(rownames(m2) %in% sp.closest)
-            choice_tmp <- choice[-sp.ext.idx, ] # delete extc sp
+            choice_low_tmp <- choice_low[-sp.ext.idx, ] # delete extc sp
           }
           
           # choose rewiring partner based on closest phylogenetic distance
           if (method.rewiring == "phylo") {
-            if (i == 1) {
-              choice <- partner.choice$low # get values
+            if (i == 1 | is.null(choice_low)) {
+              choice_low <- partner.choice$low # get values
             }
             
-            choice <- choice[which(rownames(choice) %in% rownames(interactions)), which(colnames(choice) %in% rownames(interactions)), drop = F] # drop sp w/o any interactions
+            choice_low <- choice_low[which(rownames(choice_low) %in% rownames(interactions)), which(colnames(choice_low) %in% rownames(interactions)), drop = F] # drop sp w/o any interactions
             
-            sp.ext.idx <- which(rownames(choice) %in% sp.ext) # get idx of sp.ext (NOT THE SAME IN ext.temp$web !!)
+            sp.ext.idx <- which(rownames(choice_low) %in% sp.ext) # get idx of sp.ext (NOT THE SAME IN ext.temp$web !!)
             
             # get closest relative
-            close.rel <-  min(choice[-sp.ext.idx, sp.ext.idx]) # get distance
-            sp.close.rel.tmp <- names(which(choice[, sp.ext.idx] == close.rel)) # closest sp
+            close.rel <-  min(choice_low[-sp.ext.idx, sp.ext.idx]) # get distance
+            sp.close.rel.tmp <- names(which(choice_low[, sp.ext.idx] == close.rel)) # closest sp
             
             # if multiple species have same distance, randomly choose one
             if (length(sp.close.rel.tmp) != 1){
@@ -158,7 +170,7 @@ one.second.extinct.mod_aug <- function(web,
             }
             
             rew.partner <- which(rownames(m2) %in% sp.close.rel)
-            choice_tmp <- choice[-sp.ext.idx, -sp.ext.idx, drop = F] # delete extc sp
+            choice_low_tmp <- choice_low[-sp.ext.idx, -sp.ext.idx, drop = F] # delete extc sp
           }
           
           # Shift interaction probability from old interaction (sp.ext + sp.try.rewiring) to new interaction (rew.partner + sp.try.rewiring)
@@ -173,57 +185,61 @@ one.second.extinct.mod_aug <- function(web,
           sp.ext <- colnames(ext.temp$cexcl)  # name of extc. bird
           sp.try.rewiring <- which(ext.temp$cexcl>0) # number & position of interaction partners (lower trophic level)
           
+          # overwrite participant if using option both
+          if (partis == "both")
+            participant <- "higher"
+          
           # Choice of rewiring partner
           if (method.rewiring == "abund") {
-            if (i == 1) {
-              choice <- partner.choice$high # get values
+            if (i == 1 | is.null(choice_high)) {
+              choice_high <- partner.choice$high # get values
             }
             
-            choice <- choice[which(names(choice) %in% colnames(interactions))] # drop sp w/o any interactions
+            choice_high <- choice_high[which(names(choice_high) %in% colnames(interactions))] # drop sp w/o any interactions
             
-            sp.ext.idx <- which(names(choice) %in% sp.ext) # get idx of sp.ext (NOT THE SAME IN ext.temp$web !!)
+            sp.ext.idx <- which(names(choice_high) %in% sp.ext) # get idx of sp.ext (NOT THE SAME IN ext.temp$web !!)
             
             # get sp w/ highest abund
-            sp.high.abund <- names(which.max(choice[-sp.ext.idx]))
+            sp.high.abund <- names(which.max(choice_high[-sp.ext.idx]))
             
             rew.partner <- which(colnames(m2) %in% sp.high.abund)
-            choice_tmp <- choice[-sp.ext.idx] # delete extc sp
+            choice_high_tmp <- choice_high[-sp.ext.idx] # delete extc sp
           }
           
           # choose rewiring partner based on most similar trait
           if (method.rewiring == "trait") {
-            if (i == 1) {
-              choice <- partner.choice$high # get values
+            if (i == 1 | is.null(choice_high)) {
+              choice_high <- partner.choice$high # get values
             }
             
-            choice <- choice[which(rownames(choice) %in% colnames(interactions)), , drop = F] # drop sp w/o any interactions
+            choice_high <- choice_high[which(rownames(choice_high) %in% colnames(interactions)), , drop = F] # drop sp w/o any interactions
             
-            sp.ext.idx <- which(rownames(choice) %in% sp.ext) # get idx of sp.ext (NOT THE SAME IN ext.temp$web !!)
+            sp.ext.idx <- which(rownames(choice_high) %in% sp.ext) # get idx of sp.ext (NOT THE SAME IN ext.temp$web !!)
             
             # calculate euclidean distances
-            trait.dist <- as.matrix(dist(choice, diag = T, upper = T)) 
+            trait.dist <- as.matrix(dist(choice_high, diag = T, upper = T)) 
             
             # find sp w/ smallest trait dist
             sp.closest <- names(which.min(trait.dist[-sp.ext.idx, sp.ext.idx]))
             
             # match interacting sp of closest relative(check.int) to remaining sp (sp.rem)
             rew.partner <- which(colnames(m2) %in% sp.closest)
-            choice_tmp <- choice[-sp.ext.idx, ] # delete extc sp
+            choice_high_tmp <- choice_high[-sp.ext.idx, ] # delete extc sp
           }
           
           # choose rewiring partner based on closest phylogenetic distance
           if (method.rewiring == "phylo") {
-            if (i == 1) {
-              choice <- partner.choice$high # get values
+            if (i == 1 | is.null(choice_high)) {
+              choice_high <- partner.choice$high # get values
             }
             
-            choice <- choice[which(rownames(choice) %in% colnames(interactions)), which(colnames(choice) %in% colnames(interactions)), drop = F] # drop sp w/o any interactions
+            choice_high <- choice_high[which(rownames(choice_high) %in% colnames(interactions)), which(colnames(choice_high) %in% colnames(interactions)), drop = F] # drop sp w/o any interactions
             
-            sp.ext.idx <- which(rownames(choice) %in% sp.ext) # get idx of sp.ext (NOT THE SAME IN ext.temp$web !!)
+            sp.ext.idx <- which(rownames(choice_high) %in% sp.ext) # get idx of sp.ext (NOT THE SAME IN ext.temp$web !!)
             
             # get closest relative
-            close.rel <-  min(choice[-sp.ext.idx, sp.ext.idx]) # get distance
-            sp.close.rel.tmp <- names(which(choice[, sp.ext.idx] == close.rel)) # closest sp
+            close.rel <-  min(choice_high[-sp.ext.idx, sp.ext.idx]) # get distance
+            sp.close.rel.tmp <- names(which(choice_high[, sp.ext.idx] == close.rel)) # closest sp
             
             # if multiple species have same distance, randomly choose one
             if (length(sp.close.rel.tmp) != 1){
@@ -233,7 +249,7 @@ one.second.extinct.mod_aug <- function(web,
             }
             
             rew.partner <- which(colnames(m2) %in% sp.close.rel)
-            choice_tmp <- choice[-sp.ext.idx, -sp.ext.idx, drop = F] # delete extc sp
+            choice_high_tmp <- choice_high[-sp.ext.idx, -sp.ext.idx, drop = F] # delete extc sp
           }
         
         # Shift interaction probability from old interaction (sp.ext + sp.try.rewiring) to new interaction (rew.partner + sp.try.rewiring)
@@ -260,9 +276,17 @@ one.second.extinct.mod_aug <- function(web,
     # check if choice is updated correctly
     if(isTRUE(rewiring)) {
       if (isTRUE(abort)) {
-        choice <- choice # don't delete sp.ext if it had only dead interactions
+        if(!is.null(choice_low))
+          choice_low <- choice_low # don't delete sp.ext if it had only dead interactions
+        
+        if(!is.null(choice_high))
+          choice_high <- choice_high 
         } else {
-          choice <- choice_tmp # delete sp.ext
+          if(!is.null(choice_low))
+            choice_low <- choice_low_tmp # delete sp.ext
+          
+          if(!is.null(choice_high))
+            choice_high <- choice_high_tmp 
         }
       }
     
@@ -403,13 +427,16 @@ one.second.extinct.mod_aug <- function(web,
     skip <- F
     # abort <- F
     
+    # reset participant overwrite; only used when option is both
+    if (partis == "both")
+      participant <- "both" 
   }
 
   # Add last line of dead
   if (abort == T) {
-    dead2 <- rbind(dead, c(NROW(dead), tail(dead, 1)[, "n.lower"], tail(dead, 1)[, "n.lower"], 0L, 0L)) # add last line of dead (i.e. all sp extc)
+    dead2 <- rbind(dead, c(NROW(dead), tail(dead, 1)[, "n.lower"], tail(dead, 1)[, "n.higher"], 0L, 0L)) # add last line of dead (i.e. all sp extc)
   } else {
-    dead2 <- rbind(dead, c(NROW(dead), tail(dead, 1)[, "n.lower"], tail(dead, 1)[, "n.lower"], 0L, 0L)) # add last line of dead (i.e. all sp extc)
+    dead2 <- rbind(dead, c(NROW(dead), tail(dead, 1)[, "n.lower"], tail(dead, 1)[, "n.higher"], 0L, 0L)) # add last line of dead (i.e. all sp extc)
   }
 
   if (participant == "lower" & method == "degree") {
