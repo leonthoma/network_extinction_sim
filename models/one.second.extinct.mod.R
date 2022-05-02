@@ -31,7 +31,7 @@ one.second.extinct.mod_aug <- function(web,
   sp_high <- which(colSums(web) != 0L)
 
   # drop sp w/o any interactions from web
-  m2 <- web[sp_low, sp_high]
+  m2 <- web[sp_low, sp_high, drop = F]
   
   ## Debugging
   # m2 <- web
@@ -54,7 +54,7 @@ one.second.extinct.mod_aug <- function(web,
   #                              which(colnames(interactions) %in% names(sp_high))]
 
   # adapatability
-  if (adapt == T) {
+  if (adapt) {
   adapt_list <- list("low" = runif(nrow(m2), 0, 1),
                 "high" = runif(ncol(m2), 0, 1))
   } else {
@@ -100,7 +100,7 @@ one.second.extinct.mod_aug <- function(web,
         # skip <- T
       }
     }
-    if (!isTRUE(abort)) {
+    if (!abort) {
       if (rewiring) {
         if (!is.null(ext.temp$rexcl)){ # Plant is extinct, looking for new interaction partners of birds that interacted with lost plant
           sp.ext <- rownames(ext.temp$rexcl) # name of extc. plant
@@ -116,15 +116,15 @@ one.second.extinct.mod_aug <- function(web,
               choice_low <- partner.choice$low # get values
               }
   
-            choice_low <- choice_low[which(names(choice_low) %in% rownames(interactions))] # drop sp w/o any interactions
+            choice_low <- choice_low[which(names(choice_low) %in% rownames(interactions)), drop = F] # drop sp w/o any interactions
             
             sp.ext.idx <- which(names(choice_low) %in% sp.ext) # get idx of sp.ext (NOT THE SAME IN ext.temp$web !!)
             
             # get sp w/ highest abund
-            sp.high.abund <- names(which.max(choice_low[-sp.ext.idx]))
+            sp.high.abund <- names(which.max(choice_low[-sp.ext.idx, drop = F]))
             
             rew.partner <- which(rownames(m2) %in% sp.high.abund)
-            choice_low_tmp <- choice_low[-sp.ext.idx] # delete extc sp
+            choice_low_tmp <- choice_low[-sp.ext.idx, drop = F] # delete extc sp
           }
           
           # choose rewiring partner based on most similar trait
@@ -141,11 +141,11 @@ one.second.extinct.mod_aug <- function(web,
             trait.dist <- as.matrix(dist(choice_low, diag = T, upper = T)) 
             
             # find sp w/ smallest trait dist
-            sp.closest <- names(which.min(trait.dist[-sp.ext.idx, sp.ext.idx]))
+            sp.closest <- names(which.min(trait.dist[-sp.ext.idx, sp.ext.idx, drop = F]))
               
             # match interacting sp of closest relative(check.int) to remaining sp (sp.rem)
             rew.partner <- which(rownames(m2) %in% sp.closest)
-            choice_low_tmp <- choice_low[-sp.ext.idx, ] # delete extc sp
+            choice_low_tmp <- choice_low[-sp.ext.idx, , drop = F] # delete extc sp
           }
           
           # choose rewiring partner based on closest phylogenetic distance
@@ -157,10 +157,11 @@ one.second.extinct.mod_aug <- function(web,
             choice_low <- choice_low[which(rownames(choice_low) %in% rownames(interactions)), which(colnames(choice_low) %in% rownames(interactions)), drop = F] # drop sp w/o any interactions
             
             sp.ext.idx <- which(rownames(choice_low) %in% sp.ext) # get idx of sp.ext (NOT THE SAME IN ext.temp$web !!)
+            error<<- rownames(choice_low)
             
             # get closest relative
-            close.rel <-  min(choice_low[-sp.ext.idx, sp.ext.idx]) # get distance
-            sp.close.rel.tmp <- names(which(choice_low[, sp.ext.idx] == close.rel)) # closest sp
+            close.rel <-  min(choice_low[-sp.ext.idx, sp.ext.idx, drop = F]) # get distance
+            sp.close.rel.tmp <- colnames(choice_low[which(choice_low[, sp.ext.idx, drop = F] == close.rel), sp.ext, drop = F]) # closest sp
             
             # if multiple species have same distance, randomly choose one
             if (length(sp.close.rel.tmp) != 1){
@@ -195,15 +196,15 @@ one.second.extinct.mod_aug <- function(web,
               choice_high <- partner.choice$high # get values
             }
             
-            choice_high <- choice_high[which(names(choice_high) %in% colnames(interactions))] # drop sp w/o any interactions
+            choice_high <- choice_high[which(names(choice_high) %in% colnames(interactions)), drop = F] # drop sp w/o any interactions
             
             sp.ext.idx <- which(names(choice_high) %in% sp.ext) # get idx of sp.ext (NOT THE SAME IN ext.temp$web !!)
             
             # get sp w/ highest abund
-            sp.high.abund <- names(which.max(choice_high[-sp.ext.idx]))
+            sp.high.abund <- names(which.max(choice_high[-sp.ext.idx, drop = F]))
             
             rew.partner <- which(colnames(m2) %in% sp.high.abund)
-            choice_high_tmp <- choice_high[-sp.ext.idx] # delete extc sp
+            choice_high_tmp <- choice_high[-sp.ext.idx, drop = F] # delete extc sp
           }
           
           # choose rewiring partner based on most similar trait
@@ -220,11 +221,11 @@ one.second.extinct.mod_aug <- function(web,
             trait.dist <- as.matrix(dist(choice_high, diag = T, upper = T)) 
             
             # find sp w/ smallest trait dist
-            sp.closest <- names(which.min(trait.dist[-sp.ext.idx, sp.ext.idx]))
+            sp.closest <- names(which.min(trait.dist[-sp.ext.idx, sp.ext.idx, drop = F]))
             
             # match interacting sp of closest relative(check.int) to remaining sp (sp.rem)
             rew.partner <- which(colnames(m2) %in% sp.closest)
-            choice_high_tmp <- choice_high[-sp.ext.idx, ] # delete extc sp
+            choice_high_tmp <- choice_high[-sp.ext.idx, , drop = F] # delete extc sp
           }
           
           # choose rewiring partner based on closest phylogenetic distance
@@ -235,11 +236,13 @@ one.second.extinct.mod_aug <- function(web,
             
             choice_high <- choice_high[which(rownames(choice_high) %in% colnames(interactions)), which(colnames(choice_high) %in% colnames(interactions)), drop = F] # drop sp w/o any interactions
             
+            
             sp.ext.idx <- which(rownames(choice_high) %in% sp.ext) # get idx of sp.ext (NOT THE SAME IN ext.temp$web !!)
+            error<<-rownames(choice_low)
             
             # get closest relative
-            close.rel <-  min(choice_high[-sp.ext.idx, sp.ext.idx]) # get distance
-            sp.close.rel.tmp <- names(which(choice_high[, sp.ext.idx] == close.rel)) # closest sp
+            close.rel <-  min(choice_high[-sp.ext.idx, sp.ext.idx, drop = F]) # get distance
+            sp.close.rel.tmp <- rownames(choice_high[sp.ext, which(choice_high[, sp.ext.idx, drop = F] == close.rel), drop = F]) # closest sp
             
             # if multiple species have same distance, randomly choose one
             if (length(sp.close.rel.tmp) != 1){
@@ -265,7 +268,7 @@ one.second.extinct.mod_aug <- function(web,
     rem_r_c <- empty(ext.temp$web, count = T)
     
     # get extc. sp if no rewiring
-    if (!isTRUE(rewiring)) {
+    if (!rewiring) {
       if (participant == "lower") {
         sp.ext <- rownames(ext.temp$rexcl)
       } else {
@@ -274,8 +277,8 @@ one.second.extinct.mod_aug <- function(web,
     }
     
     # check if choice is updated correctly
-    if(isTRUE(rewiring)) {
-      if (isTRUE(abort)) {
+    if(rewiring) {
+      if (abort) {
         if(!is.null(choice_low))
           choice_low <- choice_low # don't delete sp.ext if it had only dead interactions
         
@@ -295,7 +298,7 @@ one.second.extinct.mod_aug <- function(web,
     rem_high <- as.vector(attributes(rem_r_c)$dimnames[[2]])
   
     # compare dead interaction sp with extc sp
-    if (isTRUE(abort)){ # if sp.ext has only dead interactions delete no species
+    if (abort){ # if sp.ext has only dead interactions delete no species
       ext_low <- 0L
       ext_high <- 0L
       skip <- T
@@ -318,7 +321,7 @@ one.second.extinct.mod_aug <- function(web,
     }
     
     # track no of extc and no of remaining sp, skip if only dead interactions
-    if (!isTRUE(skip)) {
+    if (!skip) {
       if (i == 1) {
         dead <- rbind(dead, c(i, ext_low, ext_high,
                               nrow(m2) - ext_low,
@@ -330,12 +333,12 @@ one.second.extinct.mod_aug <- function(web,
       }
     }
     
-    if (vis.steps == T) {
+    if (vis.steps) {
       plotweb(m2)
     }
   
     # update I_mat
-    if (!isTRUE(abort)) {
+    if (!abort) {
       if (participant == "lower") {
         interactions <- interactions[-which(rownames(interactions) == sp.ext), , drop = F]
       }
@@ -351,7 +354,7 @@ one.second.extinct.mod_aug <- function(web,
       }
     }
     
-    if (!isTRUE(abort)) {
+    if (!abort) {
     drop_rows <- which(!(rownames(interactions) %in% rownames(rem_r_c)))
     drop_cols <- which(!(colnames(interactions) %in% colnames(rem_r_c)))
     } else {
@@ -368,7 +371,7 @@ one.second.extinct.mod_aug <- function(web,
     retain_high <- which(colnames(interactions) %in% names(dead_high))
     
     if (!length(retain_low) == 0L) {
-      drop_rows <- drop_rows[-which(drop_rows %in% retain_low)]
+      drop_rows <- drop_rows[-which(drop_rows %in% retain_low), drop = F]
     } # retain dead interactions
     
     if (!length(drop_rows) == 0L) {
@@ -376,7 +379,7 @@ one.second.extinct.mod_aug <- function(web,
     }
 
     if (!length(retain_high) == 0L) {
-      drop_cols <- drop_cols[-which(drop_cols %in% retain_high)]
+      drop_cols <- drop_cols[-which(drop_cols %in% retain_high), drop = F]
     } # retain dead interactions
     
     if (!length(drop_cols) == 0L) {
@@ -385,7 +388,7 @@ one.second.extinct.mod_aug <- function(web,
     
     # break if n.lower/higher is 0
     if ((tail(dead, 1)[, "n.lower"] == 0 | tail(dead, 1)[, "n.higher"] == 0)) {
-      dead <- dead[-nrow(dead),]
+      dead <- dead[-nrow(dead), , drop = F]
       break
       }
     
@@ -419,7 +422,7 @@ one.second.extinct.mod_aug <- function(web,
     }
     
     # "Skip" iteration if extc sp only had dead interactions 
-    if (!isTRUE(skip)) {
+    if (!skip) {
       i <- i + 1L
     }
     
@@ -433,7 +436,7 @@ one.second.extinct.mod_aug <- function(web,
   }
 
   # Add last line of dead
-  if (abort == T) {
+  if (abort) {
     dead2 <- rbind(dead, c(NROW(dead), tail(dead, 1)[, "n.lower"], tail(dead, 1)[, "n.higher"], 0L, 0L)) # add last line of dead (i.e. all sp extc)
   } else {
     dead2 <- rbind(dead, c(NROW(dead), tail(dead, 1)[, "n.lower"], tail(dead, 1)[, "n.higher"], 0L, 0L)) # add last line of dead (i.e. all sp extc)
@@ -447,7 +450,7 @@ one.second.extinct.mod_aug <- function(web,
   # if (nrow(dead) + 1 != nrow(dead2)) 
   #   stop("PANIC! Something went wrong with the extinct sequence! Please contact the author to fix this!!")
   # 
-  if (make.bipartite == T) {
+  if (make.bipartite) {
     out <- dead2
     class(out) <- "bipartite"
     attr(out, "exterminated") <- c("both", "lower", "higher")[pmatch(participant, c("both", "lower", "higher"))]
