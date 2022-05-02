@@ -425,3 +425,121 @@ sp_remain_higher_web_mean <- modify_depth(sp_remain_higher_web_mean, 1,
 
 sp_remain_higher_web_mean <- modify_depth(sp_remain_higher_web_mean, 2, 
                                          ~ set_names(.x, nm = c("Atl", "aTl", "atL")))
+
+
+#### Testing method "abund" & participant "both
+abund_test <- map(seq(10), function(x) {
+  map2(.x = list("abund" = abunds,
+                 "trait" = traits,
+                 "phylo" = phylos),
+       .y = c("abund", "trait", "phylo"),
+       ~ run_extc(web = pluck(sims, x),
+                  participant = "lower",
+                  method = "abund",
+                  rewiring = T,
+                  partner.choice = pluck(.x, x), 
+                  interactions = pluck(sims, x),
+                  method.rewiring = .y,
+                  n_sims = n_sims,
+                  multiple.webs = T))})
+
+abund_test_mean <- map(seq(10), function(x) {
+  list("lower" = map(rew_names,
+                     ~ list_mean(pluck(abund_test, x),
+                                 y = .x)),
+       "higher" = map(rew_names,
+                      ~ list_mean(pluck(abund_test, x),
+                                  y = .x,
+                                  lower = F)))})
+abund_remain <- map(seq(10), function(x) {
+  list("lower" = map(1:3, ~ per_surv(pluck(abund_test_mean, x),
+                                     y = .x)),
+       "higher" = map(1:3, ~ per_surv(pluck(abund_test_mean, x),
+                                      y = .x,
+                                      lower = F)))})
+
+# add dropped names
+abund_remain <- modify_depth(abund_remain, 2, 
+                             ~ set_names(.x, nm = c("abund", "trait", "phylo")))
+# initial extincion on lower level
+abund_remain_web_mean <- list("lower" =
+                                map(.x = 1:3, function(x) map(.x = 1:3, function(y) {
+                                  map(seq(10), ~ pluck(abund_remain, .x, "lower", y, x))  %>%
+                                    as.data.table() %>%
+                                    match_lengths() %>%
+                                    rowMeans()})),
+                              "higher" = map(.x = 1:3, function(x) map(.x = 1:3, function(y) {
+                                map(seq(10), ~ pluck(abund_remain, .x, "higher", y, x))  %>%
+                                  as.data.table() %>%
+                                  match_lengths() %>%
+                                  rowMeans()})))
+
+# add dropped names
+abund_remain_web_mean <- modify_depth(abund_remain_web_mean, 1, 
+                                      ~ set_names(.x, nm = c("abund", "trait", "phylo")))
+
+ci_abund <- get_ci(x = abund_remain,
+                   means = abund_remain_web_mean)
+
+abund_remain_web_mean_df <- list_to_df(abund_remain_web_mean)
+
+ci_abund_df <- list_to_df(ci_abund, ci = T)
+
+# both
+extc_sims_lower_both <- map(seq(10), function(x) {
+  map2(.x = list("abund" = abunds,
+                 "trait" = traits,
+                 "phylo" = phylos),
+       .y = c("abund", "trait", "phylo"),
+       ~ run_extc(web = pluck(sims, x),
+                  participant = "both",
+                  method = "random",
+                  rewiring = T,
+                  partner.choice = pluck(.x, x), 
+                  interactions = pluck(sims, x),
+                  method.rewiring = .y,
+                  n_sims = n_sims,
+                  multiple.webs = T))})
+
+extc_sims_lower_both_mean <- map(seq(10), function(x) {
+  list("lower" = map(rew_names,
+                     ~ list_mean(pluck(extc_sims_lower_both, x),
+                                 y = .x)),
+       "higher" = map(rew_names,
+                      ~ list_mean(pluck(extc_sims_lower_both, x),
+                                  y = .x,
+                                  lower = F)))})
+sp_remain_lower_both <- map(seq(10), function(x) {
+  list("lower" = map(1:3, ~ per_surv(pluck(extc_sims_lower_both_mean, x),
+                                     y = .x)),
+       "higher" = map(1:3, ~ per_surv(pluck(extc_sims_lower_both_mean, x),
+                                      y = .x,
+                                      lower = F)))})
+
+# add dropped names
+sp_remain_lower_both <- modify_depth(sp_remain_lower_both, 2, 
+                             ~ set_names(.x, nm = c("abund", "trait", "phylo")))
+# initial extincion on lower level
+sp_remain_lower_both_web_mean <- list("lower" =
+                                map(.x = 1:3, function(x) map(.x = 1:3, function(y) {
+                                  map(seq(10), ~ pluck(sp_remain_lower_both, .x, "lower", x, y))  %>%
+                                    as.data.table() %>%
+                                    match_lengths() %>%
+                                    rowMeans()})),
+                              "higher" = map(.x = 1:3, function(x) map(.x = 1:3, function(y) {
+                                map(seq(10), ~ pluck(sp_remain_lower_both, .x, "higher", x, y))  %>%
+                                  as.data.table() %>%
+                                  match_lengths() %>%
+                                  rowMeans()})))
+
+# add dropped names
+sp_remain_lower_both_web_mean <- modify_depth(sp_remain_lower_both_web_mean, 1, 
+                                      ~ set_names(.x, nm = c("abund", "trait", "phylo")))
+
+ci_both <- get_ci(x = sp_remain_lower_both,
+                   means = sp_remain_lower_both_web_mean)
+
+sp_remain_lower_both_web_mean_df <- list_to_df(sp_remain_lower_both_web_mean)
+
+ci_both_df <- list_to_df(ci_both, ci = T)
+
