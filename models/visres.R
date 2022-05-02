@@ -1,5 +1,6 @@
 # Calculation & visualization of results
 setwd("~/Documents/Uni/M.sc/Master Thesis/Networks/models/")
+load("sims.RData") # load simulations
 
 library(tapnet)
 source("tapnet_helper.R")
@@ -14,7 +15,6 @@ library(purrr)
 library(dplyr)
 library(data.table)
 
-load("sims.RData") # load simulations
 
 # visualize networks ----
 # map(map(sims, 1), ~ plotweb(.x))
@@ -96,91 +96,67 @@ ggboxplot(data = H2_grouped, x = "group", y = "vals",
 # 
 # meds_org <- map(1:3, ~ which(pluck(aucs_org, .x) == pluck(auc_meds_org, .x)))
 
-# get ci of every web 
+## get ci of every web
 # initial extinction on lower level original web
-ci_lower_org <- list("lower" = list("2.5" = conf_int(x = sp_remain_lower_org,
-                                                 mean = sp_remain_lower_web_mean_org, norew_org = T),
-                                "97.5" = conf_int(x = sp_remain_lower_org,
-                                                  mean = sp_remain_lower_web_mean_org,
-                                                  lower = F, norew_org = T)),
-                 "higher" = list("2.5" = conf_int(x = sp_remain_lower_org,
-                                                  mean = sp_remain_lower_web_mean_org,
-                                                  trph_lvl = "higher", norew_org = T),
-                                 "97.5" = conf_int(x = sp_remain_lower_org,
-                                                   mean = sp_remain_lower_web_mean_org,
-                                                   trph_lvl = "higher",
-                                                   lower = F, norew_org = T)))
+ci_lower_org <- get_ci(x = sp_remain_lower_org,
+                       means = sp_remain_lower_web_mean_org,
+                       org = T)
 
 # initial extinction on higher level original web
-ci_higher_org <- list("lower" = list("2.5" = conf_int(x = sp_remain_higher_org,
-                                                  mean = sp_remain_higher_web_mean_org, norew_org = T),
-                                 "97.5" = conf_int(x = sp_remain_higher_org,
-                                                   mean = sp_remain_higher_web_mean_org,
-                                                   lower = F), norew_org = T),
-                  "higher" = list("2.5" = conf_int(x = sp_remain_higher_org,
-                                                   mean = sp_remain_higher_web_mean_org,
-                                                   trph_lvl = "higher", norew_org = T),
-                                  "97.5" = conf_int(x = sp_remain_higher_org,
-                                                    mean = sp_remain_higher_web_mean_org,
-                                                    trph_lvl = "higher",
-                                                    lower = F, norew_org = T)))
+ci_higher_org <- get_ci(x = sp_remain_higher_org,
+                        means = sp_remain_higher_web_mean_org,
+                        org = T)
 
 # initial extinction on lower level no rewiring
-ci_lower_norew <- list("lower" = list("2.5" = conf_int(x = sp_remain_lower_norew,
-                                                 mean = sp_remain_lower_web_mean_norew, norew_org = T),
-                                "97.5" = conf_int(x = sp_remain_lower_norew,
-                                                  mean = sp_remain_lower_web_mean_norew,
-                                                  lower = F, norew_org = T)),
-                 "higher" = list("2.5" = conf_int(x = sp_remain_lower_norew,
-                                                  mean = sp_remain_lower_web_mean_norew,
-                                                  trph_lvl = "higher", norew_org = T),
-                                 "97.5" = conf_int(x = sp_remain_lower_norew,
-                                                   mean = sp_remain_lower_web_mean_norew,
-                                                   trph_lvl = "higher",
-                                                   lower = F, norew_org = T)))
+ci_lower_norew <- get_ci(x = sp_remain_lower_norew,
+                         means = sp_remain_lower_web_mean_norew,
+                         norew = T)
 
 # initial extinction on higher level no rewiring
-ci_higher_norew <- list("lower" = list("2.5" = conf_int(x = sp_remain_higher_norew,
-                                                  mean = sp_remain_higher_web_mean_norew, norew_org = T),
-                                 "97.5" = conf_int(x = sp_remain_higher_norew,
-                                                   mean = sp_remain_higher_web_mean_norew,
-                                                   lower = F, norew_org = T)),
-                  "higher" = list("2.5" = conf_int(x = sp_remain_higher_norew,
-                                                   mean = sp_remain_higher_web_mean_norew,
-                                                   trph_lvl = "higher", norew_org = T),
-                                  "97.5" = conf_int(x = sp_remain_higher_norew,
-                                                    mean = sp_remain_higher_web_mean_norew,
-                                                    trph_lvl = "higher",
-                                                    lower = F, norew_org = T)))
+ci_higher_norew <- get_ci(x = sp_remain_higher_norew,
+                          means = sp_remain_higher_web_mean_norew,
+                          norew = T)
 
 # initial extinction on lower level
-ci_lower <- list("lower" = list("2.5" = conf_int(x = sp_remain_lower,
-                                                 mean = sp_remain_lower_web_mean),
-                                "97.5" = conf_int(x = sp_remain_lower,
-                                                  mean = sp_remain_lower_web_mean,
-                                                  lower = F)),
-                 "higher" = list("2.5" = conf_int(x = sp_remain_lower,
-                                                  mean = sp_remain_lower_web_mean,
-                                                  trph_lvl = "higher"),
-                                 "97.5" = conf_int(x = sp_remain_lower,
-                                                   mean = sp_remain_lower_web_mean,
-                                                   trph_lvl = "higher",
-                                                   lower = F)))
+ci_lower <- get_ci(x = sp_remain_lower,
+                   means = sp_remain_lower_web_mean)
 
 # initial extinction on higher level
-ci_higher <- list("lower" = list("2.5" = conf_int(x = sp_remain_higher,
-                                                  mean = sp_remain_higher_web_mean),
-                                 "97.5" = conf_int(x = sp_remain_higher,
-                                                   mean = sp_remain_higher_web_mean,
-                                                   lower = F)),
-                  "higher" = list("2.5" = conf_int(x = sp_remain_higher,
-                                                   mean = sp_remain_higher_web_mean,
-                                                   trph_lvl = "higher"),
-                                  "97.5" = conf_int(x = sp_remain_higher,
-                                                    mean = sp_remain_higher_web_mean,
-                                                    trph_lvl = "higher",
-                                                    lower = F)))
+ci_higher <- get_ci(x = sp_remain_higher,
+                    means = sp_remain_higher_web_mean)
 
+## reshape sp_remain lists to dfs
+# initial extinction on lower trophic level, original web
+sp_remain_lower_web_mean_df_org <- list_to_df(sp_remain_lower_web_mean_org,
+                                              org = T)
+# initial extinction on higher trophic level, original web
+sp_remain_higher_web_mean_df_org <- list_to_df(sp_remain_higher_web_mean_org,
+                                               org = T)
+
+# initial extinction on lower trophic level, no rewiring
+sp_remain_lower_web_mean_df_norew <- list_to_df(sp_remain_lower_web_mean_norew,
+                                                norew = T)
+# initial extinction on higher trophic level, no rewiring
+sp_remain_higher_web_mean_df_norew <- list_to_df(sp_remain_higher_web_mean_norew,
+                                                 norew = T)
+# initial extinction on lower trophic level
+sp_remain_lower_web_mean_df <- list_to_df(sp_remain_lower_web_mean)
+# initial extinction on higher trophic level
+sp_remain_higher_web_mean_df <- list_to_df(sp_remain_higher_web_mean)
+
+## reshape ci lists to df
+ci_lower_df_org <- list_to_df(ci_lower_org, ci = T, org = T)
+ci_higher_df_org <- list_to_df(ci_higher_org, ci = T, org = T)
+
+ci_lower_df_norew <- list_to_df(ci_lower_norew, ci = T, norew = T)
+ci_higher_df_norew <- list_to_df(ci_higher_norew, ci = T, norew = T)
+
+ci_lower_df <- list_to_df(ci_lower, ci = T)
+ci_higher_df <- list_to_df(ci_higher, ci = T)
+
+
+
+# plot extinction sequences w/ CIs
 plot_extc(sp_remain_lower_web_mean, ci_lower, save = F, view = T, lower = T)
 plot_extc(sp_remain_higher_web_mean, ci_higher, save = F, view = T)
 
@@ -201,6 +177,8 @@ plot_extc_alt(sp_remain_higher_web_mean,
               ci_higher_org,
               ci_higher_norew,
               save = F)
+
+
 
 # Deviance of all networks for one scenario
 map(c("Abund" = 1, "Traits" = 2, "Phylo" = 3), ~ ggplot() +
