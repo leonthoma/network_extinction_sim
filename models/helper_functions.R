@@ -121,10 +121,32 @@ per_surv <- function(x, y, lower = T, original = F) {
 library(ggplot2)
 library(ggpubr)
 
-plot_extc_facet <- function(x, ci, save = F, view = T, norew = F, org = F) {
+plot_extc_facet <- function(extc, ci, extc_norew, ci_norew,
+                            save = F, view = T, org = F) {
+  
   # extinction on lower or higher level ?
-  lvl_match <- grepl("lower", substitute(x))
-  ifelse(lvl_match, lvl <- "lower", lvl <- "higher")
+  lvl_match_extc <- grepl("lower", substitute(extc))
+  lvl_match_norew_extc <- grepl("lower", substitute(extc_norew))
+  
+  lvl_match_ci <- grepl("lower", substitute(ci))
+  lvl_match_norew_ci <- grepl("lower", substitute(ci_norew))
+  
+  ifelse(lvl_match_extc, lvl <- "lower", lvl <- "higher")
+
+  # check if extc/ci & extc_norew/ci_norew match
+  if (lvl_match_extc != lvl_match_norew_extc) {
+  stop("extc and extc_norew don't match please provide
+         data from matching simulations")
+  }
+  
+  if (lvl_match_ci != lvl_match_norew_ci) {
+    stop("ci and ci_norew don't match please provide
+         data from matching simulations")
+  }
+  
+  # combine dfs 
+  extc <- bind_rows(extc, extc_norew)
+  ci <- bind_rows(ci, ci_norew)
   
   # automate axis labels
   ifelse(lvl == "lower", xlab <- "plants", xlab <- "animals")
@@ -135,45 +157,34 @@ plot_extc_facet <- function(x, ci, save = F, view = T, norew = F, org = F) {
   
   # create df for ggplot
   df <- cbind(ci,
-             select(x, -c("id", "com_vars"))) %>% 
+             select(extc, -c("id", "com_vars"))) %>% 
     tidyr::unite(., col = "group", c("id", "com_vars"), remove = F)
   
   
   # create list of labels for facet
   # norew or org simulations used ?
-  if(norew | org) {
-    if(norew) {
-  # set grouping variable to factor
-  df$group <- factor(df$group, levels = c("Atl...1",
-                                          "aTl...1",
-                                          "atL...1"))
-  
-      id_labs <- c("Atl", "aTl", "atL") 
-      names(id_labs) <- c(unique(df$id))
-
-    } else {
-      # set grouping variable to factor
-      df$group <- factor(df$group, levels = c("abund_...1",
-                                              "trait_...1",
-                                              "phylo_...1"))
-      id_labs <- c("Abundance", "Traits", "Phylogeny")
-      names(id_labs) <- c(unique(df$id))
-    }
-    # set facet layout
-    nrow <- 1
-    ncol <- 3
-    
+  if(org) {
+    # set grouping variable to factor
+    df$group <- factor(df$group, levels = c("abund_...1",
+                                            "trait_...1",
+                                            "phylo_...1"))
+    id_labs <- c("Abundance", "Traits", "Phylogeny")
+    names(id_labs) <- c(unique(df$id))
+  # set facet layout
+  nrow <- 1
+  ncol <- 3
   } else {
     # set grouping variable to factor
     df$group <- factor(df$group, levels = c("abund_Atl", "abund_aTl", "abund_atL",
                                             "trait_Atl", "trait_aTl", "trait_atL",
-                                            "phylo_Atl", "pyhlo_aTl", "phylo_atL"))
+                                            "phylo_Atl", "phylo_aTl", "phylo_atL",
+                                            "norew_Atl", "norew_aTl", "norew_atL"))
     
-    id_labs <- map(unique(df$id), function(x) {
+    id_labs <- map(unique(df$id), function(a) {
       id_labs <- c("Atl", "aTl", "atL") %>%
-        set_names(c(paste(x, "Atl", sep = "_"),
-                    paste(x, "aTl", sep = "_"),
-                    paste(x, "atL", sep = "_")))
+        set_names(c(paste(a, "Atl", sep = "_"),
+                    paste(a, "aTl", sep = "_"),
+                    paste(a, "atL", sep = "_")))
     })
     names(id_labs) <- c(unique(df$id))
     
@@ -183,15 +194,15 @@ plot_extc_facet <- function(x, ci, save = F, view = T, norew = F, org = F) {
   }
   
   # create plots
-  plots <- map(unique(df$id), function(z) {
-    if(is.list(id_labs)) {
-      labs <- pluck(id_labs, z)
-    } else {
+  plots <- map(unique(df$id)[-length(unique(df$id))], function(z) {
+    # get facet labels
+    if(org) {
       labs <- id_labs[z]
-      df$title <- labs
+    } else {
+      labs <- pluck(id_labs, z)
     }
     
-    if (norew | org) {
+    if (org) {
       ggplot(filter(df, id == z)) +
         geom_line(aes(rev(x), y, group = group, color = "firebrick")) + # means
         geom_line(aes(rev(x_lower), x_higher, group = group),
@@ -204,18 +215,33 @@ plot_extc_facet <- function(x, ci, save = F, view = T, norew = F, org = F) {
         theme(strip.text = element_text(),
               strip.background = element_rect(color = colors[z])) # set bb color  
     } else {
-      ggplot(filter(df, id == z)) +
-        geom_line(aes(rev(x), y, group = group, color = "firebrick")) + # means
-        geom_line(aes(rev(x_lower), x_higher, group = group),
-                  linetype = 2) + # lower ci
-        geom_line(aes(rev(y_lower), y_higher, group = group),
-                  linetype = 2) + # higher ci
-        labs(x = paste(xlab, "removed"), y = paste(ylab, "persisting")) +
-        guides(color = "none") +
-        facet_wrap(~ group, labeller = labeller(group = labs))  +
-        theme(strip.text = element_text(),
-              strip.background = element_rect(color = colors[z])) # set bb color
-    }
+      subplots <- map(unique(df$com_vars), function(a) {
+        
+        # get facet label for current plot; needs single value for "facet cheat" 
+          df$title <- labs[which(unique(df$com_vars) == a)]
+        
+        ggplot(filter(df, id == z & com_vars == a)) +
+          geom_line(aes(rev(x), y), color = "grey80",
+                    data = filter(df, id == "norew" & com_vars == a)) + # means norew
+          geom_line(aes(rev(x_lower), x_higher), color = "grey80",
+                    linetype = 2,
+                    data = filter(df, id == "norew" & com_vars == a)) + # lower ci norew
+          geom_line(aes(rev(y_lower), y_higher), color = "grey80",
+                    linetype = 2,
+                    data = filter(df, id == "norew" & com_vars == a)) + # higher ci norew
+          geom_line(aes(rev(x), y, color = "firebrick")) + # means
+          geom_line(aes(rev(x_lower), x_higher),
+                    linetype = 2) + # lower ci
+          geom_line(aes(rev(y_lower), y_higher),
+                    linetype = 2) + # higher ci
+          labs(x = paste(xlab, "removed"), y = paste(ylab, "persisting")) +
+          guides(color = "none") +
+          facet_wrap(. ~ title, labeller = labeller(group = labs))  +
+          theme(strip.text = element_text(),
+                  strip.background = element_rect(color = colors[z])) # set box color
+      })
+      ggarrange(subplots[[1]], subplots[[2]], subplots[[3]], nrow = 1)
+      }
     })
   
   
@@ -236,6 +262,7 @@ plot_extc_facet <- function(x, ci, save = F, view = T, norew = F, org = F) {
       units = "px")
   }
 }
+
 
 # DEPRECATED use plot_extc_facet instead
 plot_extc <- function(x, ci, save = F, view = T, lower = F){
@@ -304,7 +331,7 @@ plot_extc_alt <- function(x, org, norew, ci, ci_org, ci_norew, save = F, view = 
   ifelse(lower == T, xlab <- "plants", xlab <- "animals")
   ifelse(lower == T, ylab <- "animals", ylab <- "plants")
   
-   plots <- map(com_vars, ~ ggplot() + 
+   plots_Atl <- map(com_vars, ~ ggplot() + 
           geom_line(aes(rev(pluck(ci, "lower", 1, .x, 1)),
                         pluck(ci, "higher", 1, .x, 1),
                         color = "Atl"), linetype = 2, size = .3) + # lower
@@ -313,7 +340,19 @@ plot_extc_alt <- function(x, org, norew, ci, ci_org, ci_norew, save = F, view = 
                         color = "Atl"), linetype = 2, size = .3) + # upper
           geom_line(aes(rev(pluck(x, "lower", .x, "Atl")), pluck(x, "higher", .x, "Atl"),
                         color = "Atl"), linetype = 1, size = .5) + # mean
-          geom_line(aes(rev(pluck(ci, "lower", 1, .x, 2)),
+            scale_color_manual(name = "Contribution",
+                               values = c("Atl" = "black",
+                                          "aTl" = "firebrick",
+                                          "atL" = "dodgerblue",
+                                          "original" = "burlywood4",
+                                          "w/o rewiring" = "seagreen")) +
+            labs(x = paste(xlab, "removed"), y = paste(ylab, "persisting"),
+                 # title = paste("Extinction cascade", lvl, "trophic level",
+                 #               names(com_vars[.x]), "rewiring")
+                 ))
+          
+          plots_aTl <- map(com_vars, ~ ggplot() + 
+            geom_line(aes(rev(pluck(ci, "lower", 1, .x, 2)),
                         pluck(ci, "higher", 1, .x, 2),
                         color = "aTl"), linetype = 2, size = .3) + # lower
           geom_line(aes(rev(pluck(ci, "lower", 2, .x, 2)),
@@ -321,6 +360,18 @@ plot_extc_alt <- function(x, org, norew, ci, ci_org, ci_norew, save = F, view = 
                         color = "aTl"), linetype = 2, size = .3) + # upper
           geom_line(aes(rev(pluck(x, "lower", .x, "aTl")), pluck(x, "higher", .x, "aTl"),
                         color = "aTl"), linetype = 1, size = .5) + # mean
+              scale_color_manual(name = "Contribution",
+                                 values = c("Atl" = "black",
+                                            "aTl" = "firebrick",
+                                            "atL" = "dodgerblue",
+                                            "original" = "burlywood4",
+                                            "w/o rewiring" = "seagreen")) +
+              labs(x = paste(xlab, "removed"), y = paste(ylab, "persisting"),
+                   # title = paste("Extinction cascade", lvl, "trophic level",
+                   #               names(com_vars[.x]), "rewiring")
+                   ))
+          
+          plots_atL <- map(com_vars, ~ ggplot() +     
           geom_line(aes(rev(pluck(ci, "lower", 1, .x, 2)),
                         pluck(ci, "higher", 1, .x, 2),
                         color = "atL"), linetype = 2, size = .3) + # lower
@@ -329,6 +380,18 @@ plot_extc_alt <- function(x, org, norew, ci, ci_org, ci_norew, save = F, view = 
                         color = "atL"), linetype = 2, size = .3) + # upper
           geom_line(aes(rev(pluck(x, "lower", .x, "atL")), pluck(x, "higher", .x, "atL"),
                         color = "atL"), linetype = 1, size = .5) + # mean
+                scale_color_manual(name = "Contribution",
+                                   values = c("Atl" = "black",
+                                              "aTl" = "firebrick",
+                                              "atL" = "dodgerblue",
+                                              "original" = "burlywood4",
+                                              "w/o rewiring" = "seagreen")) +
+                labs(x = paste(xlab, "removed"), y = paste(ylab, "persisting"),
+                     # title = paste("Extinction cascade", lvl, "trophic level",
+                     #               names(com_vars[.x]), "rewiring")
+                     ))
+          
+          plots_org <- map(com_vars, ~ ggplot() +       
           geom_line(aes(rev(pluck(ci_org, "lower", 1, .x)),
                         pluck(ci_org, "higher", 1, .x),
                         color = "original"), linetype = 2, size = .3) + # lower
@@ -337,6 +400,18 @@ plot_extc_alt <- function(x, org, norew, ci, ci_org, ci_norew, save = F, view = 
                         color = "original"), linetype = 2, size = .3) + # upper
           geom_line(aes(rev(pluck(org, "lower", .x)), pluck(org, "higher", .x),
                       color = "original"), linetype = 1, size = .5) + # mean
+                  scale_color_manual(name = "Contribution",
+                                     values = c("Atl" = "black",
+                                                "aTl" = "firebrick",
+                                                "atL" = "dodgerblue",
+                                                "original" = "burlywood4",
+                                                "w/o rewiring" = "seagreen")) +
+                  labs(x = paste(xlab, "removed"), y = paste(ylab, "persisting"),
+                       # title = paste("Extinction cascade", lvl, "trophic level",
+                       #               names(com_vars[.x]), "rewiring")
+                       ))
+          
+          plots_norew <- map(com_vars, ~ ggplot() +         
           geom_line(aes(rev(pluck(ci_norew, "lower", 1, .x)),
                         pluck(ci_norew, "higher", 1, .x),
                         color = "w/o rewiring"), linetype = 2, size = .3) + # lower
@@ -352,11 +427,20 @@ plot_extc_alt <- function(x, org, norew, ci, ci_org, ci_norew, save = F, view = 
                                         "original" = "burlywood4",
                                         "w/o rewiring" = "seagreen")) +
           labs(x = paste(xlab, "removed"), y = paste(ylab, "persisting"),
-               title = paste("Extinction cascade", lvl, "trophic level", names(com_vars[.x]), "rewiring"))
-    )
+               # title = paste("Extinction cascade", lvl, "trophic level",
+               #               names(com_vars[.x]), "rewiring")
+               ))
+          
+          plots <- ggarrange(plots_Atl[[1]], plots_aTl[[1]], plots_atL[[1]],
+                    plots_org[[1]], plots_norew[[1]], plots_Atl[[2]],
+                    plots_aTl[[2]], plots_atL[[2]], plots_org[[2]],
+                    plots_norew[[2]], plots_Atl[[3]], plots_aTl[[3]],
+                    plots_atL[[3]], plots_org[[3]], plots_norew[[3]],
+                    ncol = 5, nrow = 3, common.legend = T, legend = "bottom")
+   
    
    if (view == T)
-     map(com_vars, ~ plot(plots[[.x]]))
+     plot(plots)
    
    if (save == T) {
      map(c("abund" = 1, "trait" = 2, "phylo" = 3), ~ ggsave(
@@ -478,48 +562,23 @@ list_to_df <- function(x, org = F, norew = F, ci = F) {
   ifelse(org|norew, len <- 2, len <- 3) # match list nestedness
   ifelse(org, id <- "org", id <- "norew")
   
-  if (ci) {
-    if(org|norew) {
-      # calculate max lengths of each extc seq, 2.5% ci
-      maxlens_loci <- map(1:3, ~ length(pluck(x, "lower", 1, .x))) %>%
-        unlist() %>% max()
-      
-      # 95% ci
-      maxlens_hici <- map(1:3, ~ length(pluck(x, "lower", 2, .x))) %>%
-        unlist() %>% max()
-      
+  ## using with extc sims org, produces df with id set to "org" and com_vars
+  ## "abund", "trait", "phylo"
+  
+  # check if all extc seqs have same length
+  if (org|norew) {
+    if (ci) {
       # calculate lengths of each extc seq, 2.5 % ci
       lens_loci <- map(1:3, ~ length(pluck(x, "lower", 1, .x))) %>% unlist()
       
       # 95% ci
       lens_hici <- map(1:3, ~ length(pluck(x, "lower", 2, .x))) %>% unlist()
-      
-      # match lengths of lower extc seqs, 2.5 % ci
-      len_matched_x_lower_loci <- map(1:3, ~ append(pluck(x, "lower", 1, .x),
-                          rep(0, maxlens_loci - lens_loci[.x])))
-      
-      # 95 % ci
-      len_matched_x_lower_hici <- map(1:3, ~ append(pluck(x, "lower", 2, .x),
-                          rep(0, maxlens_hici - lens_hici[.x])))
-      
-      # match length of higher extc seqs, 2.5% ci
-      len_matched_x_higher_loci <- map(1:3, ~ append(pluck(x, "higher", 1, .x),
-                          rep(0, maxlens_loci - lens_loci[.x])))
-      
-      # 95% ci
-      len_matched_x_higher_hici <- map(1:3, ~ append(pluck(x, "higher", 2, .x),
-                          rep(0, maxlens_hici - lens_hici[.x])))
     } else {
-      # calculate max lengths of each extc seq, 2.5% ci
-      maxlens_loci <- map(1:3, function(y) {
-        map(1:len, ~ length(pluck(x, "lower", 1, y, .x))) %>% unlist() %>% max()
-      })
-      
-      # 95% ci
-      maxlens_hici <- map(1:3, function(y) {
-        map(1:len, ~ length(pluck(x, "lower", 2, y, .x))) %>% unlist() %>% max()
-      })
-      
+      # calculate lengths of each extc seq
+      lens <- map(1:3,  ~ length(pluck(x, "lower", .x))) %>% unlist()
+    }
+  } else {
+    if (ci) {
       # calculate lengths of each extc seq, 2.5 % ci
       lens_loci <- map(1:3, function(y) {
         map(1:len, ~ length(pluck(x, "lower", 1, y, .x))) %>% unlist()
@@ -529,38 +588,162 @@ list_to_df <- function(x, org = F, norew = F, ci = F) {
       lens_hici <- map(1:3, function(y) {
         map(1:len, ~ length(pluck(x, "lower", 2, y, .x))) %>% unlist()
       })
-      
-      # match lengths of lower extc seqs, 2.5 % ci
-      len_matched_x_lower_loci <- map(1:3, function(y) {
-        map(1:len, ~ append(pluck(x, "lower", 1, y, .x),
-                          rep(0, maxlens_loci[[y]] - lens_loci[[y]][.x])))
-      })
-      # 95 % ci
-      len_matched_x_lower_hici <- map(1:3, function(y) {
-        map(1:len, ~ append(pluck(x, "lower", 2, y, .x),
-                          rep(0, maxlens_hici[[y]] - lens_hici[[y]][.x])))
-      })
-      
-      # match length of higher extc seqs, 2.5% ci
-      len_matched_x_higher_loci <- map(1:3, function(y) {
-        map(1:len, ~ append(pluck(x, "higher", 1, y, .x),
-                          rep(0, maxlens_loci[[y]] - lens_loci[[y]][.x])))
-      })
-      
-      # 95% ci
-      len_matched_x_higher_hici <- map(1:3, function(y) {
-        map(1:len, ~ append(pluck(x, "higher", 2, y, .x),
-                          rep(0, maxlens_hici[[y]] - lens_hici[[y]][.x])))
+    } else {
+      # calculate lengths of each extc seq
+      lens <- map(1:3, function(y) {
+        map(1:3, ~ length(pluck(x, "lower", y, .x))) %>% unlist()
       })
     }
-    
+  }
+  
+  # match lengths of extc seqs if not same
+  if (org|norew) {
+    if (ci) {
+      #  ci for org & norew simulation with different seq lengths
+      if (!(all(max(unlist(lens_loci)) == unlist(lens_loci)) |
+            all(max(unlist(lens_hici)) == unlist(lens_hici)))) {
+        # calculate max lengths of each extc seq, 2.5% ci
+        maxlens_loci <- map(1:3, ~ length(pluck(x, "lower", 1, .x))) %>%
+          unlist() %>% max()
+        
+        # 95% ci
+        maxlens_hici <- map(1:3, ~ length(pluck(x, "lower", 2, .x))) %>%
+          unlist() %>% max()
+        
+        # match lengths of lower extc seqs, 2.5 % ci
+        data_lower_loci <- map(1:3, ~ append(pluck(x, "lower", 1, .x),
+                                                      rep(0, maxlens_loci - lens_loci[.x])))
+        
+        # 95 % ci
+        data_lower_hici <- map(1:3, ~ append(pluck(x, "lower", 2, .x),
+                                                      rep(0, maxlens_hici - lens_hici[.x])))
+        
+        # match length of higher extc seqs, 2.5% ci
+        data_higher_loci <- map(1:3, ~ append(pluck(x, "higher", 1, .x),
+                                                       rep(0, maxlens_loci - lens_loci[.x])))
+        
+        # 95% ci
+        data_higher_hici <- map(1:3, ~ append(pluck(x, "higher", 2, .x),
+                                                       rep(0, maxlens_hici - lens_hici[.x])))
+
+      } else {
+        data_lower_loci <- map(1:3, ~ pluck(x, "lower", 1, .x))
+        
+        data_lower_hici <- map(1:3, ~ pluck(x, "lower", 2, .x))
+        
+        data_higher_loci <- map(1:3, ~ pluck(x, "higher", 1, .x))
+        
+        data_higher_hici <- map(1:3, ~ pluck(x, "higher", 2, .x))
+      }
+    } else {
+      # extc data for org & norew simulation with different lenghts
+      if(!(all(max(unlist(lens)) == unlist(lens)) |
+           all(max(unlist(lens)) == unlist(lens)))) {
+      # calculate max lengths of each extc seq
+      maxlens <- map(1:3, ~ length(pluck(x, "lower", .x))) %>% unlist() %>% max()
+      
+      # match lengths of lower extc seqs
+      data_lower <- map(1:3, ~ append(pluck(x, "lower", .x),
+                            rep(0, maxlens - lens[.x])))
+      
+      # match length of higher extc seqs
+      data_higher <- map(1:3, ~ append(pluck(x, "higher", .x),
+                            rep(0, maxlens - lens[.x])))
+
+      } else {
+        data_lower <- map(1:3, ~ pluck(x, "lower", .x))
+        
+        data_higher <- map(1:3, ~ pluck(x, "higher", .x))
+      }
+    }
+  } else {
+      if (ci) {
+        # ci for non org & norew simulation with different lengths
+        if (!(all(max(unlist(lens_loci)) == unlist(lens_loci)) |
+              all(max(unlist(lens_hici)) == unlist(lens_hici)))) {
+          # calculate max lengths of each extc seq, 2.5% ci
+          maxlens_loci <- map(1:3, function(y) {
+            map(1:len, ~ length(pluck(x, "lower", 1, y, .x))) %>% unlist() %>% max()
+          })
+          
+          # 95% ci
+          maxlens_hici <- map(1:3, function(y) {
+            map(1:len, ~ length(pluck(x, "lower", 2, y, .x))) %>% unlist() %>% max()
+          })
+          
+          # match lengths of lower extc seqs, 2.5 % ci
+          data_lower_loci <- map(1:3, function(y) {
+            map(1:len, ~ append(pluck(x, "lower", 1, y, .x),
+                                rep(0, maxlens_loci[[y]] - lens_loci[[y]][.x])))
+          })
+          # 95 % ci
+          data_lower_hici <- map(1:3, function(y) {
+            map(1:len, ~ append(pluck(x, "lower", 2, y, .x),
+                                rep(0, maxlens_hici[[y]] - lens_hici[[y]][.x])))
+          })
+          
+          # match length of higher extc seqs, 2.5% ci
+          data_higher_loci <- map(1:3, function(y) {
+            map(1:len, ~ append(pluck(x, "higher", 1, y, .x),
+                                rep(0, maxlens_loci[[y]] - lens_loci[[y]][.x])))
+          })
+          
+          # 95% ci
+          data_higher_hici <- map(1:3, function(y) {
+            map(1:len, ~ append(pluck(x, "higher", 2, y, .x),
+                                rep(0, maxlens_hici[[y]] - lens_hici[[y]][.x])))
+          })
+
+        } else {
+          data_lower_loci <- map(1:3, function(y) {
+            map(1:len, ~ pluck(x, "lower", 1, y, .x))})
+          
+          data_lower_hici <- map(1:3, function(y) {
+            map(1:len, ~ pluck(x, "lower", 2, y, .x))})
+          
+          data_higher_loci <- map(1:3, function(y) {
+            map(1:len, ~ pluck(x, "higher", 1, y, .x))})
+          
+          data_higher_hici <- map(1:3, function(y) {
+            map(1:len, ~ pluck(x, "higher", 2, y, .x))})
+        }
+      } else {
+        # extc data for non org & norew simulation with different lengths
+        if (!(all(max(unlist(lens)) == unlist(lens)) |
+             all(max(unlist(lens)) == unlist(lens)))) {
+          # calculate max lengths of each extc seq
+          maxlens <- map(1:3, function(y) {
+            map(1:len, ~ length(pluck(x, "lower", y, .x))) %>% unlist() %>% max()
+          })
+        
+        # match lengths of lower extc seqs
+        data_lower <- map(1:3, function(y) {
+          map(1:len, ~ append(pluck(x, "lower", y, .x),
+                              rep(0, maxlens[[y]] - lens[[y]][.x])))
+        })
+        
+        # match length of higher extc seqs
+        data_higher <- map(1:3, function(y) {
+          map(1:len, ~ append(pluck(x, "higher", y, .x),
+                              rep(0, maxlens[[y]] - lens[[y]][.x])))
+        })
+
+        } else {
+          data_lower <- map(1:3, ~ pluck(x, "lower", .x))
+          data_higher <- map(1:3, ~ pluck(x, "higher", .x))
+        }
+      }
+    }
+  
+  if (ci) {
+    # make ci df 
     lower <- map(1:3, function(y) {
-      cbind(bind_cols(pluck(len_matched_x_lower_loci, y),
+      cbind(bind_cols(pluck(data_lower_loci, y),
                       .id = c(rew_names[y])) %>%
               melt(., id.vars = ".id",
                    value.name = "x_lower",
                    variable.name = "com_vars"),
-            bind_cols(pluck(len_matched_x_lower_hici, y),
+            bind_cols(pluck(data_lower_hici, y),
                       .id = c(rew_names[y])) %>%
               melt(., id.vars = ".id",
                    value.name = "y_lower",
@@ -570,12 +753,12 @@ list_to_df <- function(x, org = F, norew = F, ci = F) {
       bind_rows()
     
     higher <- map(1:3, function(y) {
-      cbind(bind_cols(pluck(len_matched_x_higher_loci, y),
+      cbind(bind_cols(pluck(data_higher_loci, y),
                           .id = c(rew_names[y])) %>%
                             melt(., id.vars = ".id",
                                  value.name = "x_higher",
                                  variable.name = "com_vars"),
-                bind_cols(pluck(len_matched_x_higher_hici, y),
+                bind_cols(pluck(data_higher_hici, y),
                           .id = c(rew_names[y])) %>%
                   melt(., id.vars = ".id",
                        value.name = "y_higher",
@@ -587,57 +770,70 @@ list_to_df <- function(x, org = F, norew = F, ci = F) {
     out <- cbind(lower, select(higher, -c(1, 2)))
     
   } else {
-    if (org|norew) {
-        out <- cbind(bind_cols(pluck(x, "lower"), .id = id) %>%
-                       melt(., id.vars = ".id",
-                            value.name = "x",
-                            variable.name = "com_vars"),
-                  bind_cols(pluck(x, "higher"), .id = id) %>%
-                    melt(., id.vars = ".id",
-                         value.name = "y",
-                         variable.name = "com_vars")) %>%
-          select(., -c(4,5)) %>% 
-          setNames(., c("id", "com_vars", "x", "y"))
-    } else {
-      # calculate max lengths of each extc seq
-      maxlens <- map(1:3, function(y) {
-        map(1:len, ~ length(pluck(x, "lower", y, .x))) %>% unlist() %>% max()
-      })
-      
-      # calculate lengths of each extc seq
-      lens <- map(1:3, function(y) {
-        map(1:len, ~ length(pluck(x, "lower", y, .x))) %>% unlist()
-      })
-      
-      # match lengths of lower extc seqs
-      len_matched_x_lower <- map(1:3, function(y) {
-          map(1:len, ~ append(pluck(x, "lower", y, .x),
-                            rep(0, maxlens[[y]] - lens[[y]][.x])))
-      })
-      
-      # match length of higher extc seqs
-      len_matched_x_higher <- map(1:3, function(y) {
-        map(1:len, ~ append(pluck(x, "higher", y, .x),
-                          rep(0, maxlens[[y]] - lens[[y]][.x])))
-      })
-      
-      out <- map(1:3, function(y) {
-        cbind(bind_cols(pluck(len_matched_x_lower, y), .id = rew_names[y]) %>%
-                    melt(., id.vars = ".id",
-                         value.name = "x",
-                         variable.name = "com_vars"),
-                  bind_cols(pluck(len_matched_x_higher, y), .id = rew_names[y]) %>%
-          melt(., id.vars = ".id",
-               value.name = "y",
-               variable.name = "com_vars"))}) %>% bind_rows(.) %>%
-        select(., -c(4,5)) %>% 
-        setNames(., c("id", "com_vars", "x", "y"))
-    }
+    # make extc df 
+    out <- map(1:3, function(y) {
+      cbind(bind_cols(pluck(data_lower, y), .id = rew_names[y]) %>%
+              melt(., id.vars = ".id",
+                   value.name = "x",
+                   variable.name = "com_vars"),
+            bind_cols(pluck(data_higher, y), .id = rew_names[y]) %>%
+              melt(., id.vars = ".id",
+                   value.name = "y",
+                   variable.name = "com_vars"))}) %>% bind_rows(.) %>%
+      select(., -c(4,5)) %>% 
+      setNames(., c("id", "com_vars", "x", "y"))
   }
   
   # set correct levels for id & com_vars
-  levels(out$com_vars) <- c("Atl", "aTl", "atL")
-  levels(out$id) <- c("abund", "trait", "phylo")
+  if (org|norew) {
+    if (ci) {
+      length_each <- max(lens_loci)
+    } else {
+      length_each <- max(lens)
+      }
+    } else {
+      if (ci) {
+        length_each <- max(lens_loci[[1]])
+      } else {
+        length_each <- max(lens[[1]])
+      }
+    }
+  
+  if (org|norew) {
+    if (ci) {
+      if (org) {
+        out$com_vars <- "org"
+      } else {
+        out$com_vars <- rep(c("Atl", "aTl", "atL"), each = length_each)
+        }
+    } else {
+      if (org) {
+        out$com_vars <- "org"
+      } else {
+        out$com_vars <- rep(c("Atl", "aTl", "atL"), each = length_each) 
+        }
+      }
+    } else {
+      levels(out$com_vars) <- c("Atl", "aTl", "atL")
+  }
+  
+  if (org|norew) {
+    if (ci) {
+      if (org) {
+        out$id <- rep(c("abund", "trait", "phylo"), each = length_each)
+      } else {
+        out$id <- "norew"
+        }
+    } else {
+      if (org) {
+        out$id <- rep(c("abund", "trait", "phylo"), each = length_each)
+      } else {
+        out$id <- "norew"
+        }
+      }
+    } else {
+      levels(out$id) <- c("abund", "trait", "phylo")
+    }
   
   return(out)
 }
