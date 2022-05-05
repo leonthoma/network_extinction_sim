@@ -22,7 +22,7 @@ sp_names <- data.frame("plants" = plants,
                        "animals" = animals[1:nrow(plants),],
                        stringsAsFactors = F)
 
-## initial simulation ----
+### initial simulation ----
 # set no of nets and simulations
 n_webs <- 1001
 n_nets <- 4
@@ -36,7 +36,7 @@ init_sim <- map(seq(n_webs), ~ simulate_tapnet_aug(nlower = 20, nhigher = 30, nt
                                                    names = sp_names, initial_sim = T))
 
 
-# Create simulated networks with specified contributions ----
+# Create simulated networks with specified contributions
 sims <- list()
 
 # list w/ ctrb_vecs
@@ -55,7 +55,7 @@ sims <- map(.x = seq(n_webs), function(x) {
                                            tmatch_type_obs = "normal",
                                            Nobs = 1111))})
 
-## rewiring partner choice ----
+### rewiring partner choice ----
 # abundances
 abunds <- map(seq(n_webs), ~ pluck(init_sim, .x)$networks[[1]]$abuns)
 
@@ -385,7 +385,7 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
                                     y = .x,
                                     lower = F)))})
   
-## calculate percentages of remaining sp ----
+### calculate percentages of remaining sp ----
   # initial extinction on lower level original web
   sp_remain_lower_org <- map(seq(n_webs), function(x) {
     list("lower" = map(1:3, ~ per_surv(pluck(extc_sims_lower_mean_org, x),
@@ -809,3 +809,125 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
   sp_remain_higher_web_mean <- modify_depth(
     sp_remain_higher_web_mean, 2, 
     ~ set_names(.x, nm = c("Atl", "aTl", "atL")))
+
+  
+### data wrangling for visualization ----
+### get ci of every web
+  # initial extinction on lower level original web
+  ci_lower_org <- get_ci(x = sp_remain_lower_org,
+                         means = sp_remain_lower_web_mean_org,
+                         org = T)
+  
+  # initial extinction on higher level original web
+  ci_higher_org <- get_ci(x = sp_remain_higher_org,
+                          means = sp_remain_higher_web_mean_org,
+                          org = T)
+  
+  # initial extinction on lower level no rewiring
+  ci_lower_norew <- get_ci(x = sp_remain_lower_norew,
+                           means = sp_remain_lower_web_mean_norew,
+                           norew = T)
+  
+  # initial extinction on higher level no rewiring
+  ci_higher_norew <- get_ci(x = sp_remain_higher_norew,
+                            means = sp_remain_higher_web_mean_norew,
+                            norew = T)
+  
+  # initial extinction on lower level, abundance driven extinction
+  ci_lower_abund <- get_ci(x = sp_remain_lower_abund,
+                           means = sp_remain_lower_web_mean_abund)
+  
+  # initial extinction on lower level, abundance driven extinction
+  ci_higher_abund <- get_ci(x = sp_remain_higher_abund,
+                            means = sp_remain_higher_web_mean_abund)
+  
+  
+  # initial extinction on higher level, abundance driven extinction, no rewiring
+  ci_higher_abund_norew <- get_ci(x = sp_remain_higher_abund_norew,
+                                  means = sp_remain_higher_web_mean_abund_norew,
+                                  norew = T)
+  
+  # initial extinction on lower level, abundance driven extinction, no rewiring
+  ci_lower_abund_norew <- get_ci(x = sp_remain_lower_abund_norew,
+                                 means = sp_remain_lower_web_mean_abund_norew,
+                                 norew = T)
+  
+  # initial extinction on both levels
+  ci_both <- get_ci(x = sp_remain_both,
+                    means = sp_remain_both_web_mean)
+  
+  # initial extinction on both levels, no rewiring
+  ci_both_norew <- get_ci(x = sp_remain_both_norew,
+                          means = sp_remain_both_web_mean_norew,
+                          norew = T)
+  
+  # initial extinction on lower level
+  ci_lower <- get_ci(x = sp_remain_lower,
+                     means = sp_remain_lower_web_mean)
+  
+  # initial extinction on higher level
+  ci_higher <- get_ci(x = sp_remain_higher,
+                      means = sp_remain_higher_web_mean)
+  
+### reshape sp_remain lists to dfs
+  # initial extinction on lower trophic level, original web
+  sp_remain_lower_web_mean_df_org <- list_to_df(sp_remain_lower_web_mean_org,
+                                                org = T)
+  
+  # initial extinction on higher trophic level, original web
+  sp_remain_higher_web_mean_df_org <- list_to_df(sp_remain_higher_web_mean_org,
+                                                 org = T)
+  
+  # initial extinction on lower trophic level, no rewiring
+  sp_remain_lower_web_mean_df_norew <- list_to_df(sp_remain_lower_web_mean_norew,
+                                                  norew = T)
+  
+  # initial extinction on higher trophic level, no rewiring
+  sp_remain_higher_web_mean_df_norew <- list_to_df(sp_remain_higher_web_mean_norew,
+                                                   norew = T)
+  
+  # initial extinction on lower level, abundance driven extinction
+  sp_remain_lower_web_mean_df_abund <- list_to_df(sp_remain_lower_web_mean_abund)
+  
+  # initial extinction on higher level, abundance driven extinction
+  sp_remain_higher_web_mean_df_abund <- list_to_df(sp_remain_higher_web_mean_abund)
+  
+  # initial extinction on lower level, abundance driven extinction, no rewiring
+  sp_remain_lower_web_mean_df_abund_norew <- list_to_df(sp_remain_lower_web_mean_abund_norew,
+                                                        norew = T)
+  
+  # initial extinction on higher level, abundance driven extinction, no rewiring
+  sp_remain_higher_web_mean_df_abund_norew <- list_to_df(sp_remain_higher_web_mean_abund_norew,
+                                                         norew = T)
+  
+  # initial extinction on both levels
+  sp_remain_both_web_mean_df <- list_to_df(sp_remain_both_web_mean)
+  
+  # initial extinction on both levels, no rewiring
+  sp_remain_both_web_mean_df_norew <- list_to_df(sp_remain_both_web_mean_norew, norew = T)
+  
+  # initial extinction on lower trophic level
+  sp_remain_lower_web_mean_df <- list_to_df(sp_remain_lower_web_mean)
+  
+  # initial extinction on higher trophic level
+  sp_remain_higher_web_mean_df <- list_to_df(sp_remain_higher_web_mean)
+  
+### reshape ci lists to df
+  ci_lower_df_org <- list_to_df(ci_lower_org, ci = T, org = T)
+  ci_higher_df_org <- list_to_df(ci_higher_org, ci = T, org = T)
+  
+  ci_lower_df_norew <- list_to_df(ci_lower_norew, ci = T, norew = T)
+  ci_higher_df_norew <- list_to_df(ci_higher_norew, ci = T, norew = T)
+  
+  ci_lower_df_abund <- list_to_df(ci_lower_abund, ci = T)
+  ci_higher_df_abund <- list_to_df(ci_higher_abund, ci = T)
+  
+  ci_lower_df_abund_norew <- list_to_df(ci_lower_abund_norew, ci = T, norew = T)
+  ci_higher_df_abund_norew <- list_to_df(ci_higher_abund_norew, ci = T, norew = T)
+  
+  ci_both_df <- list_to_df(ci_both, ci = T)
+  ci_both_df_norew <- list_to_df(ci_both_norew, ci = T, norew = T)
+  
+  ci_lower_df <- list_to_df(ci_lower, ci = T)
+  ci_higher_df <- list_to_df(ci_higher, ci = T)
+  
