@@ -117,6 +117,34 @@ ci_higher_norew <- get_ci(x = sp_remain_higher_norew,
                           means = sp_remain_higher_web_mean_norew,
                           norew = T)
 
+# initial extinction on lower level, abundance driven extinction
+ci_lower_abund <- get_ci(x = sp_remain_lower_abund,
+                   means = sp_remain_lower_abund_web_mean)
+
+# initial extinction on higher level, abundance driven extinction, no rewiring
+ci_higher_abund_norew <- get_ci(x = sp_remain_higher_abund_norew,
+                         means = sp_remain_higher_abund_web_mean_norew,
+                         norew = T)
+
+# initial extinction on lower level, abundance driven extinction, no rewiring
+ci_lower_abund_norew <- get_ci(x = sp_remain_lower_abund_norew,
+                         means = sp_remain_lower_abund_web_mean_norew,
+                         norew = T)
+
+# initial extinction on higher level, abundance driven extinction, no rewiring
+ci_higher_abund_norew <- get_ci(x = sp_remain_higher_abund_norew,
+                          means = sp_remain_higher_abund_web_mean_norew,
+                          norew = T)
+
+# initial extinction on both levels
+ci_both <- get_ci(x = sp_remain_both,
+                  means = sp_remain_both_web_mean)
+
+# initial extinction on both levels, no rewiring
+ci_both_norew <- get_ci(x = sp_remain_both_norew,
+                  means = sp_remain_both_web_mean_norew,
+                  norew = T)
+
 # initial extinction on lower level
 ci_lower <- get_ci(x = sp_remain_lower,
                    means = sp_remain_lower_web_mean)
@@ -129,6 +157,7 @@ ci_higher <- get_ci(x = sp_remain_higher,
 # initial extinction on lower trophic level, original web
 sp_remain_lower_web_mean_df_org <- list_to_df(sp_remain_lower_web_mean_org,
                                               org = T)
+
 # initial extinction on higher trophic level, original web
 sp_remain_higher_web_mean_df_org <- list_to_df(sp_remain_higher_web_mean_org,
                                                org = T)
@@ -136,11 +165,34 @@ sp_remain_higher_web_mean_df_org <- list_to_df(sp_remain_higher_web_mean_org,
 # initial extinction on lower trophic level, no rewiring
 sp_remain_lower_web_mean_df_norew <- list_to_df(sp_remain_lower_web_mean_norew,
                                                 norew = T)
+
 # initial extinction on higher trophic level, no rewiring
 sp_remain_higher_web_mean_df_norew <- list_to_df(sp_remain_higher_web_mean_norew,
                                                  norew = T)
+
+# initial extinction on lower level, abundance driven extinction
+sp_remain_lower_web_mean_df_abund <- list_to_df(sp_remain_lower_web_mean_abund)
+
+# initial extinction on higher level, abundance driven extinction
+sp_remain_higher_web_mean_df_abund <- list_to_df(sp_remain_higher_web_mean_abund)
+
+# initial extinction on lower level, abundance driven extinction, no rewiring
+sp_remain_lower_web_mean_df_abund_norew <- list_to_df(sp_remain_lower_web_mean_abund_norew,
+                                                      norew = T)
+
+# initial extinction on higher level, abundance driven extinction, no rewiring
+sp_remain_higher_web_mean_df_abund_norew <- list_to_df(sp_remain_higher_web_mean_abund_norew,
+                                                       norew = T)
+
+# initial extinction on both levels
+sp_remain_both_web_mean_df <- list_to_df(sp_remain_both_web_mean)
+
+# initial extinction on both levels, no rewiring
+sp_remain_both_web_mean_df_norew <- list_to_df(sp_remain_both_web_mean_norew, norew = T)
+
 # initial extinction on lower trophic level
 sp_remain_lower_web_mean_df <- list_to_df(sp_remain_lower_web_mean)
+
 # initial extinction on higher trophic level
 sp_remain_higher_web_mean_df <- list_to_df(sp_remain_higher_web_mean)
 
@@ -151,15 +203,31 @@ ci_higher_df_org <- list_to_df(ci_higher_org, ci = T, org = T)
 ci_lower_df_norew <- list_to_df(ci_lower_norew, ci = T, norew = T)
 ci_higher_df_norew <- list_to_df(ci_higher_norew, ci = T, norew = T)
 
+ci_lower_df_abund <- list_to_df(ci_lower_abund, ci = T)
+ci_higher_df_abund <- list_to_df(ci_higher_abund, ci = T)
+
+ci_lower_df_abund_norew <- list_to_df(ci_lower_abund_norew, ci = T, norew = T)
+ci_higher_df_abund_norew <- list_to_df(ci_higher_abund_norew, ci = T, norew = T)
+
+ci_both_df <- list_to_df(ci_both, ci = T)
+ci_both_df_norew <- list_to_df(ci_both_norew, ci = T, norew = T)
+
 ci_lower_df <- list_to_df(ci_lower, ci = T)
 ci_higher_df <- list_to_df(ci_higher, ci = T)
 
-
-
 # plot extinction sequences w/ CIs
-plot_extc(sp_remain_lower_web_mean, ci_lower, save = F, view = T, lower = T)
-plot_extc(sp_remain_higher_web_mean, ci_higher, save = F, view = T)
+# plot_extc(sp_remain_lower_web_mean, ci_lower, save = F, view = T, lower = T)
+# plot_extc(sp_remain_higher_web_mean, ci_higher, save = F, view = T)
 
+plot_extc_facet(extc = sp_remain_lower_web_mean_df,
+                extc_norew = sp_remain_lower_web_mean_df_norew,
+                ci = ci_lower_df,
+                ci_norew = ci_lower_df_norew)
+
+plot_extc_facet(extc = sp_remain_higher_web_mean_df,
+                extc_norew = sp_remain_higher_web_mean_df_norew,
+                ci = ci_higher_df,
+                ci_norew = ci_higher_df_norew)
 
 plot_extc_alt(x = sp_remain_lower_web_mean,
               org = sp_remain_lower_web_mean_org,
