@@ -16,8 +16,10 @@ one.second.extinct.mod_aug <- function(web,
                                        interactions = NULL,
                                        method.rewiring = "NULL",
                                        make.bipartite = F,
-                                       adapt = T,
-                                       vis.steps = F) {
+                                       adapt = F,
+                                       vis.steps = F,
+                                       shift = F,
+                                       coextc_thr = NULL) {
   i <- 1L
   j <- 1L
   retry <- 1L # set counter for max retries for empty m2
@@ -33,8 +35,13 @@ one.second.extinct.mod_aug <- function(web,
   # drop sp w/o any interactions from web
   m2 <- web[sp_low, sp_high, drop = F]
   
-  ## Debugging
-  # m2 <- web
+  # track no of shifts
+  if (shift) {
+    # create dfs to track number of shifts
+    shifts_lower <- vector(mode = "list")
+    
+    shifts_higher <- vector(mode = "list")
+  }
   
   dead <- cbind(0, 0, 0, nrow(m2), ncol(m2)) # correct for sp w/o any interactions
   
@@ -43,6 +50,8 @@ one.second.extinct.mod_aug <- function(web,
   # create dummy if participant option both is used
   if (participant == "both") {
     partis <- participant
+  } else {
+    partis <- "single"
   }
   
   # set initial choice
@@ -53,6 +62,13 @@ one.second.extinct.mod_aug <- function(web,
   # interactions <- interactions[which(rownames(interactions) %in% names(sp_low)),
   #                              which(colnames(interactions) %in% names(sp_high))]
 
+  # determine coextinction of species if coextinction threshold is provided
+  if (!is.null(coextc_thr)) {
+    coextc <- T
+  } else {
+    coextc <- F
+  }
+  
   # adapatability
   if (adapt) {
   adapt_list <- list("low" = runif(nrow(m2), 0, 1),
@@ -94,7 +110,7 @@ one.second.extinct.mod_aug <- function(web,
         if (sum(ext.temp$rexcl, ext.temp$cexcl) != 0)
           break
       }
-      if (j > 3) {
+      if (j >= 3) {
         warning("Failed to find alternative, skipping current simulation step(", i, ")")
          abort <- T
         # skip <- T
@@ -141,7 +157,7 @@ one.second.extinct.mod_aug <- function(web,
             trait.dist <- as.matrix(dist(choice_low, diag = T, upper = T)) 
             
             # find sp w/ smallest trait dist
-            sp.closest <- names(which.min(trait.dist[-sp.ext.idx, sp.ext.idx, drop = F]))
+            sp.closest <- names(which(sort(trait.dist[, sp.ext.idx, drop = F])[2] == trait.dist[, sp.ext.idx])) # use 2nd lowest since sp.ext is lowest
               
             # match interacting sp of closest relative(check.int) to remaining sp (sp.rem)
             rew.partner <- which(rownames(m2) %in% sp.closest)
@@ -157,11 +173,9 @@ one.second.extinct.mod_aug <- function(web,
             choice_low <- choice_low[which(rownames(choice_low) %in% rownames(interactions)), which(colnames(choice_low) %in% rownames(interactions)), drop = F] # drop sp w/o any interactions
             
             sp.ext.idx <- which(rownames(choice_low) %in% sp.ext) # get idx of sp.ext (NOT THE SAME IN ext.temp$web !!)
-            error<<- rownames(choice_low)
             
             # get closest relative
-            close.rel <-  min(choice_low[-sp.ext.idx, sp.ext.idx, drop = F]) # get distance
-            sp.close.rel.tmp <- colnames(choice_low[which(choice_low[, sp.ext.idx, drop = F] == close.rel), sp.ext, drop = F]) # closest sp
+            sp.close.rel.tmp <- names(which(sort(choice_low[, sp.ext])[2] == choice_low[, sp.ext])) # use 2nd lowest since sp.ext is lowest
             
             # if multiple species have same distance, randomly choose one
             if (length(sp.close.rel.tmp) != 1){
@@ -221,7 +235,7 @@ one.second.extinct.mod_aug <- function(web,
             trait.dist <- as.matrix(dist(choice_high, diag = T, upper = T)) 
             
             # find sp w/ smallest trait dist
-            sp.closest <- names(which.min(trait.dist[-sp.ext.idx, sp.ext.idx, drop = F]))
+            sp.closest <- names(which(sort(trait.dist[, sp.ext.idx, drop = F])[2] == trait.dist[, sp.ext.idx])) # use 2nd lowest since sp.ext is lowest
             
             # match interacting sp of closest relative(check.int) to remaining sp (sp.rem)
             rew.partner <- which(colnames(m2) %in% sp.closest)
@@ -238,11 +252,9 @@ one.second.extinct.mod_aug <- function(web,
             
             
             sp.ext.idx <- which(rownames(choice_high) %in% sp.ext) # get idx of sp.ext (NOT THE SAME IN ext.temp$web !!)
-            error<<-rownames(choice_low)
             
             # get closest relative
-            close.rel <-  min(choice_high[-sp.ext.idx, sp.ext.idx, drop = F]) # get distance
-            sp.close.rel.tmp <- rownames(choice_high[sp.ext, which(choice_high[, sp.ext.idx, drop = F] == close.rel), drop = F]) # closest sp
+            sp.close.rel.tmp <- names(which(sort(choice_high[, sp.ext])[2] == choice_high[, sp.ext])) # use 2nd lowest since sp.ext is lowest 
             
             # if multiple species have same distance, randomly choose one
             if (length(sp.close.rel.tmp) != 1){
@@ -265,7 +277,29 @@ one.second.extinct.mod_aug <- function(web,
       }
     }
     # removed rows and cols
-    rem_r_c <- empty(ext.temp$web, count = T)
+    if (coextc) {
+      if (nrow(ext.temp$web) >= 2L & ncol(ext.temp$web) >= 2L) {
+        # sort ext.temp web
+        ext.temp$web <- ext.temp$web[sort(rownames(ext.temp$web)),
+                     sort(colnames(ext.temp$web))]
+        
+        # percentage of interactions remaining
+        coext_r <- which(rowSums(ext.temp$web)/ rowSums(m2) <= coextc_thr)
+        coext_c <- which(colSums(ext.temp$web)/ colSums(m2) <= coextc_thr)
+      
+        # set interaction to 0 if coextinction threshold was exceeded
+        if (!length(coext_r) == 0) {
+          ext.temp$web[coext_r, ] <- 0
+        }
+        
+        if (!length(coext_c) == 0) {
+        ext.temp$web[, coext_c] <- 0
+        }
+      }
+    } 
+    
+    rem_r_c <- empty(ext.temp$web, count = T) 
+    
     
     # get extc. sp if no rewiring
     if (!rewiring) {
@@ -334,7 +368,9 @@ one.second.extinct.mod_aug <- function(web,
     }
     
     if (vis.steps) {
+      par(mfrow = c(2, 1))
       plotweb(m2)
+      visweb(m2, text = "interaction", type = "nested")
     }
   
     # update I_mat
@@ -392,8 +428,19 @@ one.second.extinct.mod_aug <- function(web,
       break
       }
     
-    # calculate new web w/ updated I_mat
-    if ((nrow(interactions) >= 2L | ncol(interactions) >= 2L)) {
+    # get current partners to track shifts
+    if (shift) {
+      # get partners of lower level sp
+      lower_partners_old <- map(seq(nrow(m2)), ~ names(which(m2[.x, ] >= 1) == T))
+      names(lower_partners_old) <- rownames(m2)
+      
+      # get partners of higher level sp
+      higher_partners_old <- map(seq(ncol(m2)), ~ names(which(m2[, .x] >= 1) == T))
+      names(higher_partners_old) <- colnames(m2)
+    }
+    
+    # calculate new web w/ updated o_mat
+    if (nrow(interactions) >= 2L | ncol(interactions) >= 2L) {
       m2 <- matrix(rmultinom(1, Nobs, interactions), nrow = nrow(interactions),
                   ncol = ncol(interactions))
       dimnames(m2) <- dimnames(interactions)
@@ -404,6 +451,62 @@ one.second.extinct.mod_aug <- function(web,
       
     } else {
       break
+    }
+    
+    # update partners for tracking shifts
+    if (shift) {
+      # get partners of lower level sp
+      lower_partners_new <- map(seq(nrow(m2)), ~ names(which(m2[.x, ] >= 1) == T))
+      names(lower_partners_new) <- rownames(m2)
+      
+      # get partners of higher level sp
+      higher_partners_new <- map(seq(ncol(m2)), ~ names(which(m2[, .x] >= 1) == T))
+      names(higher_partners_new) <- colnames(m2)
+      
+      # new interaction partners 
+      added_lower <- map(names(lower_partners_old), function (x) {
+        length(which(lower_partners_new[[x]] %in% lower_partners_old[[x]] == F))
+      })
+      names(added_lower) <- names(lower_partners_old)
+      
+      added_higher <- map(names(higher_partners_old), function(x) {
+        length(which(higher_partners_new[[x]] %in% higher_partners_old[[x]] == F))
+        })
+      names(added_higher) <- names(higher_partners_old)
+      
+      shifts_lower[[i]] <- unlist(added_lower)
+      shifts_higher[[i]] <- unlist(added_higher)
+      
+      # # lost interactions partners
+      # lost_lower <- map(names(lower_partners_old), function (x) {
+      #   length(which(lower_partners_old[[x]] %in% lower_partners_new[[x]] == F))
+      # })
+      # names(lost_lower) <- names(lower_partners_old)
+      # 
+      # lost_higher <- map(names(higher_partners_old), function(x) {
+      #   length(which(higher_partners_old[[x]] %in% higher_partners_new[[x]] == F))
+      # })
+      # names(lost_higher) <- names(higher_partners_old)
+      # 
+      # # update shift dfs
+      # shifts_lower[which(shifts_lower$species %in% names(added_lower)), "added"] <- shifts_lower[which(shifts_lower$species %in% names(added_lower)), "added"] + unlist(added_lower)
+      # shifts_lower[which(shifts_lower$species %in% names(lost_lower)), "lost"] <- shifts_lower[which(shifts_lower$species %in% names(lost_lower)), "lost"] + unlist(lost_lower)
+      # 
+      # shifts_higher[which(shifts_higher$species %in% names(added_higher)), "added"] <- shifts_higher[which(shifts_higher$species %in% names(added_higher)), "added"] + unlist(added_higher)
+      # shifts_higher[which(shifts_higher$species %in% names(lost_higher)), "lost"] <- shifts_higher[which(shifts_higher$species %in% names(lost_higher)), "lost"] + unlist(lost_higher)
+      # 
+      # shifted_lower <- map(names(added_lower), function(x) {
+      #   shifts_lower[which(shifts_lower[, 1] == x), 2] + pluck(added_lower, x)
+      # })
+      # names(shifted_lower) <- names(added_lower)
+      # 
+      # shifted_higher <- map(names(added_higher), function(x) {
+      #   shifts_higher[which(shifts_higher[, 1] == x), 2] + pluck(added_higher, x)
+      # })
+      # names(shifted_higher) <- names(added_higher)
+      # 
+      # shifts_lower[which(shifts_lower$species %in% names(shifted_lower)), "shifts"] <- shifts_lower[which(shifts_lower$species %in% names(shifted_lower)), "shifts"] + unlist(shifted_lower)
+      # shifts_higher[which(shifts_higher$species %in% names(shifted_higher)), "shifts"] <- shifts_higher[which(shifts_higher$species %in% names(shifted_higher)), "shifts"] + unlist(shifted_higher)
     }
     
     if (participant == "lower" & NROW(m2) < 2L) 
@@ -457,6 +560,9 @@ one.second.extinct.mod_aug <- function(web,
     attr(out, "exterminated")
   } else {
     out <- dead2
+  }
+  if (shift) {
+    shifts <<- list("lower" = shifts_lower, "higher" = shifts_higher)
   }
   return(out)
 }

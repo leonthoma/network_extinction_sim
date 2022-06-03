@@ -11,7 +11,8 @@ run_extc <- function(web,
                      method.rewiring = "NULL",
                      n_sims = 0,
                      multiple.webs = F,
-                     make.bipartite = F
+                     make.bipartite = F,
+                     coextc_thr = NULL
                      ) {
   if (multiple.webs == T) {
    map(.x = c("Atl", "aTl", "atL"),
@@ -23,7 +24,8 @@ run_extc <- function(web,
                                                    partner.choice = partner.choice,
                                                    interactions = pluck(interactions, .x, "I_mat"),
                                                    method.rewiring = method.rewiring,
-                                                   make.bipartite = make.bipartite)))
+                                                   make.bipartite = make.bipartite,
+                                                   coextc_thr = coextc_thr)))
   } else {
   map(web, ~replicate(n_sims, simplify = F, 
                       one.second.extinct.mod_aug(web = pluck(.x, 1), 
@@ -33,7 +35,8 @@ run_extc <- function(web,
                                                  partner.choice = partner.choice,
                                                  interactions = pluck(.x, 2),
                                                  method.rewiring = method.rewiring,
-                                                 make.bipartite = make.bipartite)))
+                                                 make.bipartite = make.bipartite,
+                                                 coextc_thr = coextc_thr)))
   }
 }
 
@@ -100,11 +103,14 @@ match_lengths <- function(x, df = T) {
   return(out)
 }
 
+# helper function used in per_surv
+list_divide <- function(x) {
+  x / x[1] * 100
+}
+
 # function to calculate percentages of remaining species
 per_surv <- function(x, y, lower = T, original = F) {
-  list_divide <- function(x) {
-    x / x[1] * 100
-  }
+
   
   extc_in_network <- ifelse(isTRUE(lower), 1, 2)
   
@@ -122,7 +128,8 @@ library(ggplot2)
 library(ggpubr)
 
 plot_extc_facet <- function(extc, ci, extc_norew, ci_norew,
-                            save = F, view = T, org = F) {
+                            save = F, view = T, both = F, abund = F,
+                            norew = F, org = F) {
   
   # extinction on lower or higher level ?
   lvl_match_extc <- grepl("lower", substitute(extc))
@@ -147,34 +154,41 @@ plot_extc_facet <- function(extc, ci, extc_norew, ci_norew,
   # combine dfs 
   extc <- bind_rows(extc, extc_norew)
   ci <- bind_rows(ci, ci_norew)
+  # org <- bind_rows(org, org_norew)
+  # ci_org <- bind_rows(ci_org, ci_org_norew)
   
   # automate axis labels
   ifelse(lvl == "lower", xlab <- "plants", xlab <- "animals")
   ifelse(lvl == "lower", ylab <- "animals", ylab <- "plants")
   
   # colors for facet boundary boxes
-  colors <- c("abund" = "black", "trait" = "firebrick", "phylo" = "dodgerblue")
+  colors <- c("abund" = "firebrick", "trait" = "dodgerblue", "phylo" = "burlywood4")
   
   # create df for ggplot
   df <- cbind(ci,
              select(extc, -c("id", "com_vars"))) %>% 
     tidyr::unite(., col = "group", c("id", "com_vars"), remove = F)
   
+  # df_org <- cbind(ci_org, select(org, -c("id", "com_vars")))
   
   # create list of labels for facet
   # norew or org simulations used ?
   if(org) {
-    # set grouping variable to factor
-    df$group <- factor(df$group, levels = c("abund_...1",
-                                            "trait_...1",
-                                            "phylo_...1"))
-    id_labs <- c("Abundance", "Traits", "Phylogeny")
+    # # set grouping variable to factor
+    # df$group <- factor(df$group, levels = c("abund_...1",
+    #                                         "trait_...1",
+    #                                         "phylo_...1"))
+    id_labs <- c("Abundance", "Traits", "Phylogeny", "norew_org")
     names(id_labs) <- c(unique(df$id))
   # set facet layout
   nrow <- 1
   ncol <- 3
+
+  # create vector of id to map over
+  map_ids <- unique(df$id)
+
   } else {
-    # set grouping variable to factor
+  # set grouping variable to factor
     df$group <- factor(df$group, levels = c("abund_Atl", "abund_aTl", "abund_atL",
                                             "trait_Atl", "trait_aTl", "trait_atL",
                                             "phylo_Atl", "phylo_aTl", "phylo_atL",
@@ -191,19 +205,33 @@ plot_extc_facet <- function(extc, ci, extc_norew, ci_norew,
     # set facet layout
     nrow <- 3
     ncol <- 1
+    
+    # create vector of id to map over
+    map_ids <- unique(df$id)[-length(unique(df$id))] # delete last one (norew)
   }
   
   # create plots
-  plots <- map(unique(df$id)[-length(unique(df$id))], function(z) {
+  plots <- map(map_ids, function(z) {
     # get facet labels
     if(org) {
-      labs <- id_labs[z]
+      labs <- id_labs
     } else {
       labs <- pluck(id_labs, z)
     }
-    
+
     if (org) {
+      # get facet label for current plot; needs single value for "facet cheat"
+      df$title <- labs[which(unique(df$id) == z)]
+
       ggplot(filter(df, id == z)) +
+        geom_line(aes(rev(x), y, group = "norew_org"), color = "grey80",
+                  data = filter(df, com_vars == "org" & id == "norew")) + # means norew
+        geom_line(aes(rev(x_lower), x_higher, group = "norew_org"),
+                  linetype = 2, color = "grey80",
+                  filter(df, com_vars == "org" & id == "norew")) + # lower ci norew
+        geom_line(aes(rev(y_lower), y_higher, group = "norew_org"),
+                  linetype = 2, color = "grey80",
+                  data = filter(df, com_vars == "org" & id == "norew")) + # higher ci norew
         geom_line(aes(rev(x), y, group = group, color = "firebrick")) + # means
         geom_line(aes(rev(x_lower), x_higher, group = group),
                   linetype = 2) + # lower ci
@@ -213,9 +241,9 @@ plot_extc_facet <- function(extc, ci, extc_norew, ci_norew,
         guides(color = "none") +
         facet_wrap(. ~ title)  +
         theme(strip.text = element_text(),
-              strip.background = element_rect(color = colors[z])) # set bb color  
+              strip.background = element_rect(color = colors[z])) # set bb color
     } else {
-      subplots <- map(unique(df$com_vars), function(a) {
+      subplots <- map(c("Atl", "aTl", "atL"), function(a) {
         
         # get facet label for current plot; needs single value for "facet cheat" 
           df$title <- labs[which(unique(df$com_vars) == a)]
@@ -240,29 +268,69 @@ plot_extc_facet <- function(extc, ci, extc_norew, ci_norew,
           theme(strip.text = element_text(),
                   strip.background = element_rect(color = colors[z])) # set box color
       })
+      # # plot org
+      # df_org$title <- "org"
+      # 
+      # subplots[[4]] <- ggplot(filter(df_org, id == z)) +
+      #   geom_line(aes(rev(x), y), color = "grey80",
+      #             data = filter(df_org, id == paste(z, "norew", sep = "_"))) + # means norew
+      #   geom_line(aes(rev(x_lower), x_higher), color = "grey80",
+      #             linetype = 2,
+      #             data = filter(df_org, id == paste(z, "norew", sep = "_"))) + # lower ci norew
+      #   geom_line(aes(rev(y_lower), y_higher), color = "grey80",
+      #             linetype = 2,
+      #             data = filter(df_org, id == paste(z, "norew", sep = "_"))) + # higher ci norew
+      #   geom_line(aes(rev(x), y, color = "firebrick")) + # means
+      #   geom_line(aes(rev(x_lower), x_higher),
+      #             linetype = 2) + # lower ci
+      #   geom_line(aes(rev(y_lower), y_higher),
+      #             linetype = 2) + # higher ci
+      #   labs(x = paste(xlab, "removed"), y = paste(ylab, "persisting")) +
+      #   guides(color = "none") +
+      #   facet_wrap(. ~ title, labeller = labeller(group = labs))  +
+      #   theme(strip.text = element_text(),
+      #         strip.background = element_rect(color = colors[z])) # set box color
+      # 
+      
       ggarrange(subplots[[1]], subplots[[2]], subplots[[3]], nrow = 1)
-      }
+       }
     })
   
   
-  if (view == T) {
+  if (view) {
     out <- ggarrange(plots[[1]], plots[[2]], plots[[3]],
                      nrow = nrow, ncol = ncol)
     print(out)
   }
   
-  if (save == T) {
+  if (save) {
+    name <- paste("extinction_cascade", lvl, "trophic_level", coextc_thr*100, ".pdf", sep = "_")
+    if (org) {
+      name <- paste("extinction_cascade", lvl, "trophic_level_org", coextc_thr*100, ".pdf",
+                    sep = "_")
+    }
+    if (both) {
+      name <- paste("extinction_cascade_both_trophic_levels", coextc_thr*100, ".pdf",
+                    sep = "_")
+    }
+    if (abund) {
+      name <- paste("extinction_cascade", lvl, "trophic_level_abund", coextc_thr*100, ".pdf",
+                    sep = "_")
+    }
+    if (norew) {
+      name <- paste("extinction_cascade", lvl, "trophic_level_norew", coextc_thr*100, ".pdf",
+                    sep = "_")
+    }
     ggsave(
-      paste("extinction cascade", lvl, "trophic level"),
+      name,
       path = paste0(getwd(), "/plot_sink"),
       plot = out,
       device = "pdf",
-      width = 1900,
-      height = 1205,
+      width = 2100,
+      height = 1705,
       units = "px")
   }
 }
-
 
 # DEPRECATED use plot_extc_facet instead
 plot_extc <- function(x, ci, save = F, view = T, lower = F){
@@ -325,12 +393,55 @@ plot_extc <- function(x, ci, save = F, view = T, lower = F){
   return(plots)
 }
 
-plot_extc_alt <- function(x, org, norew, ci, ci_org, ci_norew, save = F, view = T, lower = F){
+plot_extc_alt <- function(x, org, ci, ci_org, save = F, view = T, lower = F, spaghetti = F){
   com_vars <- c("abund" = 1, "trait" = 2, "phylo" = 3)
   ifelse(lower == T, lvl <- "lower", lvl <- "higher")
   ifelse(lower == T, xlab <- "plants", xlab <- "animals")
   ifelse(lower == T, ylab <- "animals", ylab <- "plants")
   
+  if (spaghetti) {
+    plots <- map(com_vars, ~ ggplot() + 
+                   geom_line(aes(rev(pluck(ci, "lower", 1, .x, 1)),
+                                 pluck(ci, "higher", 1, .x, 1),
+                                 color = "Atl"), linetype = 2, size = .3) + # lower
+                   geom_line(aes(rev(pluck(ci, "lower", 2, .x, 1)),
+                                 pluck(ci, "higher", 2, .x, 1),
+                                 color = "Atl"), linetype = 2, size = .3) + # upper
+                   geom_line(aes(rev(pluck(x, "lower", .x, "Atl")), pluck(x, "higher", .x, "Atl"),
+                                 color = "Atl"), linetype = 1, size = .5) + # mean
+                   geom_line(aes(rev(pluck(ci, "lower", 1, .x, 2)),
+                                 pluck(ci, "higher", 1, .x, 2),
+                                 color = "aTl"), linetype = 2, size = .3) + # lower
+                   geom_line(aes(rev(pluck(ci, "lower", 2, .x, 2)),
+                                 pluck(ci, "higher", 2, .x, 2),
+                                 color = "aTl"), linetype = 2, size = .3) + # upper
+                   geom_line(aes(rev(pluck(x, "lower", .x, "aTl")), pluck(x, "higher", .x, "aTl"),
+                                 color = "aTl"), linetype = 1, size = .5) + # mean
+                   geom_line(aes(rev(pluck(ci, "lower", 1, .x, 3)),
+                                 pluck(ci, "higher", 1, .x, 3),
+                                 color = "atL"), linetype = 2, size = .3) + # lower
+                   geom_line(aes(rev(pluck(ci, "lower", 2, .x, 3)),
+                                 pluck(ci, "higher", 2, .x, 3),
+                                 color = "atL"), linetype = 2, size = .3) + # upper
+                   geom_line(aes(rev(pluck(x, "lower", .x, "atL")), pluck(x, "higher", .x, "atL"),
+                                 color = "atL"), linetype = 1, size = .5) + # mean
+                   geom_line(aes(rev(pluck(ci_org, "lower", 1, .x)),
+                                 pluck(ci_org, "higher", 1, .x),
+                                 color = "original"), linetype = 2, size = .3) + # lower
+                   geom_line(aes(rev(pluck(ci_org, "lower", 2, .x)),
+                                 pluck(ci_org, "higher", 2, .x),
+                                 color = "original"), linetype = 2, size = .3) + # upper
+                   geom_line(aes(rev(pluck(org, "lower", .x)), pluck(org, "higher", .x),
+                                 color = "original"), linetype = 1, size = .5) + # mean
+                   scale_color_manual(name = "Contribution",
+                                      values = c("Atl" = "black",
+                                                 "aTl" = "firebrick",
+                                                 "atL" = "dodgerblue",
+                                                 "original" = "burlywood4")) +
+                   labs(x = paste(xlab, "removed"), y = paste(ylab, "persisting"),
+                        title = paste("Extinction cascade", lvl, "trophic level", names(com_vars[.x]), "rewiring"))
+    )
+  } else {
    plots_Atl <- map(com_vars, ~ ggplot() + 
           geom_line(aes(rev(pluck(ci, "lower", 1, .x, 1)),
                         pluck(ci, "higher", 1, .x, 1),
@@ -344,8 +455,7 @@ plot_extc_alt <- function(x, org, norew, ci, ci_org, ci_norew, save = F, view = 
                                values = c("Atl" = "black",
                                           "aTl" = "firebrick",
                                           "atL" = "dodgerblue",
-                                          "original" = "burlywood4",
-                                          "w/o rewiring" = "seagreen")) +
+                                          "original" = "burlywood4")) +
             labs(x = paste(xlab, "removed"), y = paste(ylab, "persisting"),
                  # title = paste("Extinction cascade", lvl, "trophic level",
                  #               names(com_vars[.x]), "rewiring")
@@ -364,19 +474,18 @@ plot_extc_alt <- function(x, org, norew, ci, ci_org, ci_norew, save = F, view = 
                                  values = c("Atl" = "black",
                                             "aTl" = "firebrick",
                                             "atL" = "dodgerblue",
-                                            "original" = "burlywood4",
-                                            "w/o rewiring" = "seagreen")) +
+                                            "original" = "burlywood4")) +
               labs(x = paste(xlab, "removed"), y = paste(ylab, "persisting"),
                    # title = paste("Extinction cascade", lvl, "trophic level",
                    #               names(com_vars[.x]), "rewiring")
                    ))
           
           plots_atL <- map(com_vars, ~ ggplot() +     
-          geom_line(aes(rev(pluck(ci, "lower", 1, .x, 2)),
-                        pluck(ci, "higher", 1, .x, 2),
+          geom_line(aes(rev(pluck(ci, "lower", 1, .x, 3)),
+                        pluck(ci, "higher", 1, .x, 3),
                         color = "atL"), linetype = 2, size = .3) + # lower
-          geom_line(aes(rev(pluck(ci, "lower", 2, .x, 2)),
-                        pluck(ci, "higher", 2, .x, 2),
+          geom_line(aes(rev(pluck(ci, "lower", 2, .x, 3)),
+                        pluck(ci, "higher", 2, .x, 3),
                         color = "atL"), linetype = 2, size = .3) + # upper
           geom_line(aes(rev(pluck(x, "lower", .x, "atL")), pluck(x, "higher", .x, "atL"),
                         color = "atL"), linetype = 1, size = .5) + # mean
@@ -384,8 +493,7 @@ plot_extc_alt <- function(x, org, norew, ci, ci_org, ci_norew, save = F, view = 
                                    values = c("Atl" = "black",
                                               "aTl" = "firebrick",
                                               "atL" = "dodgerblue",
-                                              "original" = "burlywood4",
-                                              "w/o rewiring" = "seagreen")) +
+                                              "original" = "burlywood4")) +
                 labs(x = paste(xlab, "removed"), y = paste(ylab, "persisting"),
                      # title = paste("Extinction cascade", lvl, "trophic level",
                      #               names(com_vars[.x]), "rewiring")
@@ -404,55 +512,75 @@ plot_extc_alt <- function(x, org, norew, ci, ci_org, ci_norew, save = F, view = 
                                      values = c("Atl" = "black",
                                                 "aTl" = "firebrick",
                                                 "atL" = "dodgerblue",
-                                                "original" = "burlywood4",
-                                                "w/o rewiring" = "seagreen")) +
+                                                "original" = "burlywood4")) +
                   labs(x = paste(xlab, "removed"), y = paste(ylab, "persisting"),
                        # title = paste("Extinction cascade", lvl, "trophic level",
                        #               names(com_vars[.x]), "rewiring")
                        ))
           
-          plots_norew <- map(com_vars, ~ ggplot() +         
-          geom_line(aes(rev(pluck(ci_norew, "lower", 1, .x)),
-                        pluck(ci_norew, "higher", 1, .x),
-                        color = "w/o rewiring"), linetype = 2, size = .3) + # lower
-          geom_line(aes(rev(pluck(ci_norew, "lower", 2, .x)),
-                        pluck(ci_norew, "higher", 2, .x),
-                        color = "w/o rewiring"), linetype = 2, size = .3) + # upper
-          geom_line(aes(rev(pluck(norew, "lower", .x)), pluck(norew, "higher", .x),
-                      color = "w/o rewiring"), linetype = 1, size = .5) + # mean
-          scale_color_manual(name = "Contribution",
-                             values = c("Atl" = "black",
-                                        "aTl" = "firebrick",
-                                        "atL" = "dodgerblue",
-                                        "original" = "burlywood4",
-                                        "w/o rewiring" = "seagreen")) +
-          labs(x = paste(xlab, "removed"), y = paste(ylab, "persisting"),
-               # title = paste("Extinction cascade", lvl, "trophic level",
-               #               names(com_vars[.x]), "rewiring")
-               ))
+          # plots_tin <- map(com_vars, ~ ggplot() +       
+          #                    geom_line(aes(rev(pluck(ci_tinoco, "lower", 1, .x)),
+          #                                  pluck(ci_tinoco, "higher", 1, .x),
+          #                                  color = "original"), linetype = 2, size = .3) + # lower
+          #                    geom_line(aes(rev(pluck(ci_tinoco, "lower", 2, .x)),
+          #                                  pluck(ci_tinoco, "higher", 2, .x),
+          #                                  color = "original"), linetype = 2, size = .3) + # upper
+          #                    geom_line(aes(rev(pluck(tinoco, "lower", .x)), pluck(tinoco, "higher", .x),
+          #                                  color = "original"), linetype = 1, size = .5) + # mean
+          #                    scale_color_manual(name = "Contribution",
+          #                                       values = c("Atl" = "black",
+          #                                                  "aTl" = "firebrick",
+          #                                                  "atL" = "dodgerblue",
+          #                                                  "original" = "burlywood4",
+          #                                                  "w/o rewiring" = "seagreen")) +
+          #                    labs(x = paste(xlab, "removed"), y = paste(ylab, "persisting"),
+          #                         # title = paste("Extinction cascade", lvl, "trophic level",
+          #                         #               names(com_vars[.x]), "rewiring")
+          #                    ))
+          # 
           
+          # plots <- ggarrange(plots_Atl[[1]], plots_aTl[[1]], plots_atL[[1]],
+          #           plots_org[[1]], plots_norew[[1]], plots_tin[[1]], plots_Atl[[2]],
+          #           plots_aTl[[2]], plots_atL[[2]], plots_org[[2]],
+          #           plots_norew[[2]], plots_tin[[2]], plots_Atl[[3]], plots_aTl[[3]],
+          #           plots_atL[[3]], plots_org[[3]], plots_norew[[3]], plots_tin[[3]],
+          #           ncol = 6, nrow = 3, common.legend = T, legend = "bottom")
+          # 
+   
           plots <- ggarrange(plots_Atl[[1]], plots_aTl[[1]], plots_atL[[1]],
-                    plots_org[[1]], plots_norew[[1]], plots_Atl[[2]],
-                    plots_aTl[[2]], plots_atL[[2]], plots_org[[2]],
-                    plots_norew[[2]], plots_Atl[[3]], plots_aTl[[3]],
-                    plots_atL[[3]], plots_org[[3]], plots_norew[[3]],
-                    ncol = 5, nrow = 3, common.legend = T, legend = "bottom")
-   
-   
-   if (view == T)
-     plot(plots)
-   
-   if (save == T) {
+                             plots_org[[1]], plots_Atl[[2]],
+                             plots_aTl[[2]], plots_atL[[2]], plots_org[[2]],
+                             plots_Atl[[3]], plots_aTl[[3]],
+                             plots_atL[[3]], plots_org[[3]],
+                             ncol = 4, nrow = 3, common.legend = T, legend = "bottom")
+          
+  }
+   if (save) {
+     if (spaghetti) {
      map(c("abund" = 1, "trait" = 2, "phylo" = 3), ~ ggsave(
-       paste("alt extinction cascade", lvl, "trophic level",
-             names(com_vars[.x])),
+       paste("alt_extinction_cascade", lvl, "trophic_level",
+             names(com_vars[.x]), coextc_thr*100, ".pdf", sep = "_"),
        path = paste0(getwd(), "/plot_sink"),
        plot = plots[[.x]],
        device = "pdf",
        width = 1900,
        height = 1205,
        units = "px"))
+     } else {
+       ggsave(
+         paste("alt_extinction_cascade", lvl, "trophic_level", coextc_thr*100, ".pdf", sep = "_"),
+         path = paste0(getwd(), "/plot_sink"),
+         plot = plots,
+         device = "pdf",
+         width = 1900,
+         height = 1205,
+         units = "px")
+     }
   }
+   
+  if (view){
+     return(plots)
+   }
 }
 
 # fy for simulating webs with user specified community var contributions
@@ -507,47 +635,66 @@ robustness_aug <- function (object, lower = T)
   return(as.numeric(ext.area[[1]]))
 }
 
-conf_int <- function(x, means, trph_lvl = "lower", lower = T, norew_org = F) {
+conf_int <- function(x, means, trph_lvl = "lower", lower = T, norew_org = F,
+                     tin = F, noreworg = F) {
   if(!(trph_lvl == "lower" | trph_lvl == "higher"))
     stop("Invalid value for trph_lvl ! Specify valid trophic level (lower or higher)")
 
   # calculate std devs
-  if(norew_org) {
-    sds <- map(.x = 1:3, function(a) {
-      map(seq(n_webs), ~ pluck(x, .x, trph_lvl, a)) %>% as.data.table %>% 
-        match_lengths() %>% apply(., 1, sd)})
+  if (tin) {
+    sds <- map(1:3, ~ pluck(x, trph_lvl, .x) %>% sd)
   } else {
-    sds <- map(.x = 1:3, function(a) map(.x = 1:3, function(b) {
-      map(seq(n_webs), ~ pluck(x, .x, trph_lvl, a, b)) %>% as.data.table %>% 
-        match_lengths() %>% apply(., 1, sd)}))
+    if (norew_org) {
+      sds <- map(.x = 1:3, function(a) {
+        map(seq(n_webs), ~ pluck(x, .x, trph_lvl, a)) %>% as.data.table %>% 
+          match_lengths() %>% apply(., 1, sd)})
+    } else {
+      if (noreworg) {
+       sds <- map(seq(n_webs), ~ pluck(x, .x, trph_lvl)) %>% as.data.table %>%
+          match_lengths() %>% apply(., 1, sd)
+      } else {
+        sds <- map(.x = 1:3, function(a) map(.x = 1:3, function(b) {
+          map(seq(n_webs), ~ pluck(x, .x, trph_lvl, a, b)) %>% as.data.table %>% 
+            match_lengths() %>% apply(., 1, sd)}))
+        }
+    }
   }
   
-  # calulate margins 
-  if(norew_org) {
-    margins <- map(1:3, ~ qt(0.975, df = length(pluck(sds, .x)) - 1) * pluck(sds, .x)/sqrt(length(pluck(sds, .x))))
+  
+  # calulate margins
+  if (tin | noreworg) {
+    margins <- qt(0.975, df = length(sds) - 1) * sds/sqrt(length(sds))
   } else {
-    margins <- map(1:3, function(a) {
-      map(1:3, ~ qt(0.975, df = length(pluck(sds, a, .x)) - 1) * pluck(sds, a, .x)/sqrt(length(pluck(sds, a, .x))))})
-  }
+      if (norew_org) {
+        margins <- map(1:3, ~ qt(0.975, df = length(pluck(sds, .x)) - 1) * pluck(sds, .x)/sqrt(length(pluck(sds, .x))))
+      } else {
+        margins <- map(1:3, function(a) {
+          map(1:3, ~ qt(0.975, df = length(pluck(sds, a, .x)) - 1) * pluck(sds, a, .x)/sqrt(length(pluck(sds, a, .x))))})
+      }
+    }
   
   # calculate lower/upper ci
-  if (norew_org) {
-    if (lower) {
-      # out <- map(1:3, function(a) map(1:3, ~ (pluck(means, trph_lvl, a, .x) - pluck(margins, a, .x)) ))
-      out <- map(1:3, ~ (pluck(means, trph_lvl, .x) - pluck(margins, .x)) %>% ifelse(. < 0, 0, .))
+  if (tin | noreworg) {
+    out <- (pluck(means, trph_lvl) - margins) %>% ifelse(. < 0, 0, .)
     } else {
-      # out <- map(1:3, function(a) map(1:3, ~ (pluck(means, trph_lvl, a, .x) + pluck(margins, a, .x))))
-      out <- map(1:3, ~ (pluck(means, trph_lvl, .x) + pluck(margins, .x)) %>% ifelse(. > 100, 100, .))
+      if (norew_org) {
+        if (lower) {
+          # out <- map(1:3, function(a) map(1:3, ~ (pluck(means, trph_lvl, a, .x) - pluck(margins, a, .x)) ))
+          out <- map(1:3, ~ (pluck(means, trph_lvl, .x) - pluck(margins, .x)) %>% ifelse(. < 0, 0, .))
+        } else {
+          # out <- map(1:3, function(a) map(1:3, ~ (pluck(means, trph_lvl, a, .x) + pluck(margins, a, .x))))
+          out <- map(1:3, ~ (pluck(means, trph_lvl, .x) + pluck(margins, .x)) %>% ifelse(. > 100, 100, .))
+        }
+      } else {
+        if (lower) {
+        # out <- map(1:3, function(a) map(1:3, ~ (pluck(means, trph_lvl, a, .x) - pluck(margins, a, .x)) ))
+        out <- map(1:3, function(a) map(1:3, ~ (pluck(means, trph_lvl, a, .x) - pluck(margins, a, .x)) %>% ifelse(. < 0, 0, .)))
+        } else {
+        # out <- map(1:3, function(a) map(1:3, ~ (pluck(means, trph_lvl, a, .x) + pluck(margins, a, .x))))
+        out <- map(1:3, function(a) map(1:3, ~ (pluck(means, trph_lvl, a, .x) + pluck(margins, a, .x)) %>% ifelse(. > 100, 100, .)))
+        }
+      }
     }
-  } else {
-    if (lower) {
-    # out <- map(1:3, function(a) map(1:3, ~ (pluck(means, trph_lvl, a, .x) - pluck(margins, a, .x)) ))
-    out <- map(1:3, function(a) map(1:3, ~ (pluck(means, trph_lvl, a, .x) - pluck(margins, a, .x)) %>% ifelse(. < 0, 0, .)))
-    } else {
-    # out <- map(1:3, function(a) map(1:3, ~ (pluck(means, trph_lvl, a, .x) + pluck(margins, a, .x))))
-    out <- map(1:3, function(a) map(1:3, ~ (pluck(means, trph_lvl, a, .x) + pluck(margins, a, .x)) %>% ifelse(. > 100, 100, .)))
-    }
-  }
   
 
   return(out)
@@ -568,14 +715,27 @@ list_to_df <- function(x, org = F, norew = F, ci = F) {
   # check if all extc seqs have same length
   if (org|norew) {
     if (ci) {
-      # calculate lengths of each extc seq, 2.5 % ci
-      lens_loci <- map(1:3, ~ length(pluck(x, "lower", 1, .x))) %>% unlist()
-      
-      # 95% ci
-      lens_hici <- map(1:3, ~ length(pluck(x, "lower", 2, .x))) %>% unlist()
+      if (org & norew) {
+        # 2.5 % ci
+        lens_loci <- length(pluck(x, "lower", 1)) %>% unlist()
+        
+        # 95 % ci
+        lens_hici <- length(pluck(x, "lower", 2)) %>% unlist()
+      } else {
+        # calculate lengths of each extc seq, 2.5 % ci
+        lens_loci <- map(1:3, ~ length(pluck(x, "lower", 1, .x))) %>% unlist()
+        
+        # 95% ci
+        lens_hici <- map(1:3, ~ length(pluck(x, "lower", 2, .x))) %>% unlist()
+      }
     } else {
-      # calculate lengths of each extc seq
-      lens <- map(1:3,  ~ length(pluck(x, "lower", .x))) %>% unlist()
+      if (org & norew) {
+        # lens of each extc seq
+        lens <- length(pluck(x, "lower")) %>% unlist()
+      } else {
+        # calculate lengths of each extc seq
+        lens <- map(1:3,  ~ length(pluck(x, "lower", .x))) %>% unlist()
+      }
     }
   } else {
     if (ci) {
@@ -602,58 +762,112 @@ list_to_df <- function(x, org = F, norew = F, ci = F) {
       #  ci for org & norew simulation with different seq lengths
       if (!(all(max(unlist(lens_loci)) == unlist(lens_loci)) |
             all(max(unlist(lens_hici)) == unlist(lens_hici)))) {
-        # calculate max lengths of each extc seq, 2.5% ci
-        maxlens_loci <- map(1:3, ~ length(pluck(x, "lower", 1, .x))) %>%
-          unlist() %>% max()
         
-        # 95% ci
-        maxlens_hici <- map(1:3, ~ length(pluck(x, "lower", 2, .x))) %>%
-          unlist() %>% max()
-        
-        # match lengths of lower extc seqs, 2.5 % ci
-        data_lower_loci <- map(1:3, ~ append(pluck(x, "lower", 1, .x),
-                                                      rep(0, maxlens_loci - lens_loci[.x])))
-        
-        # 95 % ci
-        data_lower_hici <- map(1:3, ~ append(pluck(x, "lower", 2, .x),
-                                                      rep(0, maxlens_hici - lens_hici[.x])))
-        
-        # match length of higher extc seqs, 2.5% ci
-        data_higher_loci <- map(1:3, ~ append(pluck(x, "higher", 1, .x),
-                                                       rep(0, maxlens_loci - lens_loci[.x])))
-        
-        # 95% ci
-        data_higher_hici <- map(1:3, ~ append(pluck(x, "higher", 2, .x),
-                                                       rep(0, maxlens_hici - lens_hici[.x])))
-
+        if (org & norew) {
+          # calculate max lengths of each extc seq, 2.5% ci
+          maxlens_loci <- length(pluck(x, "lower", 1)) %>%
+            unlist() %>% max()
+          
+          # 95% ci
+          maxlens_hici <- length(pluck(x, "lower", 2)) %>%
+            unlist() %>% max()
+          
+          # match lengths of lower extc seqs, 2.5 % ci
+          data_lower_loci <- append(pluck(x, "lower", 1),
+                                               rep(0, maxlens_loci - lens_loci))
+          
+          # 95 % ci
+          data_lower_hici <- append(pluck(x, "lower", 2),
+                                               rep(0, maxlens_hici - lens_hici))
+          
+          # match length of higher extc seqs, 2.5% ci
+          data_higher_loci <- append(pluck(x, "higher", 1),
+                                                rep(0, maxlens_loci - lens_loci))
+          
+          # 95% ci
+          data_higher_hici <- append(pluck(x, "higher", 2),
+                                                rep(0, maxlens_hici - lens_hici))
+        } else {
+          # calculate max lengths of each extc seq, 2.5% ci
+          maxlens_loci <- map(1:3, ~ length(pluck(x, "lower", 1, .x))) %>%
+            unlist() %>% max()
+          
+          # 95% ci
+          maxlens_hici <- map(1:3, ~ length(pluck(x, "lower", 2, .x))) %>%
+            unlist() %>% max()
+          
+          # match lengths of lower extc seqs, 2.5 % ci
+          data_lower_loci <- map(1:3, ~ append(pluck(x, "lower", 1, .x),
+                                                        rep(0, maxlens_loci - lens_loci[.x])))
+          
+          # 95 % ci
+          data_lower_hici <- map(1:3, ~ append(pluck(x, "lower", 2, .x),
+                                                        rep(0, maxlens_hici - lens_hici[.x])))
+          
+          # match length of higher extc seqs, 2.5% ci
+          data_higher_loci <- map(1:3, ~ append(pluck(x, "higher", 1, .x),
+                                                         rep(0, maxlens_loci - lens_loci[.x])))
+          
+          # 95% ci
+          data_higher_hici <- map(1:3, ~ append(pluck(x, "higher", 2, .x),
+                                                         rep(0, maxlens_hici - lens_hici[.x])))
+        }
       } else {
-        data_lower_loci <- map(1:3, ~ pluck(x, "lower", 1, .x))
+        if (org & norew) {
+          data_lower_loci <- pluck(x, "lower", 1)
         
-        data_lower_hici <- map(1:3, ~ pluck(x, "lower", 2, .x))
-        
-        data_higher_loci <- map(1:3, ~ pluck(x, "higher", 1, .x))
-        
-        data_higher_hici <- map(1:3, ~ pluck(x, "higher", 2, .x))
+          data_lower_hici <- pluck(x, "lower", 2)
+          
+          data_higher_loci <- pluck(x, "higher", 1)
+          
+          data_higher_hici <- pluck(x, "higher", 2)
+        } else {
+          data_lower_loci <- map(1:3, ~ pluck(x, "lower", 1, .x))
+          
+          data_lower_hici <- map(1:3, ~ pluck(x, "lower", 2, .x))
+          
+          data_higher_loci <- map(1:3, ~ pluck(x, "higher", 1, .x))
+          
+          data_higher_hici <- map(1:3, ~ pluck(x, "higher", 2, .x))
+        }
       }
     } else {
       # extc data for org & norew simulation with different lenghts
       if(!(all(max(unlist(lens)) == unlist(lens)) |
            all(max(unlist(lens)) == unlist(lens)))) {
-      # calculate max lengths of each extc seq
-      maxlens <- map(1:3, ~ length(pluck(x, "lower", .x))) %>% unlist() %>% max()
-      
-      # match lengths of lower extc seqs
-      data_lower <- map(1:3, ~ append(pluck(x, "lower", .x),
-                            rep(0, maxlens - lens[.x])))
-      
-      # match length of higher extc seqs
-      data_higher <- map(1:3, ~ append(pluck(x, "higher", .x),
-                            rep(0, maxlens - lens[.x])))
-
+        if (org &  norew) {
+          # calculate max lengths of each extc seq
+          maxlens <- length(pluck(x, "lower")) %>% unlist() %>% max()
+          
+          # match lengths of lower extc seqs
+          data_lower <- append(pluck(x, "lower"),
+                                          rep(0, maxlens - lens))
+          
+          # match length of higher extc seqs
+          data_higher <- append(pluck(x, "higher"),
+                                           rep(0, maxlens - lens))
+        } else {
+        # calculate max lengths of each extc seq
+        maxlens <- map(1:3, ~ length(pluck(x, "lower", .x))) %>% unlist() %>% max()
+        
+        # match lengths of lower extc seqs
+        data_lower <- map(1:3, ~ append(pluck(x, "lower", .x),
+                              rep(0, maxlens - lens[.x])))
+        
+        # match length of higher extc seqs
+        data_higher <- map(1:3, ~ append(pluck(x, "higher", .x),
+                              rep(0, maxlens - lens[.x])))
+        }
       } else {
+        if (org & norew) {
+          data_lower <- pluck(x, "lower")
+          
+          data_higher <- pluck(x, "higher")
+        } else {
         data_lower <- map(1:3, ~ pluck(x, "lower", .x))
         
         data_higher <- map(1:3, ~ pluck(x, "higher", .x))
+        }
       }
     }
   } else {
@@ -736,52 +950,103 @@ list_to_df <- function(x, org = F, norew = F, ci = F) {
     }
   
   if (ci) {
-    # make ci df 
-    lower <- map(1:3, function(y) {
-      cbind(bind_cols(pluck(data_lower_loci, y),
-                      .id = c(rew_names[y])) %>%
-              melt(., id.vars = ".id",
-                   value.name = "x_lower",
-                   variable.name = "com_vars"),
-            bind_cols(pluck(data_lower_hici, y),
-                      .id = c(rew_names[y])) %>%
-              melt(., id.vars = ".id",
-                   value.name = "y_lower",
-                   variable.name = "com_vars")) %>% 
-        select(., -c(4,5)) %>% 
-        setNames(., c("id", "com_vars", "x_lower", "y_lower"))}) %>% 
-      bind_rows()
-    
-    higher <- map(1:3, function(y) {
-      cbind(bind_cols(pluck(data_higher_loci, y),
-                          .id = c(rew_names[y])) %>%
-                            melt(., id.vars = ".id",
-                                 value.name = "x_higher",
-                                 variable.name = "com_vars"),
-                bind_cols(pluck(data_higher_hici, y),
-                          .id = c(rew_names[y])) %>%
-                  melt(., id.vars = ".id",
-                       value.name = "y_higher",
-                       variable.name = "com_vars")) %>% 
-        select(., -c(4,5)) %>% 
-        setNames(., c("id", "com_vars", "x_higher", "y_higher"))}) %>% 
-      bind_rows()
-    
-    out <- cbind(lower, select(higher, -c(1, 2)))
-    
+    if (org & norew) {
+      # make ci df 
+      lower <- cbind(bind_cols(pluck(data_lower_loci),
+                        .id = "norew") %>%
+                melt(., id.vars = ".id",
+                     value.name = "x_lower",
+                     variable.name = "com_vars"),
+              bind_cols(pluck(data_lower_hici),
+                        .id = "norew") %>%
+                melt(., id.vars = ".id",
+                     value.name = "y_lower",
+                     variable.name = "com_vars")) %>% 
+          select(., -c(4,5)) %>% 
+          setNames(., c("id", "com_vars", "x_lower", "y_lower")) %>% 
+        bind_rows()
+      
+      higher <- cbind(bind_cols(pluck(data_higher_loci),
+                        .id = "norew") %>%
+                melt(., id.vars = ".id",
+                     value.name = "x_higher",
+                     variable.name = "com_vars"),
+              bind_cols(pluck(data_higher_hici),
+                        .id = "norew") %>%
+                melt(., id.vars = ".id",
+                     value.name = "y_higher",
+                     variable.name = "com_vars")) %>% 
+          select(., -c(4,5)) %>% 
+          setNames(., c("id", "com_vars", "x_higher", "y_higher")) %>% 
+        bind_rows()
+      
+      out <- cbind(lower, select(higher, -c(1, 2)))
+    } else {
+      # make ci df 
+      lower <- map(1:3, function(y) {
+        cbind(bind_cols(pluck(data_lower_loci, y),
+                        .id = c(rew_names[y])) %>%
+                melt(., id.vars = ".id",
+                     value.name = "x_lower",
+                     variable.name = "com_vars"),
+              bind_cols(pluck(data_lower_hici, y),
+                        .id = c(rew_names[y])) %>%
+                melt(., id.vars = ".id",
+                     value.name = "y_lower",
+                     variable.name = "com_vars")) %>% 
+          select(., -c(4,5)) %>% 
+          setNames(., c("id", "com_vars", "x_lower", "y_lower"))}) %>% 
+        bind_rows()
+      
+      higher <- map(1:3, function(y) {
+        cbind(bind_cols(pluck(data_higher_loci, y),
+                            .id = c(rew_names[y])) %>%
+                              melt(., id.vars = ".id",
+                                   value.name = "x_higher",
+                                   variable.name = "com_vars"),
+                  bind_cols(pluck(data_higher_hici, y),
+                            .id = c(rew_names[y])) %>%
+                    melt(., id.vars = ".id",
+                         value.name = "y_higher",
+                         variable.name = "com_vars")) %>% 
+          select(., -c(4,5)) %>% 
+          setNames(., c("id", "com_vars", "x_higher", "y_higher"))}) %>% 
+        bind_rows()
+      
+      out <- cbind(lower, select(higher, -c(1, 2)))
+    }
   } else {
-    # make extc df 
-    out <- map(1:3, function(y) {
-      cbind(bind_cols(pluck(data_lower, y), .id = rew_names[y]) %>%
-              melt(., id.vars = ".id",
-                   value.name = "x",
-                   variable.name = "com_vars"),
-            bind_cols(pluck(data_higher, y), .id = rew_names[y]) %>%
-              melt(., id.vars = ".id",
-                   value.name = "y",
-                   variable.name = "com_vars"))}) %>% bind_rows(.) %>%
-      select(., -c(4,5)) %>% 
-      setNames(., c("id", "com_vars", "x", "y"))
+    if (org & norew) {
+      # make extc df 
+      out <- cbind(bind_cols(pluck(data_lower), .id = "norew") %>%
+                melt(., id.vars = ".id",
+                     value.name = "x",
+                     variable.name = "com_vars"),
+              bind_cols(pluck(data_higher), .id = "norew") %>%
+                melt(., id.vars = ".id",
+                     value.name = "y",
+                     variable.name = "com_vars")) %>% bind_rows(.) %>%
+        select(., -c(4,5)) %>% 
+        setNames(., c("id", "com_vars", "x", "y"))
+    } else {
+      # make extc df 
+      out <- map(1:3, function(y) {
+        cbind(bind_cols(pluck(data_lower, y), .id = rew_names[y]) %>%
+                melt(., id.vars = ".id",
+                     value.name = "x",
+                     variable.name = "com_vars"),
+              bind_cols(pluck(data_higher, y), .id = rew_names[y]) %>%
+                melt(., id.vars = ".id",
+                     value.name = "y",
+                     variable.name = "com_vars"))}) %>% bind_rows(.) %>%
+        select(., -c(4,5)) %>% 
+        setNames(., c("id", "com_vars", "x", "y"))
+    }
+  }
+  
+  if (org & norew) {
+    out$com_vars <- "org"
+    return (out)
   }
   
   # set correct levels for id & com_vars
@@ -820,13 +1085,21 @@ list_to_df <- function(x, org = F, norew = F, ci = F) {
   if (org|norew) {
     if (ci) {
       if (org) {
+        if (norew) {
+          out$id <- rep(c("abund_norew", "trait_norew", "phylo_norew"), each = length_each)
+        } else {
         out$id <- rep(c("abund", "trait", "phylo"), each = length_each)
+        }
       } else {
         out$id <- "norew"
         }
     } else {
       if (org) {
+        if (norew) {
+          out$id <- rep(c("abund_norew", "trait_norew", "phylo_norew"), each = length_each)
+        } else {
         out$id <- rep(c("abund", "trait", "phylo"), each = length_each)
+        }
       } else {
         out$id <- "norew"
         }
@@ -838,22 +1111,53 @@ list_to_df <- function(x, org = F, norew = F, ci = F) {
   return(out)
 }
 
-get_ci <- function(x, means, org = F, norew = F) {
+get_ci <- function(x, means, org = F, norew = F, tin = F) {
+  if (org & norew) {
+    out <- list("lower" = list("2.5" = conf_int(x = x,
+                                                mean = means,
+                                                tin = tin,
+                                                noreworg = T),
+                               "97.5" = conf_int(x = x,
+                                                 mean = means,
+                                                 lower = F,
+                                                 tin = tin,
+                                                 noreworg = T)),
+                "higher" = list("2.5" = conf_int(x = x,
+                                                 mean = means,
+                                                 trph_lvl = "higher",
+                                                 tin = tin,
+                                                 noreworg = T),
+                                "97.5" = conf_int(x = x,
+                                                  mean = means,
+                                                  trph_lvl = "higher",
+                                                  tin = tin,
+                                                  noreworg = T)))
+    
+    return(out) 
+  }
+  
   # set names
   if (org) {
     out <- list("lower" = list("2.5" = conf_int(x = x,
                                          mean = means,
-                                         norew_org = T),
+                                         norew_org = T,
+                                         tin = tin),
                         "97.5" = conf_int(x = x,
                                           mean = means,
-                                          lower = F, norew_org = T)),
+                                          lower = F,
+                                          norew_org = T,
+                                          tin = tin)),
          "higher" = list("2.5" = conf_int(x = x,
                                           mean = means,
-                                          trph_lvl = "higher", norew_org = T),
+                                          trph_lvl = "higher",
+                                          norew_org = T,
+                                          tin = tin),
                          "97.5" = conf_int(x = x,
                                            mean = means,
                                            trph_lvl = "higher",
-                                           lower = F, norew_org = T)))
+                                           lower = F,
+                                           norew_org = T,
+                                           tin = tin)))
   
   out <- modify_depth(out, 2, 
                       ~ set_names(.x, nm = c("abund", "trait", "phylo")))
@@ -862,17 +1166,24 @@ get_ci <- function(x, means, org = F, norew = F) {
   if (norew) {
     out <- list("lower" = list("2.5" = conf_int(x = x,
                                          mean = means,
-                                         norew_org = T),
+                                         norew_org = T,
+                                         tin = tin),
                         "97.5" = conf_int(x = x,
                                           mean = means,
-                                          lower = F, norew_org = T)),
+                                          lower = F,
+                                          norew_org = T,
+                                          tin = tin)),
          "higher" = list("2.5" = conf_int(x = x,
                                           mean = means,
-                                          trph_lvl = "higher", norew_org = T),
+                                          trph_lvl = "higher",
+                                          norew_org = T,
+                                          tin = tin),
                          "97.5" = conf_int(x = x,
                                            mean = means,
                                            trph_lvl = "higher",
-                                           lower = F, norew_org = T)))
+                                           lower = F,
+                                           norew_org = T,
+                                           tin = tin)))
     
     out <- modify_depth(out, 2, 
                         ~ set_names(.x, nm = c("Atl", "aTl", "atL")))
@@ -880,17 +1191,21 @@ get_ci <- function(x, means, org = F, norew = F) {
   
   if (!org & !norew) {
     out <- list("lower" = list("2.5" = conf_int(x = x,
-                                         mean = means),
+                                         mean = means,
+                                         tin = tin),
                         "97.5" = conf_int(x = x,
                                           mean = means,
-                                          lower = F)),
+                                          lower = F,
+                                          tin = tin)),
          "higher" = list("2.5" = conf_int(x = x,
                                           mean = means,
-                                          trph_lvl = "higher"),
+                                          trph_lvl = "higher",
+                                          tin = tin),
                          "97.5" = conf_int(x = x,
                                            mean = means,
                                            trph_lvl = "higher",
-                                           lower = F)))
+                                           lower = F,
+                                           tin = tin)))
     out <- modify_depth(out, 2, 
                               ~ set_names(.x, nm = c("abund", "trait", "phylo")))
     
@@ -899,4 +1214,48 @@ get_ci <- function(x, means, org = F, norew = F) {
   }
   
   return(out)
+}
+
+hist_dead <- function(x, lower = T) {
+  
+  ### add original web !!
+  com_vars <- c("Atl" = 1, "aTl" = 2, "atL" = 3, "atl" = 4)
+  
+  ifelse(lower, title <- "Lower trophic level",
+         title <- "Higher trophic level")
+  
+  
+  # get data
+  if (lower) {
+    # sims
+    df <- map_dfc(com_vars[-4], function(y) {
+      map(seq(n_webs), ~ length(which(rowSums(pluck(x, .x, y, "web")) == 0))) %>%
+        unlist})
+    
+    # org
+    df$org <- map(seq(n_webs), function(y) {
+      length(which(rowSums(pluck(init_sim, y, "networks", 1, "web")) == 0))}) %>%
+      unlist
+    
+  } else {
+    # sims
+    df <- map_dfc(com_vars[-4], function(y) {
+      map(seq(n_webs), ~ length(which(colSums(pluck(x, .x, y, "web")) == 0))) %>%
+        unlist})
+    
+    # org
+    df$org <- map(seq(n_webs), function(y) {
+      length(which(colSums(pluck(init_sim, y, "networks", 1, "web")) == 0))}) %>%
+      unlist
+  }
+  
+  ggplot(df) +
+    geom_boxplot(aes(x = names(com_vars)[1], y = Atl)) +
+    geom_boxplot(aes(x = names(com_vars)[2], y = aTl)) +
+    geom_boxplot(aes(x = names(com_vars)[3], y = atL)) +
+    geom_boxplot(aes(x = names(com_vars)[4], y = org)) +
+    scale_x_discrete(limits = c("Atl", "aTl", "atL", "atl")) +
+    labs(y = "No. of dead interactions", x = "Community variable importances") +
+    theme_classic() +
+    theme(text = element_text(size = 20)) 
 }

@@ -25,40 +25,40 @@ library(data.table)
 # anova of all community variables 
 cntc <- map(sims_all, function(x) map(1:4, ~ connectance(pluck(x, .x, "web")))) 
 
+cntc_org <- map(seq(n_webs), ~ connectance(init_sim[[.x]]$networks[[1]]$web)) %>% 
+  unlist() %>% data.table("vals" = .) %>% cbind("group" = "atl") %>% bind_rows()
+
 cntc_grouped <- map(ctrbs, function(x) map(cntc, ~ pluck(.x, x)) %>%
                       unlist() %>%
                       data.table("vals" = .) %>% 
                       cbind("group" = names(ctrbs)[x])) %>% bind_rows()
+cntc_grouped <- bind_rows(cntc_org, cntc_grouped)
 
 anova(lm(cntc_grouped$vals ~ cntc_grouped$group))
 kruskal.test(cntc_grouped$vals ~ cntc_grouped$group)
 
 library(ggpubr)
 ggboxplot(data = cntc_grouped, x = "group", y = "vals", 
-          color = "group", palette = "npg",
-          order = c("Atl", "aTl", "atL", "ATL"),
-          ylab = "Connectance", xlab = "Contribution importances", legend = "right")
+          #color = "group", palette = "npg",
+          order = c("Atl", "aTl", "atL", "ATL", "atl"),
+          ylab = "Connectance", xlab = "Contribution importances", legend = "right")+
+  theme(text = element_text(size = 20))
 
 ## histograms of dead interactions
 # empty rows
-par(mfrow = c(3,1))
-map(1:3, function(x) {
-  hist(map(1:100, ~ length(which(rowSums(sims_metrics[[.x]][[x]]$web) == 0))) %>%
-         unlist, xlab = paste("empty rows", names(ctrbs)[x]), main = NULL)})
+hist_dead(sims)
 
 # empty cols
-map(1:3, function(x) {
-  hist(map(1:100, ~ length(which(colSums(sims_metrics[[.x]][[x]]$web) == 0))) %>%
-         unlist, xlab = paste("empty cols", names(ctrbs)[x]), main = NULL)})
+hist_dead(sims, lower = F)
 
 ## two dimensional shannon entropy
 H2 <- map(ctrbs, function(x) {
-  map(sims, ~ H2fun(pluck(.x, x, "web"))[[1]])})
+  map(sims_all, ~ H2fun(pluck(.x, x, "web"))["H2"])})
 
 H2_org <- map(seq(n_webs), ~ H2fun(init_sim[[.x]]$networks[[1]]$web)[[1]]) %>% 
   unlist() %>%
   data.table("vals" = .) %>% 
-  cbind("group" = "org") %>% bind_rows()
+  cbind("group" = "atl") %>% bind_rows()
 
 H2_grouped <- map(ctrbs, function(x) pluck(H2, x) %>%
                     unlist() %>%
@@ -69,9 +69,10 @@ H2_grouped <- bind_rows(H2_org, H2_grouped)
 
 library(ggpubr)
 ggboxplot(data = H2_grouped, x = "group", y = "vals", 
-          color = "group", palette = "npg",
-          order = c("Atl", "aTl", "atL", "ATL", "org"),
-          ylab = "H2", xlab = "Contribution importances", legend = "none") 
+          #color = "group", palette = "npg",
+          order = c("Atl", "aTl", "atL", "ATL", "atl"),
+          ylab = "H2", xlab = "Contribution importances", legend = "none") +
+  theme(text = element_text(size = 20))
 
 # visualize extinction models ----
 
@@ -100,34 +101,62 @@ ggboxplot(data = H2_grouped, x = "group", y = "vals",
 # plot_extc(sp_remain_lower_web_mean, ci_lower, save = F, view = T, lower = T)
 # plot_extc(sp_remain_higher_web_mean, ci_higher, save = F, view = T)
 
+# base model; lower 
 plot_extc_facet(extc = sp_remain_lower_web_mean_df,
                 extc_norew = sp_remain_lower_web_mean_df_norew,
                 ci = ci_lower_df,
-                ci_norew = ci_lower_df_norew)
+                ci_norew = ci_lower_df_norew, save = T)
 
+# base model; higher
 plot_extc_facet(extc = sp_remain_higher_web_mean_df,
                 extc_norew = sp_remain_higher_web_mean_df_norew,
                 ci = ci_higher_df,
-                ci_norew = ci_higher_df_norew)
+                ci_norew = ci_higher_df_norew, save = T)
+
+## Extc alg aborts; gets caught in loop when sp w/ lowest abund only has dead interactions
+# # abund model; lower
+# plot_extc_facet(extc = sp_remain_lower_web_mean_df_abund,
+#                 extc_norew = sp_remain_lower_web_mean_df_abund_norew,
+#                 ci = ci_lower_df_abund,
+#                 ci_norew = ci_lower_df_abund_norew, save = T, abund = T)
+# 
+# # abund model; higher
+# plot_extc_facet(extc = sp_remain_higher_web_mean_df_abund,
+#                 extc_norew = sp_remain_higher_web_mean_df_abund_norew,
+#                 ci = ci_higher_df_abund,
+#                 ci_norew = ci_higher_df_abund_norew, save = T, abund = T)
+
+# both model
+plot_extc_facet(extc = sp_remain_both_web_mean_df,
+                extc_norew = sp_remain_both_web_mean_df_norew,
+                ci = ci_both_df,
+                ci_norew = ci_both_df_norew, save = T, both = T)
+
+# org model; lower
+plot_extc_facet(extc = sp_remain_lower_web_mean_df_org,
+                extc_norew = sp_remain_lower_web_mean_df_org_norew,
+                ci = ci_lower_df_org,
+                ci_norew = ci_lower_df_org_norew, save = T, org = T)
+
+# org model; higher
+plot_extc_facet(extc = sp_remain_higher_web_mean_df_org,
+                extc_norew = sp_remain_higher_web_mean_df_org_norew,
+                ci = ci_higher_df_org,
+                ci_norew = ci_higher_df_org_norew, save = T, org = T)
 
 plot_extc_alt(x = sp_remain_lower_web_mean,
               org = sp_remain_lower_web_mean_org,
-              norew = sp_remain_lower_web_mean_norew,
               ci = ci_lower, 
               ci_org = ci_lower_org,
-              ci_norew = ci_lower_norew,
               lower = T,
-              save = F)
+              save = T,
+              spaghetti = T)
 
 plot_extc_alt(sp_remain_higher_web_mean,
               sp_remain_higher_web_mean_org,
-              sp_remain_higher_web_mean_norew,
               ci_higher,
               ci_higher_org,
-              ci_higher_norew,
-              save = F)
-
-
+              save = T, spaghetti = T)
 
 # Deviance of all networks for one scenario
 map(c("Abund" = 1, "Traits" = 2, "Phylo" = 3), ~ ggplot() +
@@ -226,3 +255,9 @@ map(1:3 , ~ ggplot() +
       labs(x = "Community importances", y = "Effect size",
            title = paste("Effect size higher level", rew_names[.x]))+
       theme(legend.position = "none"))
+
+# Number of shifts per species
+# run extc_sim with shift = T; creates shifts object
+map(unique(names(unlist(shifts$lower))), ~unlist(shifts$lower)[names(unlist(shifts$lower)) == .x])
+map(unique(names(unlist(shifts$higher))), ~unlist(shifts$higher)[names(unlist(shifts$higher)) == .x])
+
