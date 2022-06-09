@@ -127,9 +127,8 @@ per_surv <- function(x, y, lower = T, original = F) {
 library(ggplot2)
 library(ggpubr)
 
-plot_extc_facet <- function(extc, ci, extc_norew, ci_norew,
-                            save = F, view = T, both = F, abund = F,
-                            norew = F, org = F) {
+plot_extc_facet <- function(extc, ci, extc_norew, ci_norew, org, org_norew, ci_org, ci_org_norew,
+                            save = F, view = T, both = F, abund = F) {
   
   # extinction on lower or higher level ?
   lvl_match_extc <- grepl("lower", substitute(extc))
@@ -154,9 +153,9 @@ plot_extc_facet <- function(extc, ci, extc_norew, ci_norew,
   # combine dfs 
   extc <- bind_rows(extc, extc_norew)
   ci <- bind_rows(ci, ci_norew)
-  # org <- bind_rows(org, org_norew)
-  # ci_org <- bind_rows(ci_org, ci_org_norew)
-  
+  org <- bind_rows(org, org_norew)
+  ci_org <- bind_rows(ci_org, ci_org_norew)
+
   # automate axis labels
   ifelse(lvl == "lower", xlab <- "plants", xlab <- "animals")
   ifelse(lvl == "lower", ylab <- "animals", ylab <- "plants")
@@ -169,31 +168,15 @@ plot_extc_facet <- function(extc, ci, extc_norew, ci_norew,
              select(extc, -c("id", "com_vars"))) %>% 
     tidyr::unite(., col = "group", c("id", "com_vars"), remove = F)
   
-  # df_org <- cbind(ci_org, select(org, -c("id", "com_vars")))
+  df_org <- cbind(ci_org, select(org, -c("id", "com_vars")))
   
-  # create list of labels for facet
-  # norew or org simulations used ?
-  if(org) {
-    # # set grouping variable to factor
-    # df$group <- factor(df$group, levels = c("abund_...1",
-    #                                         "trait_...1",
-    #                                         "phylo_...1"))
-    id_labs <- c("Abundance", "Traits", "Phylogeny", "norew_org")
-    names(id_labs) <- c(unique(df$id))
-  # set facet layout
-  nrow <- 1
-  ncol <- 3
-
-  # create vector of id to map over
-  map_ids <- unique(df$id)
-
-  } else {
   # set grouping variable to factor
     df$group <- factor(df$group, levels = c("abund_Atl", "abund_aTl", "abund_atL",
                                             "trait_Atl", "trait_aTl", "trait_atL",
                                             "phylo_Atl", "phylo_aTl", "phylo_atL",
                                             "norew_Atl", "norew_aTl", "norew_atL"))
     
+  # create list of labels for facet
     id_labs <- map(unique(df$id), function(a) {
       id_labs <- c("Atl", "aTl", "atL") %>%
         set_names(c(paste(a, "Atl", sep = "_"),
@@ -208,53 +191,26 @@ plot_extc_facet <- function(extc, ci, extc_norew, ci_norew,
     
     # create vector of id to map over
     map_ids <- unique(df$id)[-length(unique(df$id))] # delete last one (norew)
-  }
   
   # create plots
   plots <- map(map_ids, function(z) {
     # get facet labels
-    if(org) {
-      labs <- id_labs
-    } else {
       labs <- pluck(id_labs, z)
-    }
-
-    if (org) {
-      # get facet label for current plot; needs single value for "facet cheat"
-      df$title <- labs[which(unique(df$id) == z)]
-
-      ggplot(filter(df, id == z)) +
-        geom_line(aes(rev(x), y, group = "norew_org"), color = "grey80",
-                  data = filter(df, com_vars == "org" & id == "norew")) + # means norew
-        geom_line(aes(rev(x_lower), x_higher, group = "norew_org"),
-                  linetype = 2, color = "grey80",
-                  filter(df, com_vars == "org" & id == "norew")) + # lower ci norew
-        geom_line(aes(rev(y_lower), y_higher, group = "norew_org"),
-                  linetype = 2, color = "grey80",
-                  data = filter(df, com_vars == "org" & id == "norew")) + # higher ci norew
-        geom_line(aes(rev(x), y, group = group, color = "firebrick")) + # means
-        geom_line(aes(rev(x_lower), x_higher, group = group),
-                  linetype = 2) + # lower ci
-        geom_line(aes(rev(y_lower), y_higher, group = group),
-                  linetype = 2) + # higher ci
-        labs(x = paste(xlab, "removed"), y = paste(ylab, "persisting")) +
-        guides(color = "none") +
-        facet_wrap(. ~ title)  +
-        theme(strip.text = element_text(),
-              strip.background = element_rect(color = colors[z])) # set bb color
-    } else {
+    
+      # plot sims
       subplots <- map(c("Atl", "aTl", "atL"), function(a) {
         
         # get facet label for current plot; needs single value for "facet cheat" 
           df$title <- labs[which(unique(df$com_vars) == a)]
         
         ggplot(filter(df, id == z & com_vars == a)) +
-          geom_line(aes(rev(x), y), color = "grey80",
+          # geom_area(aes(x = rev(x), y = y), fill = "grey90") +
+          geom_line(aes(rev(x), y), color = "grey60",
                     data = filter(df, id == "norew" & com_vars == a)) + # means norew
-          geom_line(aes(rev(x_lower), x_higher), color = "grey80",
+          geom_line(aes(rev(x_lower), x_higher), color = "grey60",
                     linetype = 2,
                     data = filter(df, id == "norew" & com_vars == a)) + # lower ci norew
-          geom_line(aes(rev(y_lower), y_higher), color = "grey80",
+          geom_line(aes(rev(y_lower), y_higher), color = "grey60",
                     linetype = 2,
                     data = filter(df, id == "norew" & com_vars == a)) + # higher ci norew
           geom_line(aes(rev(x), y, color = "firebrick")) + # means
@@ -268,57 +224,52 @@ plot_extc_facet <- function(extc, ci, extc_norew, ci_norew,
           theme(strip.text = element_text(),
                   strip.background = element_rect(color = colors[z])) # set box color
       })
-      # # plot org
-      # df_org$title <- "org"
-      # 
-      # subplots[[4]] <- ggplot(filter(df_org, id == z)) +
-      #   geom_line(aes(rev(x), y), color = "grey80",
-      #             data = filter(df_org, id == paste(z, "norew", sep = "_"))) + # means norew
-      #   geom_line(aes(rev(x_lower), x_higher), color = "grey80",
-      #             linetype = 2,
-      #             data = filter(df_org, id == paste(z, "norew", sep = "_"))) + # lower ci norew
-      #   geom_line(aes(rev(y_lower), y_higher), color = "grey80",
-      #             linetype = 2,
-      #             data = filter(df_org, id == paste(z, "norew", sep = "_"))) + # higher ci norew
-      #   geom_line(aes(rev(x), y, color = "firebrick")) + # means
-      #   geom_line(aes(rev(x_lower), x_higher),
-      #             linetype = 2) + # lower ci
-      #   geom_line(aes(rev(y_lower), y_higher),
-      #             linetype = 2) + # higher ci
-      #   labs(x = paste(xlab, "removed"), y = paste(ylab, "persisting")) +
-      #   guides(color = "none") +
-      #   facet_wrap(. ~ title, labeller = labeller(group = labs))  +
-      #   theme(strip.text = element_text(),
-      #         strip.background = element_rect(color = colors[z])) # set box color
-      # 
-      
-      ggarrange(subplots[[1]], subplots[[2]], subplots[[3]], nrow = 1)
-       }
-    })
+        # plot org
+        
+        # get facet label for current plot; needs single value for "facet cheat" 
+        df_org$title <- "atl"
+
+        subplots[[4]] <- ggplot(filter(df_org, id == z)) +
+          geom_line(aes(rev(x), y), color = "grey80",
+                    data = filter(df_org, id == "norew")) + # means norew
+          geom_line(aes(rev(x_lower), x_higher), color = "grey80",
+                    linetype = 2,
+                    data = filter(df_org, id == "norew")) + # lower ci norew
+          geom_line(aes(rev(y_lower), y_higher), color = "grey80",
+                    linetype = 2,
+                    data = filter(df_org, id == "norew")) + # higher ci norew
+          geom_line(aes(rev(x), y, color = "firebrick")) + # means
+          geom_line(aes(rev(x_lower), x_higher),
+                    linetype = 2) + # lower ci
+          geom_line(aes(rev(y_lower), y_higher),
+                    linetype = 2) + # higher ci
+          labs(x = paste(xlab, "removed"), y = paste(ylab, "persisting")) +
+          guides(color = "none") +
+          facet_wrap(. ~ title, labeller = labeller(group = labs))  +
+          theme(strip.text = element_text(),
+                strip.background = element_rect(color = colors[z])) # set box color
+
+      # arrange  
+      ggarrange(subplots[[4]], subplots[[1]], subplots[[2]], subplots[[3]], nrow = 1)
+      })
   
-  
+  # view plots    
   if (view) {
     out <- ggarrange(plots[[1]], plots[[2]], plots[[3]],
                      nrow = nrow, ncol = ncol)
     print(out)
   }
   
+  # set filenames 
   if (save) {
-    name <- paste("extinction_cascade", lvl, "trophic_level", coextc_thr*100, ".pdf", sep = "_")
-    if (org) {
-      name <- paste("extinction_cascade", lvl, "trophic_level_org", coextc_thr*100, ".pdf",
-                    sep = "_")
-    }
+    name <- paste("extinction_cascade", lvl, "trophic_level", paste0(coextc_thr*100, ".pdf"), sep = "_")
+    
     if (both) {
-      name <- paste("extinction_cascade_both_trophic_levels", coextc_thr*100, ".pdf",
+      name <- paste("extinction_cascade_both_trophic_levels", paste0(coextc_thr*100, ".pdf"),
                     sep = "_")
     }
     if (abund) {
-      name <- paste("extinction_cascade", lvl, "trophic_level_abund", coextc_thr*100, ".pdf",
-                    sep = "_")
-    }
-    if (norew) {
-      name <- paste("extinction_cascade", lvl, "trophic_level_norew", coextc_thr*100, ".pdf",
+      name <- paste("extinction_cascade", lvl, "trophic_level_abund", paste0(coextc_thr*100, ".pdf"),
                     sep = "_")
     }
     ggsave(
@@ -393,12 +344,52 @@ plot_extc <- function(x, ci, save = F, view = T, lower = F){
   return(plots)
 }
 
-plot_extc_alt <- function(x, org, ci, ci_org, save = F, view = T, lower = F, spaghetti = F){
-  com_vars <- c("abund" = 1, "trait" = 2, "phylo" = 3)
+plot_extc_alt <- function(x, org, ci, ci_org, save = F, view = T, lower = F, spaghetti = F,
+                          by_com_var = F){
+  
+  com_vars  <- c("Abundance" = 1, "Trait" = 2, "Phylogeny" = 3)
   ifelse(lower == T, lvl <- "lower", lvl <- "higher")
   ifelse(lower == T, xlab <- "plants", xlab <- "animals")
   ifelse(lower == T, ylab <- "animals", ylab <- "plants")
   
+  if (by_com_var) {
+    if (spaghetti) {
+      plots <- map(com_vars, ~ ggplot() + 
+                     geom_line(aes(rev(pluck(ci, "lower", 1, 1, .x)),
+                                   pluck(ci, "higher", 1, 1, .x),
+                                   color = "Abundance"), linetype = 2, size = .3) + # lower
+                     geom_line(aes(rev(pluck(ci, "lower", 2, 1, .x)),
+                                   pluck(ci, "higher", 2, 1, .x),
+                                   color = "Abundance"), linetype = 2, size = .3) + # upper
+                     geom_line(aes(rev(pluck(x, "lower", 1, .x)), pluck(x, "higher", 1, .x),
+                                   color = "Abundance"), linetype = 1, size = .5) + # mean
+                     geom_line(aes(rev(pluck(ci, "lower", 1, 2, .x)),
+                                   pluck(ci, "higher", 1, 2, .x),
+                                   color = "Trait"), linetype = 2, size = .3) + # lower
+                     geom_line(aes(rev(pluck(ci, "lower", 2, 2, .x)),
+                                   pluck(ci, "higher", 2, 2, .x),
+                                   color = "Trait"), linetype = 2, size = .3) + # upper
+                     geom_line(aes(rev(pluck(x, "lower", 2, .x)), pluck(x, "higher", 2, .x),
+                                   color = "Trait"), linetype = 1, size = .5) + # mean
+                     geom_line(aes(rev(pluck(ci, "lower", 1, 3, .x)),
+                                   pluck(ci, "higher", 1, 3, .x),
+                                   color = "Phylogeny"), linetype = 2, size = .3) + # lower
+                     geom_line(aes(rev(pluck(ci, "lower", 2, 3, .x)),
+                                   pluck(ci, "higher", 2, 3, .x),
+                                   color = "Phylogeny"), linetype = 2, size = .3) + # upper
+                     geom_line(aes(rev(pluck(x, "lower", 3, .x)), pluck(x, "higher", 3, .x),
+                                   color = "Phylogeny"), linetype = 1, size = .5) + # mean
+                     scale_color_manual(name = "Rewiring",
+                                        values = c("Abundance" = "black",
+                                                   "Trait" = "firebrick",
+                                                   "Phylogeny" = "dodgerblue",
+                                                   "original" = "burlywood4")) +
+                     labs(x = paste(xlab, "removed"), y = paste(ylab, "persisting"),
+                          title = paste("Extinction cascade", lvl, "trophic level", names(com_vars[.x]), "based networks"))
+      )
+    }
+  } else {
+    
   if (spaghetti) {
     plots <- map(com_vars, ~ ggplot() + 
                    geom_line(aes(rev(pluck(ci, "lower", 1, .x, 1)),
@@ -555,20 +546,34 @@ plot_extc_alt <- function(x, org, ci, ci_org, save = F, view = T, lower = F, spa
                              ncol = 4, nrow = 3, common.legend = T, legend = "bottom")
           
   }
+  }
+  
    if (save) {
      if (spaghetti) {
-     map(c("abund" = 1, "trait" = 2, "phylo" = 3), ~ ggsave(
-       paste("alt_extinction_cascade", lvl, "trophic_level",
-             names(com_vars[.x]), coextc_thr*100, ".pdf", sep = "_"),
-       path = paste0(getwd(), "/plot_sink"),
-       plot = plots[[.x]],
-       device = "pdf",
-       width = 1900,
-       height = 1205,
-       units = "px"))
+       if (by_com_var) {
+         map(c("abund" = 1, "trait" = 2, "phylo" = 3), ~ ggsave(
+           paste("alt_extinction_cascade", lvl, "trophic_level",
+                 names(com_vars[.x]), coextc_thr*100, "by_com_var.pdf", sep = "_"),
+           path = paste0(getwd(), "/plot_sink"),
+           plot = plots[[.x]],
+           device = "pdf",
+           width = 1900,
+           height = 1205,
+           units = "px"))
+       } else {
+         map(c("abund" = 1, "trait" = 2, "phylo" = 3), ~ ggsave(
+         paste("alt_extinction_cascade", lvl, "trophic_level",
+               names(com_vars[.x]), paste0(coextc_thr*100, ".pdf"), sep = "_"),
+         path = paste0(getwd(), "/plot_sink"),
+         plot = plots[[.x]],
+         device = "pdf",
+         width = 1900,
+         height = 1205,
+         units = "px"))
+       }
      } else {
        ggsave(
-         paste("alt_extinction_cascade", lvl, "trophic_level", coextc_thr*100, ".pdf", sep = "_"),
+         paste("alt_extinction_cascade", lvl, "trophic_level", paste0(coextc_thr*100, ".pdf"), sep = "_"),
          path = paste0(getwd(), "/plot_sink"),
          plot = plots,
          device = "pdf",
@@ -615,12 +620,11 @@ simnetfromtap_ctrb <- function(traits,
 
 # fy to calculate area under the curve
 auc <- function(x, y) {
-  sum(diff(x) * head(y, -1) + tail(y, -1))/2
+  (sum(diff(x) * (head(y,-1)+tail(y,-1)))/2)/100
   }
 
 # calculate network robustness; adapted to work with augmented extinction fy
-robustness_aug <- function (object, lower = T) 
-{
+robustness_aug <- function (object, lower = T) {
   N <- colSums(object)
   if (isTRUE(lower)) {
     y <- -object[, "ext.higher"]
@@ -1258,4 +1262,17 @@ hist_dead <- function(x, lower = T) {
     labs(y = "No. of dead interactions", x = "Community variable importances") +
     theme_classic() +
     theme(text = element_text(size = 20)) 
+}
+
+# calculate number of aborted simulations
+count_abort <- function(sim) {
+  map(1:3, function(x) { # loop over rewiring methods
+    map(1:3, function(y) { # loop over community variables
+      map(seq(n_webs), function (z) { # loop over webs
+        map(seq(n_sims), function(.x) { # loop over sims
+          pluck(sim, z, x, y, .x) %>% is.null
+        }) %>% unlist
+      }) %>% unlist %>% which(. == T) %>% length
+    })
+  })
 }
