@@ -24,7 +24,7 @@ sp_names <- data.frame("plants" = plants,
 
 ### initial simulation ----
 # set no of nets and simulations
-n_webs <- 1001
+n_webs <- 1000
 n_nets <- 4
 n_sims <- 10
 ctrbs <- c("Atl" = 1, "aTl" = 2, "atL" = 3, "ATL" = 4)
