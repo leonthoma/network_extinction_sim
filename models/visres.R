@@ -1,6 +1,6 @@
 # Calculation & visualization of results
 setwd("~/Documents/Uni/M.sc/Master Thesis/Networks/models/")
-load("sims.RData") # load simulations
+load("sims_75.RData") # load simulations
 
 library(tapnet)
 source("tapnet_helper.R")
@@ -76,13 +76,182 @@ ggboxplot(data = H2_grouped, x = "group", y = "vals",
 
 # visualize extinction models ----
 
-# visualize deviation of sims
-# # get auc of every web original web 
-# aucs_org <- map(.x = 1:3, function(x) {
-#   map(seq(n_webs), ~ auc(x = pluck(sp_remain_lower_org, .x, "lower", x) %>% 
-#                            rev(), 
-#                          y = pluck(sp_remain_lower_org, .x, "higher", x)))})
+# count no of NULL in sims
+
+## adapt for org/norew !!!
+# # org
+# count_abort(extc_sims_lower_org)
+# count_abort(extc_sims_higher_org)
 # 
+# # org no rewiring
+# count_abort(extc_sims_lower_org_norew)
+# count_abort(extc_sims_higher_org_norew)
+
+# lower
+count_abort(extc_sims_lower)
+
+# higher
+count_abort(extc_sims_higher)
+
+# lower no rewiring
+count_abort(extc_sims_lower_norew)
+
+# higher no rewiring
+count_abort(extc_sims_higher_norew)
+
+
+
+# AUC / Robustness
+source("helper_functions.R")
+# lower org; web_mean
+map(.x = 1:3, function(x) {
+   auc(x = pluck(sp_remain_lower_web_mean_org, "lower", x) %>%
+                           rev(),
+                         y = pluck(sp_remain_lower_web_mean_org, "higher", x))})
+
+# lower org norew; web_mean
+auc(x = pluck(sp_remain_lower_web_mean_org_norew, "lower") %>%
+                           rev(),
+                         y = pluck(sp_remain_lower_web_mean_org_norew, "higher"))
+
+# lower org; all
+map(.x = 1:3, function(x) {
+  map(seq(n_webs), ~ auc(x = pluck(sp_remain_lower_org, .x, "lower", x) %>%
+                           rev(),
+                         y = pluck(sp_remain_lower_org, .x, "higher", x))) %>% unlist %>% mean})
+
+# lower org; all sd
+map(.x = 1:3, function(x) {
+  map(seq(n_webs), ~ auc(x = pluck(sp_remain_lower_org, .x, "lower", x) %>%
+                           rev(),
+                         y = pluck(sp_remain_lower_org, .x, "higher", x))) %>% unlist %>% sd})
+
+# lower org norew; all
+map(seq(n_webs), ~ auc(x = pluck(sp_remain_lower_org_norew, .x, "lower") %>%
+                         rev(),
+                       y = pluck(sp_remain_lower_org_norew, .x, "higher"))) %>% unlist %>%  mean
+
+
+# lower org norew; all sd
+map(seq(n_webs), ~ auc(x = pluck(sp_remain_lower_org_norew, .x, "lower") %>%
+      rev(),
+    y = pluck(sp_remain_lower_org_norew, .x, "higher"))) %>% unlist %>% sd
+
+# higher org; web_mean
+map(.x = 1:3, function(x) {
+  auc(x = pluck(sp_remain_higher_web_mean_org, "lower", x) %>%
+        rev(),
+      y = pluck(sp_remain_higher_web_mean_org, "higher", x))})
+
+
+# higher org norew; web_mean
+auc(x = pluck(sp_remain_higher_web_mean_org_norew, "lower") %>%
+      rev(),
+    y = pluck(sp_remain_higher_web_mean_org_norew, "higher"))
+
+# higher org; all
+map(.x = 1:3, function(x) {
+  map(seq(n_webs), ~ auc(x = pluck(sp_remain_higher_org, .x, "lower", x) %>%
+                           rev(),
+                         y = pluck(sp_remain_higher_org, .x, "higher", x))) %>% unlist %>% mean})
+
+# higher org; all sd
+map(.x = 1:3, function(x) {
+  map(seq(n_webs), ~ auc(x = pluck(sp_remain_higher_org, .x, "lower", x) %>%
+                           rev(),
+                         y = pluck(sp_remain_higher_org, .x, "higher", x))) %>% unlist %>% sd})
+
+# higer org norew; all
+map(seq(n_webs), ~ auc(x = pluck(sp_remain_higher_org_norew, .x, "lower") %>%
+                         rev(),
+                       y = pluck(sp_remain_higher_org_norew, .x, "higher"))) %>% unlist %>%  mean
+
+
+# higher org norew; all sd
+map(seq(n_webs), ~ auc(x = pluck(sp_remain_higher_org_norew, .x, "lower") %>%
+                         rev(),
+                       y = pluck(sp_remain_higher_org_norew, .x, "higher"))) %>% unlist %>% sd
+
+# lower; web_mean
+map(.x = 1:3, function(x) {
+  map(.x = 1:3, function(z) {
+    auc(x = pluck(sp_remain_lower_web_mean, "lower", z, x) %>%
+                           rev(),
+                         y = pluck(sp_remain_lower_web_mean, "higher", z, x))})
+  })
+
+# lower; all
+map(.x = 1:3, function(x) {
+  map(.x = 1:3, function(z) {
+    map(seq(n_webs), ~ auc(x = pluck(sp_remain_lower,.x,  "lower", z, x) %>%
+                             rev(),
+                           y = pluck(sp_remain_lower,.x,  "higher", z, x))) %>% unlist %>% mean})})
+
+# lower; all sd
+map(.x = 1:3, function(x) {
+  map(.x = 1:3, function(z) {
+    map(seq(n_webs), ~ auc(x = pluck(sp_remain_lower,.x,  "lower", z, x) %>%
+                             rev(),
+                           y = pluck(sp_remain_lower,.x,  "higher", z, x))) %>% unlist %>% sd})})
+
+# higher; web_mean
+map(.x = 1:3, function(x) {
+  map(.x = 1:3, function(z) {
+    auc(x = pluck(sp_remain_higher_web_mean, "lower", z, x) %>%
+                             rev(),
+                           y = pluck(sp_remain_higher_web_mean, "higher", z, x))})
+})
+
+# higher; all
+map(.x = 1:3, function(x) {
+  map(.x = 1:3, function(z) {
+    map(seq(n_webs), ~ auc(x = pluck(sp_remain_higher,.x,  "lower", z, x) %>%
+                             rev(),
+                           y = pluck(sp_remain_higher,.x,  "higher", z, x))) %>% unlist %>% mean})})
+
+# higher; all sd
+map(.x = 1:3, function(x) {
+  map(.x = 1:3, function(z) {
+    map(seq(n_webs), ~ auc(x = pluck(sp_remain_higher,.x,  "lower", z, x) %>%
+                             rev(),
+                           y = pluck(sp_remain_higher,.x,  "higher", z, x))) %>% unlist %>% sd})})
+
+# lower norew; web_mean
+map(.x = 1:3, function(x) {
+  auc(x = pluck(sp_remain_lower_web_mean_norew, "lower", x) %>%
+                           rev(),
+                         y = pluck(sp_remain_lower_web_mean_norew, "higher", x))})
+
+# higher norew; web_mean
+map(.x = 1:3, function(x) {
+  auc(x = pluck(sp_remain_higher_web_mean_norew, "lower", x) %>%
+                           rev(),
+                         y = pluck(sp_remain_higher_web_mean_norew, "higher", x))})
+
+# lower norew; all
+map(.x = 1:3, function(x) {
+  map(seq(n_webs), ~ auc(x = pluck(sp_remain_lower_norew, .x, "lower", x) %>%
+        rev(),
+      y = pluck(sp_remain_lower_norew, .x, "higher", x))) %>% unlist %>% mean})
+
+# lower norew; sd
+map(.x = 1:3, function(x) {
+  map(seq(n_webs), ~ auc(x = pluck(sp_remain_lower_norew, .x, "lower", x) %>%
+                           rev(),
+                         y = pluck(sp_remain_lower_norew, .x, "higher", x))) %>% unlist %>% sd})
+
+# higher norew; all
+map(.x = 1:3, function(x) {
+  map(seq(n_webs), ~ auc(x = pluck(sp_remain_higher_norew, .x, "lower", x) %>%
+        rev(),
+      y = pluck(sp_remain_higher_norew, .x, "higher", x))) %>% unlist %>% mean})
+
+# higher norew; all sd
+map(.x = 1:3, function(x) {
+  map(seq(n_webs), ~ auc(x = pluck(sp_remain_higher_norew, .x, "lower", x) %>%
+                           rev(),
+                         y = pluck(sp_remain_higher_norew, .x, "higher", x))) %>% unlist %>% sd})
+
 # # get min/max auc original web
 # auc_mins_org <- map(.x = 1:3, ~ pluck(aucs, .x) %>% unlist %>% min) # min
 # 
@@ -105,13 +274,22 @@ ggboxplot(data = H2_grouped, x = "group", y = "vals",
 plot_extc_facet(extc = sp_remain_lower_web_mean_df,
                 extc_norew = sp_remain_lower_web_mean_df_norew,
                 ci = ci_lower_df,
-                ci_norew = ci_lower_df_norew, save = T)
+                ci_norew = ci_lower_df_norew,
+                org = sp_remain_lower_web_mean_df_org,
+                org_norew = sp_remain_lower_web_mean_df_org_norew,
+                ci_org = ci_lower_df_org,
+                ci_org_norew = ci_lower_df_org_norew,
+                save = F)
 
 # base model; higher
 plot_extc_facet(extc = sp_remain_higher_web_mean_df,
                 extc_norew = sp_remain_higher_web_mean_df_norew,
                 ci = ci_higher_df,
-                ci_norew = ci_higher_df_norew, save = T)
+                ci_norew = ci_higher_df_norew,
+                org = sp_remain_higher_web_mean_df_org,
+                org_norew = sp_remain_higher_web_mean_df_org_norew,
+                ci_org = ci_higher_df_org,
+                ci_org_norew = ci_higher_df_org_norew, save = F)
 
 ## Extc alg aborts; gets caught in loop when sp w/ lowest abund only has dead interactions
 # # abund model; lower
@@ -150,13 +328,13 @@ plot_extc_alt(x = sp_remain_lower_web_mean,
               ci_org = ci_lower_org,
               lower = T,
               save = T,
-              spaghetti = T)
+              spaghetti = T, by_com_var = T)
 
 plot_extc_alt(sp_remain_higher_web_mean,
               sp_remain_higher_web_mean_org,
               ci_higher,
               ci_higher_org,
-              save = T, spaghetti = T)
+              save = T, spaghetti = T, by_com_var = T)
 
 # Deviance of all networks for one scenario
 map(c("Abund" = 1, "Traits" = 2, "Phylo" = 3), ~ ggplot() +
@@ -198,14 +376,14 @@ map(c("Abund" = 1, "Traits" = 2, "Phylo" = 3), ~ ggplot() +
 )
 
 ## Robustness
-# lower level extinction org; R_lower
+# lower level extinction norew; R_lower
 r_lower <- map(1:3, function(x){
   map_dbl(seq(n_webs), function(y) {
     map_dbl(seq(n_sims), function(.x) {
       robustness_aug(pluck(extc_sims_lower_norew, y, x, .x))}) %>% 
       mean}) %>% mean})
 
-# higher level extinction org; R_lower
+# higher level extinction norew; R_lower
 r_higher <- map(1:3, function(x){
   map_dbl(seq(n_webs), function(y) {
     map_dbl(seq(n_sims), function(.x) {
