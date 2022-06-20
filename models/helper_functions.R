@@ -6,37 +6,43 @@ run_extc <- function(web,
                      participant = "lower",
                      method = "random",
                      rewiring = F,
-                     partner.choice = NULL,
+                     abund.partner.choice = NULL,
+                     trait.partner.choice = NULL,
+                     phylo.partner.choice = NULL,
                      interactions = NULL,
                      method.rewiring = "NULL",
                      n_sims = 0,
                      multiple.webs = F,
                      make.bipartite = F,
-                     coextc_thr = NULL
+                     coextc.thr = NULL
                      ) {
   if (multiple.webs == T) {
-   map(.x = c("Atl", "aTl", "atL"),
+   map(.x = c(1:3),
        ~ replicate(n_sims, simplify = F, 
-                   one.second.extinct.mod_aug(web = pluck(web, .x, "web"), 
+                   one.second.extinct.mod.aug(web = pluck(web, .x, "web"), 
                                                    participant = participant,
                                                    method = method,
                                                    rewiring = rewiring,
-                                                   partner.choice = partner.choice,
+                                                   abund.partner.choice = abund.partner.choice,
+                                                   trait.partner.choice = trait.partner.choice,
+                                                   phylo.partner.choice = phylo.partner.choice,
                                                    interactions = pluck(interactions, .x, "I_mat"),
                                                    method.rewiring = method.rewiring,
                                                    make.bipartite = make.bipartite,
-                                                   coextc_thr = coextc_thr)))
+                                                   coextc.thr = coextc.thr)))
   } else {
   map(web, ~replicate(n_sims, simplify = F, 
-                      one.second.extinct.mod_aug(web = pluck(.x, 1), 
+                      one.second.extinct.mod.aug(web = pluck(.x, 1), 
                                                  participant = participant,
                                                  method = method,
                                                  rewiring = rewiring,
-                                                 partner.choice = partner.choice,
+                                                 abund.partner.choice = abund.partner.choice,
+                                                 trait.partner.choice = trait.partner.choice,
+                                                 phylo.partner.choice = phylo.partner.choice,
                                                  interactions = pluck(.x, 2),
                                                  method.rewiring = method.rewiring,
                                                  make.bipartite = make.bipartite,
-                                                 coextc_thr = coextc_thr)))
+                                                 coextc.thr = coextc.thr)))
   }
 }
 
@@ -66,13 +72,13 @@ list_mean <- function(x, y, lower = T, original = F) {
       out <- map(c("Atl" = 1, "aTl" = 2, "atL" = 3),
                  ~ pluck(x, y, .x) %>% as.data.table(.) %>% 
                    select(., contains(c("no", "n.lower"))) %>%
-                   replace_duplicate(.) %>% rowMeans(.))
+                   replace_duplicate(.) %>% rowMeans(., na.rm = T))
     } else {
       # mean of n.higher
       out <- map(c("Atl" = 1, "aTl" = 2, "atL" = 3),
                  ~ pluck(x, y, .x) %>% as.data.table(.) %>% 
                    select(., contains(c("no", "n.higher"))) %>%
-                   replace_duplicate(.) %>% rowMeans(.))
+                   replace_duplicate(.) %>% rowMeans(., na.rm = T))
     }
   }
   
@@ -87,17 +93,22 @@ replace_duplicate <- function(x) {
     map_dbl(., ~ max(.x) + 1)  
   max_len <- max(lens) # max length of all dfs
   
+  # Do nothing if all sims have equal length
+  if (all(max_len == lens)) {
+    return(as.data.table(x) %>% select(., contains("n.")))
+  } else {
   # for shorter dfs replace recycled values with 0s
-  out <- map2(.x = select(x, contains("n.")), .y = lens, ~ replace(.x, .y:max_len, values = 0))
+  out <- map2(.x = select(x, contains("n.")), .y = lens, ~ replace(.x, .y:max_len, values = NA))
   
   return(as.data.table(out) %>% select(., contains("n.")))
+  }
 }
 
 # calculating mean over every web
 match_lengths <- function(x, df = T) {
-  end <- map(x, ~ which(.x == 0) %>% first()) # get indices of first zero (i.e. last non replicated entry)
+  end <- map(x, ~ which(.x == 0 | is.nan(.x)) %>% first()) # get indices of first zero (i.e. last non replicated entry)
   max <- unlist(end) %>% max(.) # max length
-  out <- map2(x, end,  ~ replace(.x, .y:max, values = 0)) # replace recycled vals
+  out <- map2(x, end,  ~ replace(.x, .y:max, values = NA)) # replace recycled vals
   if(df)
     out <- as.data.table(out)
   return(out)
@@ -105,7 +116,8 @@ match_lengths <- function(x, df = T) {
 
 # helper function used in per_surv
 list_divide <- function(x) {
-  x / x[1] * 100
+  x / x[1] * 100 %>% 
+    replace(., is.nan(.), 0)
 }
 
 # function to calculate percentages of remaining species
@@ -126,6 +138,7 @@ per_surv <- function(x, y, lower = T, original = F) {
 # sp from the other trophic level in percent
 library(ggplot2)
 library(ggpubr)
+library(grid)
 
 plot_extc_facet <- function(extc, ci, extc_norew, ci_norew, org, org_norew, ci_org, ci_org_norew,
                             save = F, view = T, both = F, abund = F) {
@@ -219,6 +232,7 @@ plot_extc_facet <- function(extc, ci, extc_norew, ci_norew, org, org_norew, ci_o
           geom_line(aes(rev(y_lower), y_higher),
                     linetype = 2) + # higher ci
           labs(x = paste(xlab, "removed"), y = paste(ylab, "persisting")) +
+          # labs(x = NULL, y = NULL) +
           guides(color = "none") +
           facet_wrap(. ~ title, labeller = labeller(group = labs))  +
           theme(strip.text = element_text(),
@@ -244,13 +258,15 @@ plot_extc_facet <- function(extc, ci, extc_norew, ci_norew, org, org_norew, ci_o
           geom_line(aes(rev(y_lower), y_higher),
                     linetype = 2) + # higher ci
           labs(x = paste(xlab, "removed"), y = paste(ylab, "persisting")) +
+          # labs(x = NULL, y = NULL) +
           guides(color = "none") +
           facet_wrap(. ~ title, labeller = labeller(group = labs))  +
           theme(strip.text = element_text(),
                 strip.background = element_rect(color = colors[z])) # set box color
 
       # arrange  
-      ggarrange(subplots[[4]], subplots[[1]], subplots[[2]], subplots[[3]], nrow = 1)
+      ggarrange(subplots[[4]], subplots[[1]], subplots[[2]], subplots[[3]],
+                nrow = 1)
       })
   
   # view plots    
@@ -1222,7 +1238,6 @@ get_ci <- function(x, means, org = F, norew = F, tin = F) {
 
 hist_dead <- function(x, lower = T) {
   
-  ### add original web !!
   com_vars <- c("Atl" = 1, "aTl" = 2, "atL" = 3, "atl" = 4)
   
   ifelse(lower, title <- "Lower trophic level",
@@ -1275,4 +1290,45 @@ count_abort <- function(sim) {
       }) %>% unlist %>% which(. == T) %>% length
     })
   })
+}
+
+equalize_sp <- function(sims) {
+  # minimum no of species per trophic level
+  min_low <- map(seq(n_webs), function(x) {
+    map(1:4, ~ nrow(sims[[x]][[.x]])) %>% unlist %>% min
+  })
+  
+  min_high <- map(seq(n_webs), function(x) {
+    map(1:4, ~ ncol(sims[[x]][[.x]])) %>% unlist %>% min
+  })
+  
+  # draw random sp according to lowest no of species from each network
+  sp_low <- map(seq(n_webs), function(x) {
+    map(1:4, ~ rownames(sims[[x]][[.x]]) %>%
+          unlist %>%
+          sample(., size = min_low[[x]])
+    )})
+  
+  sp_high <- map(seq(n_webs), function(x) {
+    map(1:4, ~ colnames(sims[[x]][[.x]]) %>%
+          unlist %>%
+          sample(., size = min_high[[x]])
+    )})
+  
+  # crop networks to equal size
+  out <- map(seq(n_webs), function(x) {
+    map(1:4, ~ sims[[x]][[.x]][sp_low[[x]][[.x]], sp_high[[x]][[.x]]])
+  })
+  
+  return(out)
+}
+
+# fx to delete species that have no interactions (i.e. all values in row/col are zero)
+del_dead_int <- function(x) {
+  # filter sp w/o any interactions
+  sp_low <- which(rowSums(x) != 0L)
+  sp_high <- which(colSums(x) != 0L)
+  
+  # drop sp w/o any interactions from web
+  out <- x[sp_low, sp_high, drop = F]
 }

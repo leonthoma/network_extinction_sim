@@ -32,7 +32,7 @@ rew_names <- c("abund", "trait", "phylo")
 coextc_thr <- NULL
 
 # create initial network for community variables
-init_sim <- map(seq(n_webs), ~ simulate_tapnet_aug(nlower = 20, nhigher = 30, ntraits_nopem = 2,
+init_sim <- map(seq(n_webs), ~ simulate_tapnet_aug(nlower = 40, nhigher = 50, ntraits_nopem = 2,
                                                    ntraits_pem = 2, abuns = "lognormal", Nobs = 1111,
                                                    names = sp_names, initial_sim = T))
 
@@ -56,10 +56,34 @@ sims <- map(.x = seq(n_webs), function(x) {
                                            tmatch_type_obs = "normal",
                                            Nobs = 1111))})
 
+
+# Delete sp w/ only dead interactions
+clean_sims_web <- map(seq(n_webs), function(x) {
+  map(1:4, ~ del_dead_int(pluck(sims, x, .x, "web")))
+})
+
+# crop webs to size of smallest network w/o dead interactions
+sims_web <- equalize_sp(clean_sims_web)
+
+# create list w/ webs and I_mat
+sims <- map(seq(n_webs), function(x) {
+  map(seq(1:4), ~ list("web" = pluck(sims_web, x, .x), 
+         "I_mat" = pluck(sims, x, .x, "I_mat")))
+         })
+
+# rename list
+sims <- modify_depth(sims, 1, 
+                    ~ set_names(.x, nm = c("Atl",
+                                           "aTl",
+                                           "atL",
+                                           "ATL")))
+
+### Need to also crop interaction mat to size of clean sims !!
+
 # # Create tapnet from tinoco data
 # data(Tinoco)
 # 
-# # creat tapnet object of all three networks from tinoco data
+# # create tapnet object of all three networks from tinoco data
 # tin_init <- make_tapnet(tree_low = plant_tree,
 #                    tree_high = humm_tree,
 #                    networks = networks$forest,
@@ -104,6 +128,7 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
 # phylos_tin <- list("low" = cophenetic.phylo(pluck(tin_init$trees$low)),
 #                    "high" = cophenetic.phylo(pluck(tin_init$trees$high)))
 
+
 ### run extinction models ----
   source("rewiring_vizentin-bugoni_2019/Functions/extinction.mod.R")
   source("one.second.extinct.mod.R")
@@ -120,15 +145,17 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
                    "phylo" = phylos),
          .y = c("abund", "trait", "phylo"),
          ~ replicate(n_sims, simplify = F,
-                     one.second.extinct.mod_aug(
+                     one.second.extinct.mod.aug(
                        web = pluck(init_sim, x)$networks[[1]]$web,
                        participant = "lower",
                        method = "random",
                        rewiring = T,
-                       partner.choice = pluck(.x, x),
+                       abund.partner.choice = pluck(.x, x),
+                       trait.partner.choice = pluck(.x, x),
+                       phylo.partner.choice = pluck(.x, x),
                        interactions = pluck(init_sim, x)$networks[[1]]$I_mat,
                        method.rewiring = .y, 
-                       coextc_thr = coextc_thr)))})
+                       coextc.thr = coextc_thr)))})
   
   # initial extinction on higher lever; original
   extc_sims_higher_org <- map(seq(n_webs), function(x) {
@@ -137,15 +164,17 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
                    "phylo" = phylos),
          .y = c("abund", "trait", "phylo"),
          ~ replicate(n_sims, simplify = F,
-                     one.second.extinct.mod_aug(
+                     one.second.extinct.mod.aug(
                        web = pluck(init_sim, x)$networks[[1]]$web,
                        participant = "higher",
                        method = "random",
                        rewiring = T,
-                       partner.choice = pluck(.x, x),
+                       abund.partner.choice = pluck(.x, x),
+                       trait.partner.choice = pluck(.x, x),
+                       phylo.partner.choice = pluck(.x, x),
                        interactions = pluck(init_sim, x)$networks[[1]]$I_mat,
                        method.rewiring = .y, 
-                       coextc_thr = coextc_thr)))})
+                       coextc.thr = coextc_thr)))})
 
   # initial extinction on lower lever; original no rewiring
   
@@ -153,28 +182,32 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
   
   extc_sims_lower_org_norew <- map(seq(n_webs), function(x) {
     replicate(n_sims, simplify = F,
-              one.second.extinct.mod_aug(
+              one.second.extinct.mod.aug(
                 web = pluck(init_sim, x)$networks[[1]]$web,
                 participant = "lower",
                 method = "random",
                 rewiring = F,
-                partner.choice = NULL,
+                abund.partner.choice = NULL,
+                trait.partner.choice = NULL,
+                phylo.partner.choice = NULL,
                 interactions = pluck(init_sim, x)$networks[[1]]$I_mat,
                 method.rewiring = "NULL", 
-                coextc_thr = coextc_thr))})
+                coextc.thr = coextc_thr))})
   
   # initial extinction on lower lever; original no rewiring
   extc_sims_higher_org_norew <- map(seq(n_webs), function(x) {
     replicate(n_sims, simplify = F,
-              one.second.extinct.mod_aug(
+              one.second.extinct.mod.aug(
                 web = pluck(init_sim, x)$networks[[1]]$web,
                 participant = "higher",
                 method = "random",
                 rewiring = F,
-                partner.choice = NULL,
+                abund.partner.choice = NULL,
+                trait.partner.choice = NULL,
+                phylo.partner.choice = NULL,
                 interactions = pluck(init_sim, x)$networks[[1]]$I_mat,
                 method.rewiring = "NULL", 
-                coextc_thr = coextc_thr))})
+                coextc.thr = coextc_thr))})
   
   # # initial extinction on lower level, abundance driven extinction 
   # extc_sims_lower_abund <- map(seq(n_webs), function(x) {
@@ -272,12 +305,14 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
                     participant = "lower",
                     method = "random",
                     rewiring = T,
-                    partner.choice = pluck(.x, x), 
+                    abund.partner.choice = pluck(.x, x),
+                    trait.partner.choice = pluck(.x, x),
+                    phylo.partner.choice = pluck(.x, x),
                     interactions = pluck(sims, x),
                     method.rewiring = .y,
                     n_sims = n_sims,
                     multiple.webs = T, 
-                    coextc_thr = coextc_thr))})
+                    coextc.thr = coextc_thr))})
   
   # initial extinction on higher level
   extc_sims_higher <- map(seq(n_webs), function(x) {
@@ -289,12 +324,14 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
                     participant = "higher",
                     method = "random",
                     rewiring = T,
-                    partner.choice = pluck(.x, x), 
+                    abund.partner.choice = pluck(.x, x),
+                    trait.partner.choice = pluck(.x, x),
+                    phylo.partner.choice = pluck(.x, x), 
                     interactions = pluck(sims, x),
                     method.rewiring = .y,
                     n_sims = n_sims,
                     multiple.webs = T, 
-                    coextc_thr = coextc_thr))})
+                    coextc.thr = coextc_thr))})
   
   # initial extinction on lower level, no rewiring
   extc_sims_lower_norew <- map(seq(n_webs), function(x) {
@@ -302,12 +339,14 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
              participant = "lower",
              method = "random",
              rewiring = F,
-             partner.choice = NULL, 
+             abund.partner.choice = NULL,
+             trait.partner.choice = NULL,
+             phylo.partner.choice = NULL, 
              interactions = pluck(sims, x),
              method.rewiring = "NULL",
              n_sims = n_sims,
              multiple.webs = T, 
-             coextc_thr = coextc_thr)})
+             coextc.thr = coextc_thr)})
   
   # initial extinction on higher level, no rewiring
   extc_sims_higher_norew <- map(seq(n_webs), function(x) {
@@ -315,12 +354,14 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
              participant = "higher",
              method = "random",
              rewiring = F,
-             partner.choice = NULL, 
+             abund.partner.choice = NULL,
+             trait.partner.choice = NULL,
+             phylo.partner.choice = NULL,
              interactions = pluck(sims, x),
              method.rewiring = "NULL",
              n_sims = n_sims,
              multiple.webs = T, 
-             coextc_thr = coextc_thr)})
+             coextc.thr = coextc_thr)})
   
   # # initial extinction on lower level; tinoco
   # extc_sims_lower_tin <- map2(.x = list("abund" = abunds_tin,
@@ -840,12 +881,14 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
         map(seq(n_webs), ~ pluck(sp_remain_lower_org, .x, "lower", x))  %>%
           as.data.table() %>%
           match_lengths() %>%
-          rowMeans()}),
+          rowMeans() %>% 
+          replace(., is.nan(.), 0)}),
     "higher" = map(.x = 1:3, function(x){
       map(seq(n_webs), ~ pluck(sp_remain_lower_org, .x, "higher", x))  %>%
         as.data.table() %>%
         match_lengths() %>%
-        rowMeans()}))
+        rowMeans() %>% 
+        replace(., is.nan(.), 0)}))
   
   # add dropped names
   sp_remain_lower_web_mean_org <- modify_depth(
@@ -859,12 +902,14 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
         map(seq(n_webs), ~ pluck(sp_remain_higher_org, .x, "lower", x))  %>%
           as.data.table() %>%
           match_lengths() %>%
-          rowMeans()}),
+          rowMeans() %>% 
+          replace(., is.nan(.), 0)}),
     "higher" = map(.x = 1:3, function(x){
       map(seq(n_webs), ~ pluck(sp_remain_higher_org, .x, "higher", x))  %>%
         as.data.table() %>%
         match_lengths() %>%
-        rowMeans()}))
+        rowMeans() %>% 
+        replace(., is.nan(.), 0)}))
   
   # add dropped names
   sp_remain_higher_web_mean_org <- modify_depth(
@@ -876,22 +921,26 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
     "lower" = map(seq(n_webs), ~ pluck(sp_remain_lower_org_norew, .x, "lower"))  %>%
           as.data.table() %>%
           match_lengths() %>%
-          rowMeans(),
+          rowMeans() %>% 
+      replace(., is.nan(.), 0),
     "higher" = map(seq(n_webs), ~ pluck(sp_remain_lower_org_norew, .x, "higher"))  %>%
         as.data.table() %>%
         match_lengths() %>%
-        rowMeans())
+        rowMeans() %>% 
+      replace(., is.nan(.), 0))
   
   # initial extincion on higher level original web no rewiring
   sp_remain_higher_web_mean_org_norew <- list(
     "lower" = map(seq(n_webs), ~ pluck(sp_remain_higher_org_norew, .x, "lower"))  %>%
           as.data.table() %>%
           match_lengths() %>%
-          rowMeans(),
+          rowMeans() %>% 
+      replace(., is.nan(.), 0),
     "higher" = map(seq(n_webs), ~ pluck(sp_remain_higher_org_norew, .x, "higher"))  %>%
         as.data.table() %>%
         match_lengths() %>%
-        rowMeans())
+        rowMeans() %>% 
+      replace(., is.nan(.), 0))
   
   # # initial extincion on lower level, abundance driven extinction
   # sp_remain_lower_web_mean_abund <- list(
@@ -1014,12 +1063,14 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
         map(seq(n_webs), ~ pluck(sp_remain_lower, .x, "lower", x, y))  %>%
           as.data.table() %>%
           match_lengths() %>%
-          rowMeans()})),
+          rowMeans(., na.rm = T) %>% 
+          replace(., is.nan(.), 0)})),
     "higher" = map(.x = 1:3, function(x) map(.x = 1:3, function(y) {
       map(seq(n_webs), ~ pluck(sp_remain_lower, .x, "higher", x, y))  %>%
         as.data.table() %>%
         match_lengths() %>%
-        rowMeans()})))
+        rowMeans(., na.rm = T) %>% 
+        replace(., is.nan(.), 0)})))
   
   # add dropped names
   sp_remain_lower_web_mean <- modify_depth(
@@ -1037,12 +1088,14 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
         map(seq(n_webs), ~ pluck(sp_remain_higher, .x, "lower", x, y))  %>%
           as.data.table() %>%
           match_lengths() %>%
-          rowMeans()})),
+          rowMeans() %>% 
+          replace(., is.nan(.), 0)})),
     "higher" = map(.x = 1:3, function(x) map(.x = 1:3, function(y) {
       map(seq(n_webs), ~ pluck(sp_remain_higher, .x, "higher", x, y))  %>%
         as.data.table() %>%
         match_lengths() %>%
-        rowMeans()})))
+        rowMeans() %>% 
+        replace(., is.nan(.), 0)})))
   
   # add dropped names
   sp_remain_higher_web_mean <- modify_depth(
@@ -1060,12 +1113,14 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
         map(seq(n_webs), ~ pluck(sp_remain_lower_norew, .x, "lower", x))  %>%
           as.data.table() %>%
           match_lengths() %>%
-          rowMeans()}),
+          rowMeans() %>% 
+          replace(., is.nan(.), 0)}),
     "higher" = map(.x = 1:3, function(x){
       map(seq(n_webs), ~ pluck(sp_remain_lower_norew, .x, "higher", x))  %>%
         as.data.table() %>%
         match_lengths() %>%
-        rowMeans()}))
+        rowMeans() %>% 
+        replace(., is.nan(.), 0)}))
   
   # add dropped names
   sp_remain_lower_web_mean_norew <- modify_depth(
@@ -1080,12 +1135,14 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
         map(seq(n_webs), ~ pluck(sp_remain_higher_norew, .x, "lower", x))  %>%
           as.data.table() %>%
           match_lengths() %>%
-          rowMeans()}),
+          rowMeans() %>% 
+          replace(., is.nan(.), 0)}),
     "higher" = map(.x = 1:3, function(x){
       map(seq(n_webs), ~ pluck(sp_remain_higher_norew, .x, "higher", x))  %>%
         as.data.table() %>%
         match_lengths() %>%
-        rowMeans()}))
+        rowMeans() %>% 
+        replace(., is.nan(.), 0)}))
   
   # add dropped names
   sp_remain_higher_web_mean_norew <- modify_depth(
@@ -1282,4 +1339,123 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
   
   ci_lower_df_norew <- list_to_df(ci_lower_norew, ci = T, norew = T)
   ci_higher_df_norew <- list_to_df(ci_higher_norew, ci = T, norew = T)
+  
+  
+###################  
+  
+  extc_sims_lower_AT <- map(seq(n_webs), function(x) {
+    run_extc(web = pluck(sims, x),
+             participant = "lower",
+             method = "random",
+             rewiring = T,
+             abund.partner.choice = pluck(abunds, x), 
+             trait.partner.choice = pluck(traits, x),
+             phylo.partner.choice = NULL,
+             interactions = pluck(sims, x),
+             method.rewiring = c("abund", "trait"),
+             n_sims = n_sims,
+             multiple.webs = T, 
+             coextc.thr = coextc_thr)})  
+  
+  
+  extc_sims_lower_mean_AT <- map(seq(n_webs), function(x) {
+    list("lower" = map(1:3,
+                       ~ list_mean(pluck(extc_sims_lower_AT, x),
+                                   y = .x, original = T)),
+         "higher" = map(1:3,
+                        ~ list_mean(pluck(extc_sims_lower_AT, x),
+                                    y = .x,
+                                    lower = F, original = T)))})
+  
+  sp_remain_lower_AT <- map(seq(n_webs), function(x) {
+    list("lower" = map(1:3, ~ per_surv(pluck(extc_sims_lower_mean_AT, x),
+                                       y = .x,
+                                       original = T)),
+         "higher" = map(1:3, ~ per_surv(pluck(extc_sims_lower_mean_AT, x),
+                                        y = .x,
+                                        lower = F,
+                                        original = T)))})
+  
+  # add dropped names
+  sp_remain_lower_AT <- modify_depth(sp_remain_lower_AT, 2, 
+                                      ~ set_names(.x, nm = c("Atl",
+                                                             "aTl",
+                                                             "atL")))
+  
+  sp_remain_lower_web_mean_AT <- list(
+    "lower" =
+      map(.x = 1:3, function(x) {
+        map(seq(n_webs), ~ pluck(sp_remain_lower_AT, .x, "lower", x))  %>%
+          as.data.table() %>%
+          match_lengths() %>%
+          rowMeans()}),
+    "higher" = map(.x = 1:3, function(x){
+      map(seq(n_webs), ~ pluck(sp_remain_lower_AT, .x, "higher", x))  %>%
+        as.data.table() %>%
+        match_lengths() %>%
+        rowMeans()}))
+  
+  # add dropped names
+  sp_remain_lower_web_mean_AT <- modify_depth(
+    sp_remain_lower_web_mean_AT, 1, 
+    ~ set_names(.x, nm = c("Atl", "aTl", "atL")))
+  
+  
+  extc_sims_lower_AP <- map(seq(n_webs), function(x) {
+    run_extc(web = pluck(sims, x),
+             participant = "lower",
+             method = "random",
+             rewiring = T,
+             abund.partner.choice = pluck(abunds, x), 
+             trait.partner.choice = NULL,
+             phylo.partner.choice = pluck(phylos, x),
+             interactions = pluck(sims, x),
+             method.rewiring = c("abund", "phylo"),
+             n_sims = n_sims,
+             multiple.webs = T, 
+             coextc.thr = coextc_thr)})  
+  
+  
+  extc_sims_lower_mean_AP <- map(seq(n_webs), function(x) {
+    list("lower" = map(1:3,
+                       ~ list_mean(pluck(extc_sims_lower_AP, x),
+                                   y = .x, original = T)),
+         "higher" = map(1:3,
+                        ~ list_mean(pluck(extc_sims_lower_AP, x),
+                                    y = .x,
+                                    lower = F, original = T)))})
+  
+  sp_remain_lower_AP <- map(seq(n_webs), function(x) {
+    list("lower" = map(1:3, ~ per_surv(pluck(extc_sims_lower_mean_AP, x),
+                                       y = .x,
+                                       original = T)),
+         "higher" = map(1:3, ~ per_surv(pluck(extc_sims_lower_mean_AP, x),
+                                        y = .x,
+                                        lower = F,
+                                        original = T)))})
+  
+  # add dropped names
+  sp_remain_lower_AP <- modify_depth(sp_remain_lower_AP, 2, 
+                                     ~ set_names(.x, nm = c("Atl",
+                                                            "aTl",
+                                                            "atL")))
+  
+  sp_remain_lower_web_mean_AP <- list(
+    "lower" =
+      map(.x = 1:3, function(x) {
+        map(seq(n_webs), ~ pluck(sp_remain_lower_AP, .x, "lower", x))  %>%
+          as.data.table() %>%
+          match_lengths() %>%
+          rowMeans()}),
+    "higher" = map(.x = 1:3, function(x){
+      map(seq(n_webs), ~ pluck(sp_remain_lower_AP, .x, "higher", x))  %>%
+        as.data.table() %>%
+        match_lengths() %>%
+        rowMeans()}))
+  
+  # add dropped names
+  sp_remain_lower_web_mean_AP <- modify_depth(
+    sp_remain_lower_web_mean_AP, 1, 
+    ~ set_names(.x, nm = c("Atl", "aTl", "atL")))
+  
   
