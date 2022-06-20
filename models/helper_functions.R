@@ -59,12 +59,12 @@ list_mean <- function(x, y, lower = T, original = F) {
       # mean of n.lower
       out <- pluck(x, y) %>% as.data.table(.) %>% 
         select(., contains(c("no", "n.lower"))) %>%
-        replace_duplicate(.) %>% rowMeans(.)
+        replace_duplicate(.) %>% rowMeans(., na.rm = T)
     } else {
       # mean of n.higher
       out <- pluck(x, y) %>% as.data.table(.) %>% 
         select(., contains(c("no", "n.higher"))) %>%
-        replace_duplicate(.) %>% rowMeans(.)
+        replace_duplicate(.) %>% rowMeans(., na.rm = T)
     }  
   } else {
     if (lower == T) {
@@ -667,15 +667,15 @@ conf_int <- function(x, means, trph_lvl = "lower", lower = T, norew_org = F,
     if (norew_org) {
       sds <- map(.x = 1:3, function(a) {
         map(seq(n_webs), ~ pluck(x, .x, trph_lvl, a)) %>% as.data.table %>% 
-          match_lengths() %>% apply(., 1, sd)})
+          match_lengths() %>% replace(., is.na(.), 0) %>% apply(., 1, sd)})
     } else {
       if (noreworg) {
        sds <- map(seq(n_webs), ~ pluck(x, .x, trph_lvl)) %>% as.data.table %>%
-          match_lengths() %>% apply(., 1, sd)
+          match_lengths() %>% replace(., is.na(.), 0) %>% apply(., 1, sd)
       } else {
         sds <- map(.x = 1:3, function(a) map(.x = 1:3, function(b) {
           map(seq(n_webs), ~ pluck(x, .x, trph_lvl, a, b)) %>% as.data.table %>% 
-            match_lengths() %>% apply(., 1, sd)}))
+            match_lengths() %>% replace(., is.na(.), 0) %>% apply(., 1, sd)}))
         }
     }
   }
