@@ -1253,7 +1253,7 @@ hist_dead <- function(x, lower = T) {
     
     # org
     df$org <- map(seq(n_webs), function(y) {
-      length(which(rowSums(pluck(init_sim, y, "networks", 1, "web")) == 0))}) %>%
+      length(which(rowSums(pluck(init_sim_web, y, )) == 0))}) %>%
       unlist
     
   } else {
@@ -1264,7 +1264,7 @@ hist_dead <- function(x, lower = T) {
     
     # org
     df$org <- map(seq(n_webs), function(y) {
-      length(which(colSums(pluck(init_sim, y, "networks", 1, "web")) == 0))}) %>%
+      length(which(colSums(pluck(init_sim_web, y)) == 0))}) %>%
       unlist
   }
   
@@ -1292,7 +1292,34 @@ count_abort <- function(sim) {
   })
 }
 
-equalize_sp <- function(sims) {
+equalize_sp <- function(sims, init = F) {
+  if (init) {
+    min_low <- map(seq(n_webs), function(x) {
+      nrow(sims[[x]]) %>% unlist %>% min
+    })
+    
+    min_high <- map(seq(n_webs), function(x) {
+      ncol(sims[[x]]) %>% unlist %>% min
+    })
+    
+    # draw random sp according to lowest no of species from each network
+    sp_low <- map(seq(n_webs), function(x) {
+      rownames(sims[[x]]) %>%
+            unlist %>%
+            sample(., size = min_low[[x]])
+      })
+    
+    sp_high <- map(seq(n_webs), function(x) {
+      colnames(sims[[x]]) %>%
+            unlist %>%
+            sample(., size = min_high[[x]])
+      })
+    
+    # crop networks to equal size
+    out <- map(seq(n_webs), function(x) {
+      sims[[x]][sp_low[[x]], sp_high[[x]]]
+    })
+  } else {
   # minimum no of species per trophic level
   min_low <- map(seq(n_webs), function(x) {
     map(1:4, ~ nrow(sims[[x]][[.x]])) %>% unlist %>% min
@@ -1319,6 +1346,7 @@ equalize_sp <- function(sims) {
   out <- map(seq(n_webs), function(x) {
     map(1:4, ~ sims[[x]][[.x]][sp_low[[x]][[.x]], sp_high[[x]][[.x]]])
   })
+  }
   
   return(out)
 }

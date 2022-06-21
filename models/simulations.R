@@ -24,9 +24,9 @@ sp_names <- data.frame("plants" = plants,
 
 ### initial simulation ----
 # set no of nets and simulations
-n_webs <- 1000
+n_webs <- 250
 n_nets <- 4
-n_sims <- 10
+n_sims <- 40
 ctrbs <- c("Atl" = 1, "aTl" = 2, "atL" = 3, "ATL" = 4)
 rew_names <- c("abund", "trait", "phylo")
 coextc_thr <- NULL
@@ -62,8 +62,14 @@ clean_sims_web <- map(seq(n_webs), function(x) {
   map(1:4, ~ del_dead_int(pluck(sims, x, .x, "web")))
 })
 
+clean_init_sim_web <- map(seq(n_webs), function(x) {
+  del_dead_int(pluck(init_sim, x, "networks" , 1, "web"))
+})
+
 # crop webs to size of smallest network w/o dead interactions
 sims_web <- equalize_sp(clean_sims_web)
+
+init_sim_web <- equalize_sp(clean_init_sim_web, init = T)
 
 # create list w/ webs and I_mat
 sims <- map(seq(n_webs), function(x) {
