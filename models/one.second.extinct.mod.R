@@ -112,7 +112,7 @@ one.second.extinct.mod.aug <- function(web,
     # extinction.mod returns list w/ plants (rows; "rexcl") that lost partners and
     # animals (cols; "cexcl") that lost partners as well as network ("web")
     
-    Nobs <- sum(m2)# - sum(m2[sp_ext, ]) # no of obs interactions
+    Nobs <- sum(ext_temp$web) # no of obs interaction
 
     # handle edge case where extc. sp has only dead interactions
     if (sum(ext_temp$rexcl, ext_temp$cexcl) == 0) {
@@ -125,13 +125,15 @@ one.second.extinct.mod.aug <- function(web,
         
         j <- j + 1
 
-        if (sum(ext_temp$rexcl, ext_temp$cexcl) != 0)
+        if (sum(ext_temp$rexcl, ext_temp$cexcl) != 0){
           break
-      }
-      if (j >= 3) {
-        warning("Failed to find alternative, skipping current simulation step(", i, ")")
-         abort <- T
-        # skip <- T
+        }
+        
+        if (j == 3) {
+          warning("Failed to find alternative, skipping current simulation step(", i, ")")
+          abort <- T
+          # skip <- T
+          }
       }
     }
     if (!abort) {
@@ -442,7 +444,7 @@ one.second.extinct.mod.aug <- function(web,
       }
     } else {
       retry <- retry + 1L
-      if (retry >= 3L) {
+      if (retry > 3L) {
         warning("Max no. of retries for dead interactions reached, aborting")
         break
       }
@@ -500,7 +502,6 @@ one.second.extinct.mod.aug <- function(web,
     # renormalize interactions
     interactions <- interactions/sum(interactions)
 
-    
     # calculate new web w/ updated o_mat
     if (nrow(interactions) >= 2L | ncol(interactions) >= 2L) {
       m2 <- matrix(rmultinom(1, Nobs, interactions), nrow = nrow(interactions),
