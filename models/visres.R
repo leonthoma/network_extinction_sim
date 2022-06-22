@@ -140,12 +140,13 @@ auc_lower_org <- bind_cols(auc_lower_org,
 # lower org norew; all
 auc_lower_org_norew <- map(seq(n_webs), ~ auc(x = pluck(sp_remain_lower_org_norew, .x, "lower") %>%
                          rev(),
-                       y = pluck(sp_remain_lower_org_norew, .x, "higher"))) %>% unlist %>% data.table("robustness" = .) %>% 
+                       y = pluck(sp_remain_lower_org_norew, .x, "higher"))) %>% unlist %>%
+  data.table("robustness" = .) %>% 
   cbind("rew" = "norew") %>%
   cbind("com_vars" = "org") %>%
   bind_rows()
 
-auc_lower_org <- bind_cols(auc_lower_org,
+auc_lower_org_norew <- bind_cols(auc_lower_org_norew,
                            "nrow" = map(seq(n_webs), function(x) {
                              nrow(pluck(init_sim_web, x))
                            }) %>% unlist(),
@@ -204,7 +205,7 @@ auc_higher_org_norew <- map(seq(n_webs), ~ auc(x = pluck(sp_remain_higher_org_no
   cbind("com_vars" = "org") %>%
   bind_rows()
 
-auc_higher_org <- bind_cols(auc_higher_org,
+auc_higher_org_norew <- bind_cols(auc_higher_org_norew,
                            "nrow" = map(seq(n_webs), function(x) {
                              nrow(pluck(init_sim_web, x))
                            }) %>% unlist(),
@@ -313,7 +314,7 @@ auc_lower_norew <- map(.x = 1:3, function(x) {
     cbind("com_vars" = rew_names[x])}) %>% 
   bind_rows()
 
-auc_lower <- bind_cols(auc_lower,
+auc_lower_norew <- bind_cols(auc_lower_norew,
                        "nrow" = map(1:3, function(y) { 
                          map(seq(n_webs), function(x) {
                            nrow(pluck(sims, x, y, "web"))
@@ -338,7 +339,7 @@ auc_higher_norew <- map(.x = 1:3, function(x) {
     cbind("com_vars" = rew_names[x])}) %>% 
   bind_rows()
 
-auc_higher <- bind_cols(auc_higher,
+auc_higher_norew <- bind_cols(auc_higher_norew,
                        "nrow" = map(1:3, function(y) { 
                          map(seq(n_webs), function(x) {
                            nrow(pluck(sims, x, y, "web"))
@@ -367,7 +368,7 @@ auc_all_higher <- auc_higher %>% bind_rows(auc_higher_norew) %>%
   bind_rows(auc_higher_org_norew)
 
 aov(robustness ~ nrow + ncol + rew + com_vars, data = auc_all_lower)
-
+aov(robustness ~ nrow + ncol + rew + com_vars, data = auc_all_higher)
 
 # # get min/max auc original web
 # auc_mins_org <- map(.x = 1:3, ~ pluck(aucs, .x) %>% unlist %>% min) # min
@@ -386,6 +387,84 @@ aov(robustness ~ nrow + ncol + rew + com_vars, data = auc_all_lower)
 # plot extinction sequences w/ CIs
 # plot_extc(sp_remain_lower_web_mean, ci_lower, save = F, view = T, lower = T)
 # plot_extc(sp_remain_higher_web_mean, ci_higher, save = F, view = T)
+
+# Plot of all sims for one web
+sp_remain_lower_org_norew_sims <- list("lower" = pluck(extc_sims_lower_org_norew, 1) %>%
+    as.data.table(.) %>% 
+    select(., contains(c("no", "n.lower"))) %>%
+    replace_duplicate() %>% apply(., 2, list_divide),
+  "higher" = pluck(extc_sims_lower_org_norew, 1) %>%
+      as.data.table(.) %>% 
+      select(., contains(c("no", "n.higher"))) %>%
+      replace_duplicate()%>% apply(., 2, list_divide))
+
+sp_remain_lower_org_sims <- list("lower" = map(1:3, function(x) { # loop rewiring
+  pluck(extc_sims_lower_org, 1, x) %>%
+    as.data.table(.) %>% 
+    select(., contains(c("no", "n.lower"))) %>%
+    replace_duplicate() %>% apply(., 2, list_divide)}),
+  "higher" = map(1:3, function(x) { # loop com vars
+    pluck(extc_sims_lower_org, 1, x) %>%
+      as.data.table(.) %>% 
+      select(., contains(c("no", "n.higher"))) %>%
+      replace_duplicate()%>% apply(., 2, list_divide)}))
+
+sp_remain_lower_norew_sims <- list("lower" = map(1:3, function(x) { # loop com vars
+    pluck(extc_sims_lower_norew, 1, x) %>%
+      as.data.table(.) %>% 
+      select(., contains(c("no", "n.lower"))) %>%
+      replace_duplicate() %>% apply(., 2, list_divide)}),
+  "higher" = map(1:3, function(x) { # loop com vars
+      pluck(extc_sims_lower_norew, 1, x) %>%
+        as.data.table(.) %>% 
+        select(., contains(c("no", "n.higher"))) %>%
+        replace_duplicate()%>% apply(., 2, list_divide)}))
+
+sp_remain_lower_sims <- list("lower" = map(1:3, function(x) { # loop rewiring
+      map(1:3, function(y) { # loop com vars
+        pluck(extc_sims_lower, 1, x, y) %>%
+           as.data.table(.) %>% 
+           select(., contains(c("no", "n.lower"))) %>%
+           replace_duplicate() %>% apply(., 2, list_divide)})}),
+         "higher" = map(1:3, function(x) { # loop rewiring
+           map(1:3, function(y) { # loop com vars
+        pluck(extc_sims_lower, 1, x, y) %>%
+           as.data.table(.) %>% 
+           select(., contains(c("no", "n.higher"))) %>%
+           replace_duplicate()%>% apply(., 2, list_divide)})}))
+
+# lower org norew
+lower_org_norew_sims_df <- list_to_df2(sp_remain_lower_org_norew_sims, org = T, norew = T)
+
+# lower org
+lower_org_sims_df <- list_to_df2(sp_remain_lower_org_sims, org = T)
+
+# lower norew
+lower_norew_sims_df <- list_to_df2(sp_remain_lower_norew_sims, norew = T)
+
+# lower
+lower_sims_df <- list_to_df2(sp_remain_lower_sims)
+
+# lower org norew
+ggplot(aes(rev(x), y), data = lower_org_norew_sims_df) + 
+  geom_line(aes(color = sims1))
+
+# lower org
+ggplot(aes(rev(x), y), data = filter(lower_org_sims_df,
+                                     id == "abund")) + 
+  geom_line(aes(color = sims1))
+
+# lower norew
+ggplot(aes(rev(x), y), data = filter(lower_norew_sims_df,
+                                     com_vars == "Atl")) + 
+  geom_line(aes(color = sims1))
+
+# lower
+ggplot(aes(rev(x), y), data = filter(lower_sims_df,
+                                     id == "abund",
+                                     com_vars == "Atl")) + 
+  geom_line(aes(color = sims1))
+
 
 # base model; lower 
 plot_extc_facet(extc = sp_remain_lower_web_mean_df,

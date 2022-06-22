@@ -122,8 +122,6 @@ list_divide <- function(x) {
 
 # function to calculate percentages of remaining species
 per_surv <- function(x, y, lower = T, original = F) {
-
-  
   extc_in_network <- ifelse(isTRUE(lower), 1, 2)
   
   if (original == T) {
@@ -1128,6 +1126,81 @@ list_to_df <- function(x, org = F, norew = F, ci = F) {
       levels(out$id) <- c("abund", "trait", "phylo")
     }
   
+  return(out)
+}
+
+# changing lists to df for easier plotting
+list_to_df2 <- function(x, org = F, norew = F) {
+  ifelse(org, id <- "org", id <- "norew")
+  
+  # create df
+  if (org | norew) {
+    if (norew & !org) {
+      # norew
+      x_df <- map(1:3, ~ reshape2::melt(pluck(x, "lower", .x),
+                                  value.name = "x")[, c(2, 3)]  %>% 
+              bind_cols("x" =., "com_vars" = names(ctrbs[.x])) %>% 
+              bind_cols("x" = .,  "id" = "norew")) %>% 
+          bind_rows
+      y_df <- map(1:3, ~ reshape2::melt(pluck(x, "higher", .x),
+                                  value.name = "y")[, c(2, 3)]  %>% 
+              bind_cols("y" =., "com_vars" = names(ctrbs[.x])) %>%
+              bind_cols("y" = .,  "id" = "norew")) %>% 
+          bind_rows
+      
+      out <- cbind(x_df[, c(1,2)], y_df)
+      colnames(out) <- c("sims1", "x", "sims2", "y", "com_vars", "id")
+    } else {
+      if (org & norew) {
+        # org + norew
+        x_df <- reshape2::melt(pluck(x, "lower"),
+                                          value.name = "x")[, c(2, 3)]  %>% 
+                      bind_cols("x" =., "com_vars" = "org") %>% 
+                      bind_cols("x" = .,  "id" = "norew")
+        y_df <- reshape2::melt(pluck(x, "higher"),
+                                          value.name = "y")[, c(2, 3)]  %>% 
+                      bind_cols("y" =., "com_vars" = "org") %>%
+                      bind_cols("y" = .,  "id" = "norew")
+        
+        out <- cbind(x_df[, c(1,2)], y_df)
+        colnames(out) <- c("sims1", "x", "sims2", "y", "com_vars", "id")
+      } else {
+      # org
+        x_df <- map(1:3, ~ reshape2::melt(pluck(x, "lower", .x),
+                                          value.name = "x")[, c(2, 3)]  %>% 
+                      bind_cols("x" =., "com_vars" = "org") %>% 
+                      bind_cols("x" = .,  "id" = rew_names[.x])) %>% 
+          bind_rows
+        y_df <- map(1:3, ~ reshape2::melt(pluck(x, "higher", .x),
+                                          value.name = "y")[, c(2, 3)]  %>% 
+                      bind_cols("y" =., "com_vars" = "org") %>%
+                      bind_cols("y" = .,  "id" = rew_names[.x])) %>% 
+          bind_rows
+        
+        out <- cbind(x_df[, c(1,2)], y_df)
+        colnames(out) <- c("sims1", "x", "sims2", "y", "com_vars", "id")
+      }
+    }
+  } else {
+    # lower/higher
+    x_df <- map(1:3, function(y) {
+      map(1:3, ~ reshape2::melt(pluck(x, "lower", y, .x),
+                                value.name = "x")[, c(2, 3)]  %>% 
+            bind_cols("x" =., "com_vars" = names(ctrbs[.x])) %>% 
+            bind_cols("x" = .,  "id" = rew_names[y])) %>% 
+        bind_rows}) %>% 
+      bind_rows
+    y_df <- map(1:3, function(y) {
+      map(1:3, ~ reshape2::melt(pluck(x, "higher", y, .x),
+                                value.name = "y")[, c(2, 3)]  %>% 
+            bind_cols("y" =., "com_vars" = names(ctrbs[.x])) %>%
+            bind_cols("y" = .,  "id" = rew_names[y])) %>% 
+        bind_rows}) %>% 
+      bind_rows
+    
+    out <- cbind(x_df[, c(1,2)], y_df)
+    colnames(out) <- c("sims1", "x", "sims2", "y", "com_vars", "id")
+  }
   return(out)
 }
 
