@@ -17,7 +17,7 @@ run_extc <- function(web,
                      coextc.thr = NULL
                      ) {
   if (multiple.webs == T) {
-   map(.x = c(1:3),
+   map(.x = seq(ctrbs),
        ~ replicate(n_sims, simplify = F, 
                    one.second.extinct.mod.aug(web = pluck(web, .x, "web"), 
                                                    participant = participant,
@@ -69,13 +69,13 @@ list_mean <- function(x, y, lower = T, original = F) {
   } else {
     if (lower == T) {
       # mean of n.lower
-      out <- map(c("Atl" = 1, "aTl" = 2, "atL" = 3),
+      out <- map(c("Atl" = 1, "aTl" = 2, "atL" = 3, "atl" = 4),
                  ~ pluck(x, y, .x) %>% as.data.table(.) %>% 
                    select(., contains(c("no", "n.lower"))) %>%
                    replace_duplicate(.) %>% rowMeans(., na.rm = T))
     } else {
       # mean of n.higher
-      out <- map(c("Atl" = 1, "aTl" = 2, "atL" = 3),
+      out <- map(c("Atl" = 1, "aTl" = 2, "atL" = 3, "atl" = 4),
                  ~ pluck(x, y, .x) %>% as.data.table(.) %>% 
                    select(., contains(c("no", "n.higher"))) %>%
                    replace_duplicate(.) %>% rowMeans(., na.rm = T))
@@ -127,7 +127,7 @@ per_surv <- function(x, y, lower = T, original = F) {
   if (original == T) {
     list_divide(pluck(x, extc_in_network, y))
   } else {
-    map(c("Atl" = 1, "aTl" = 2, "atL" = 3),
+    map(c("Atl" = 1, "aTl" = 2, "atL" = 3, "atl" = 4),
         ~ list_divide(pluck(x, extc_in_network, y, .x)))
   }
 }
@@ -1137,12 +1137,12 @@ list_to_df2 <- function(x, org = F, norew = F) {
   if (org | norew) {
     if (norew & !org) {
       # norew
-      x_df <- map(1:3, ~ reshape2::melt(pluck(x, "lower", .x),
+      x_df <- map(ctrbs, ~ reshape2::melt(pluck(x, "lower", .x),
                                   value.name = "x")[, c(2, 3)]  %>% 
               bind_cols("x" =., "com_vars" = names(ctrbs[.x])) %>% 
               bind_cols("x" = .,  "id" = "norew")) %>% 
           bind_rows
-      y_df <- map(1:3, ~ reshape2::melt(pluck(x, "higher", .x),
+      y_df <- map(ctrbs, ~ reshape2::melt(pluck(x, "higher", .x),
                                   value.name = "y")[, c(2, 3)]  %>% 
               bind_cols("y" =., "com_vars" = names(ctrbs[.x])) %>%
               bind_cols("y" = .,  "id" = "norew")) %>% 
@@ -1184,14 +1184,14 @@ list_to_df2 <- function(x, org = F, norew = F) {
   } else {
     # lower/higher
     x_df <- map(1:3, function(y) {
-      map(1:3, ~ reshape2::melt(pluck(x, "lower", y, .x),
+      map(ctrbs, ~ reshape2::melt(pluck(x, "lower", y, .x),
                                 value.name = "x")[, c(2, 3)]  %>% 
             bind_cols("x" =., "com_vars" = names(ctrbs[.x])) %>% 
             bind_cols("x" = .,  "id" = rew_names[y])) %>% 
         bind_rows}) %>% 
       bind_rows
     y_df <- map(1:3, function(y) {
-      map(1:3, ~ reshape2::melt(pluck(x, "higher", y, .x),
+      map(ctrbs, ~ reshape2::melt(pluck(x, "higher", y, .x),
                                 value.name = "y")[, c(2, 3)]  %>% 
             bind_cols("y" =., "com_vars" = names(ctrbs[.x])) %>%
             bind_cols("y" = .,  "id" = rew_names[y])) %>% 
@@ -1320,18 +1320,18 @@ hist_dead <- function(x, lower = T) {
   # get data
   if (lower) {
     # sims
-    df <- map_dfc(com_vars[-4], function(y) {
+    df <- map_dfc(com_vars, function(y) {
       map(seq(n_webs), ~ length(which(rowSums(pluck(x, .x, y, "web")) == 0))) %>%
         unlist})
     
     # org
     df$org <- map(seq(n_webs), function(y) {
-      length(which(rowSums(pluck(init_sim_web, y, )) == 0))}) %>%
+      length(which(rowSums(pluck(init_sim_web, y)) == 0))}) %>%
       unlist
     
   } else {
     # sims
-    df <- map_dfc(com_vars[-4], function(y) {
+    df <- map_dfc(com_vars, function(y) {
       map(seq(n_webs), ~ length(which(colSums(pluck(x, .x, y, "web")) == 0))) %>%
         unlist})
     
@@ -1345,8 +1345,9 @@ hist_dead <- function(x, lower = T) {
     geom_boxplot(aes(x = names(com_vars)[1], y = Atl)) +
     geom_boxplot(aes(x = names(com_vars)[2], y = aTl)) +
     geom_boxplot(aes(x = names(com_vars)[3], y = atL)) +
-    geom_boxplot(aes(x = names(com_vars)[4], y = org)) +
-    scale_x_discrete(limits = c("Atl", "aTl", "atL", "atl")) +
+    geom_boxplot(aes(x = names(com_vars)[4], y = atl)) +
+    geom_boxplot(aes(x = "org", y = org)) +
+    scale_x_discrete(limits = c("Atl", "aTl", "atL", "atl", "org")) +
     labs(y = "No. of dead interactions", x = "Community variable importances") +
     theme_classic() +
     theme(text = element_text(size = 20)) 
@@ -1355,7 +1356,7 @@ hist_dead <- function(x, lower = T) {
 # calculate number of aborted simulations
 count_abort <- function(sim) {
   map(1:3, function(x) { # loop over rewiring methods
-    map(1:3, function(y) { # loop over community variables
+    map(ctrbs, function(y) { # loop over community variables
       map(seq(n_webs), function (z) { # loop over webs
         map(seq(n_sims), function(.x) { # loop over sims
           pluck(sim, z, x, y, .x) %>% is.null
@@ -1395,29 +1396,29 @@ equalize_sp <- function(sims, init = F) {
   } else {
   # minimum no of species per trophic level
   min_low <- map(seq(n_webs), function(x) {
-    map(1:4, ~ nrow(sims[[x]][[.x]])) %>% unlist %>% min
+    map(seq(ctrbs), ~ nrow(sims[[x]][[.x]])) %>% unlist %>% min
   })
   
   min_high <- map(seq(n_webs), function(x) {
-    map(1:4, ~ ncol(sims[[x]][[.x]])) %>% unlist %>% min
+    map(seq(ctrbs), ~ ncol(sims[[x]][[.x]])) %>% unlist %>% min
   })
   
   # draw random sp according to lowest no of species from each network
   sp_low <- map(seq(n_webs), function(x) {
-    map(1:4, ~ rownames(sims[[x]][[.x]]) %>%
+    map(seq(ctrbs), ~ rownames(sims[[x]][[.x]]) %>%
           unlist %>%
           sample(., size = min_low[[x]])
     )})
   
   sp_high <- map(seq(n_webs), function(x) {
-    map(1:4, ~ colnames(sims[[x]][[.x]]) %>%
+    map(seq(ctrbs), ~ colnames(sims[[x]][[.x]]) %>%
           unlist %>%
           sample(., size = min_high[[x]])
     )})
   
   # crop networks to equal size
   out <- map(seq(n_webs), function(x) {
-    map(1:4, ~ sims[[x]][[.x]][sp_low[[x]][[.x]], sp_high[[x]][[.x]]])
+    map(seq(ctrbs), ~ sims[[x]][[.x]][sp_low[[x]][[.x]], sp_high[[x]][[.x]]])
   })
   }
   
