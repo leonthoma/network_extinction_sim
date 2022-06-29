@@ -133,10 +133,12 @@ one.second.extinct.mod.aug <- function(web,
           warning("Failed to find alternative, skipping current simulation step(", i, ")")
           abort <- T
           # skip <- T
+          break
           }
       }
     }
-    if (!abort) {
+    if (!abort
+        ) {
       if (rewiring) {
         if (!is.null(ext_temp$rexcl)){ # Plant is extinct, looking for new interaction partners of birds that interacted with lost plant
           sp_ext <- rownames(ext_temp$rexcl) # name of extc. plant
@@ -222,6 +224,7 @@ one.second.extinct.mod.aug <- function(web,
           trait_prob_int_old <- interactions[trait_sp_ext_idx, sp_try_rewiring] # get old interaction vals
           interactions[trait_rew_partner, sp_try_rewiring] <- interactions[trait_rew_partner, sp_try_rewiring] + (adapt_list$high[sp_try_rewiring] * trait_prob_int_old) # set new interactions vals
           }
+          
           if (any(method.rewiring == "phylo")) {
           phylo_prob_int_old <- interactions[phylo_sp_ext_idx, sp_try_rewiring] # get old interaction vals
           interactions[phylo_rew_partner, sp_try_rewiring] <- interactions[phylo_rew_partner, sp_try_rewiring] + (adapt_list$high[sp_try_rewiring] * phylo_prob_int_old) # set new interactions vals
@@ -307,10 +310,12 @@ one.second.extinct.mod.aug <- function(web,
         abund_prob_int_old <- interactions[sp_try_rewiring, abund_sp_ext_idx] # get old interaction vals
         interactions[sp_try_rewiring, abund_rew_partner] <- interactions[sp_try_rewiring, abund_rew_partner] + (adapt_list$low[sp_try_rewiring] * abund_prob_int_old) # set new interactions vals
         }
+        
         if (any(method.rewiring == "trait")) {
           trait_prob_int_old <- interactions[sp_try_rewiring, trait_sp_ext_idx] # get old interaction vals
           interactions[sp_try_rewiring, trait_rew_partner] <- interactions[sp_try_rewiring, trait_rew_partner] + (adapt_list$low[sp_try_rewiring] * trait_prob_int_old) # set new interactions vals
         }
+        
         if (any(method.rewiring == "phylo")) {
           phylo_prob_int_old <- interactions[sp_try_rewiring, phylo_sp_ext_idx] # get old interaction vals
           interactions[sp_try_rewiring, phylo_rew_partner] <- interactions[sp_try_rewiring, phylo_rew_partner] + (adapt_list$low[sp_try_rewiring] * phylo_prob_int_old) # set new interactions vals
@@ -558,7 +563,7 @@ one.second.extinct.mod.aug <- function(web,
     
     # reset
     skip <- F
-    # abort <- F
+    abort <- F
     
     # reset participant overwrite; only used when option is both
     if (partis == "both")
@@ -580,7 +585,7 @@ one.second.extinct.mod.aug <- function(web,
   # if (nrow(dead) + 1 != nrow(dead2)) 
   #   stop("PANIC! Something went wrong with the extinct sequence! Please contact the author to fix this!!")
   # 
-  if (make.bipartite) {
+  if (make.bipartite & !abort) {
     out <- dead2
     class(out) <- "bipartite"
     attr(out, "exterminated") <- c("both", "lower", "higher")[pmatch(participant, c("both", "lower", "higher"))]
