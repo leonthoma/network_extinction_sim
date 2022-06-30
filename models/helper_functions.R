@@ -1434,3 +1434,225 @@ del_dead_int <- function(x) {
   # drop sp w/o any interactions from web
   out <- x[sp_low, sp_high, drop = F]
 }
+
+auc_boxplot <- function(x, x.axis, log = F, save = F) {
+  # extinction on lower or higher level ?
+  lvl_match_extc <- grepl("lower", substitute(x))
+  
+  ifelse(lvl_match_extc, lvl <- "lower", lvl <- "higher")
+  
+  if (is.null(x.axis) | !any(c(rew_names,
+                               names(ctrbs),
+                               "rew",
+                               "com_vars",
+                               "org") %in% x.axis)) {
+    stop("invalid x axis ! Please provide a character vector of a variable that
+    should be used as x axis. Either use rew or com_vars or a specific 
+    value/combination from among them")
+  }
+  
+  # should y axis be logarithmic ?
+  if (log) {
+    scale <- "log10"
+  } else {
+    scale <- "none"
+  }
+  
+  # filter data according to input
+  if (length(x.axis) <= 1) {
+    if (x.axis == "rew") {
+      aucs <- x
+      x_axis <- x.axis
+      x_lab <- unique(x$rew)
+    }
+    
+    if (x.axis == "com_vars") {
+      aucs <- x
+      x_axis <- x.axis
+      x_lab <- unique(x$com_vars)
+    }
+    
+    if (any(x.axis == c(rew_names, "norew", "abundtrait", "abundphylo"))){
+      aucs <- filter(x, rew == x.axis)
+      x_axis <- "com_vars"
+      x_lab <- unique(x$com_vars)
+    }
+    
+    if (any(x.axis == c(names(ctrbs), "org"))){
+      aucs <- filter(x, com_vars == x.axis)
+      x_axis <- "rew"
+      x_lab <- unique(x$rew)
+    }
+  } else {
+    if (length(x.axis) > 2)
+      stop("Too many values in x.axis. Please provide a character vector of 
+           lenght one or two")
+    
+    rew_choice <- ifelse(any(x.axis[1] == rew_names), x.axis[1], x.axis[2])
+    com_vars_choice <- ifelse(any(x.axis[1] == c(names(ctrbs), "org")),
+                              x.axis[1], x.axis[2])
+    
+    if (any(rew_choice == rew_names) & any(com_vars_choice == rew_names) |
+        any(rew_choice == c(names(ctrbs), "org")) & any(com_vars_choice == c(names(ctrbs), "org"))) {
+      stop("Invalid combination of x.axis values. Did you provide two rew/com_vars values ?")
+    }
+    
+    aucs <- filter(x, com_vars == com_vars_choice, rew == rew_choice)
+    x_axis <- NULL
+    x_lab <- paste(rew_choice, com_vars_choice)
+    
+  }
+  
+  if (length(x.axis) <= 1) {
+    out <- ggboxplot(y = "robustness",
+              x = x_axis,
+              color = "lvl",
+              data = aucs,
+              order = x_lab) +
+      scale_color_manual(name = "Trophic level",
+                         values = c("#000000", "#787878")) +
+      yscale(scale) +
+      theme(legend.position = "bottom") +
+      labs(x = element_blank()) +
+      theme(aspect.ratio = 1)
+  } else {
+    out <- ggboxplot(y = "robustness",
+              x = x_axis,
+              color = "lvl",
+              data = aucs,
+              order = x_lab) +
+      scale_color_manual(name = "Trophic level",
+                         values = c("#000000", "#787878")) +
+      scale_x_discrete(labels = paste(rew_choice, com_vars_choice)) +
+      yscale(scale) +
+      theme(legend.position = "bottom") +
+      labs(x = element_blank()) +
+      theme(aspect.ratio = 1)
+  }
+  
+  if (save) {
+    # generate names
+    if (length(x.axis) <= 1) {
+        size <- c(14.3, 20.5)
+      if (x.axis == "rew") {
+        name <- paste("auc", x.axis, "all_com_vars.pdf", sep = "_")
+      }
+      
+      if (x.axis == "com_vars") {
+        name <- paste("auc", x.axis, "all_rew.pdf", sep = "_")
+      }
+      
+      if (any(x.axis == c(rew_names, "norew", "abundtrait", "abundphylo"))) {
+        name <- c(paste("auc", x.axis, x_axis, sep = "_"), ".pdf")
+      }
+      
+      if (any(x.axis == c(names(ctrbs), "org"))) {
+        name <- c(paste("auc", x.axis, x_axis, sep = "_"), ".pdf")
+      }
+      
+    } else {
+      size <- c(14.3, 10)
+      name <- c(paste("auc", x.axis[1], x.axis[2], sep = "_"), ".pdf")
+    }
+  
+  ggsave(name,
+    path = paste0(getwd(), "/plot_sink"),
+    plot = out,
+    device = "pdf",
+    width = size[1],
+    height = size[2],
+    units = "cm")
+  }
+  return(out)
+}
+
+# same as auc_boxplot but x.axis shows higher/lower
+auc_boxplot2 <- function(x, by, log = F) {
+  # extinction on lower or higher level ?
+  lvl_match_extc <- grepl("lower", substitute(x))
+  
+  ifelse(lvl_match_extc, lvl <- "lower", lvl <- "higher")
+  # 
+  # if (is.null(x.axis) | !any(c(rew_names,
+  #                              names(ctrbs),
+  #                              "rew",
+  #                              "com_vars",
+  #                              "org") %in% x.axis)) {
+  #   stop("invalid x axis ! Please provide a character vector of a variable that
+  #   should be used as x axis. Either use rew or com_vars or a specific 
+  #   value/combination from among them")
+  # }
+  
+  # should y axis be logarithmic ?
+  if (log) {
+    scale <- "log10"
+  } else {
+    scale <- "none"
+  }
+  
+  # filter data according to input
+  if (length(by) <= 1) {
+    if (by == "rew") {
+      aucs <- x
+      x_axis <- x.axis
+      x_lab <- unique(x$rew)
+    }
+    
+    if (x.axis == "com_vars") {
+      aucs <- x
+      x_axis <- x.axis
+      x_lab <- unique(x$com_vars)
+    }
+    
+    if (any(x.axis == rew_names)){
+      aucs <- filter(x, rew == x.axis)
+      x_axis <- "com_vars"
+      x_lab <- unique(x$com_vars)
+    }
+    
+    if (any(x.axis == c(names(ctrbs), "org"))){
+      aucs <- filter(x, com_vars == x.axis)
+      x_axis <- "rew"
+      x_lab <- unique(x$rew)
+    }
+  } else {
+    if (length(x.axis) > 2)
+      stop("Too many values in x.axis. Please provide a character vector of 
+           lenght one or two")
+    
+    rew_choice <- ifelse(any(x.axis[1] == rew_names), x.axis[1], x.axis[2])
+    com_vars_choice <- ifelse(any(x.axis[1] == c(names(ctrbs), "org")),
+                              x.axis[1], x.axis[2])
+    
+    if (any(rew_choice == rew_names) & any(com_vars_choice == rew_names) |
+        any(rew_choice == c(names(ctrbs), "org")) & any(com_vars_choice == c(names(ctrbs), "org"))) {
+      stop("Invalid combination of x.axis values. Did you provide two rew/com_vars values ?")
+    }
+    
+    aucs <- filter(x, com_vars == com_vars_choice, rew == rew_choice)
+    x_axis <- NULL
+    x_lab <- paste(rew_choice, com_vars_choice)
+    
+  }
+  
+  if (length(x.axis) <= 1) {
+    ggboxplot(y = "robustness",
+              x = lvl,
+              color = "by",
+              data = aucs,
+              order = x_lab,) +
+      scale_color_manual(name = by,
+                         values = c("#000000", "#787878")) +
+      yscale(scale) +
+      theme(legend.position = "bottom") +
+      labs(x = element_blank()) +
+      theme(aspect.ratio = 1)
+  } else {
+    ggboxplot(y = "robustness",
+              x = "lvl", color = "rew",
+              data = filter(auc_all, com_vars == "org")) +
+      theme(legend.position = "bottom") +
+      labs(x = element_blank()) +
+      theme(aspect.ratio = 1)
+  }
+}

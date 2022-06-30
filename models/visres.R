@@ -14,7 +14,7 @@ library(MPSEM)
 library(purrr)
 library(dplyr)
 library(data.table)
-
+library(ggpubr)
 
 # visualize networks ----
 # map(map(sims, 1), ~ plotweb(.x))
@@ -23,7 +23,7 @@ library(data.table)
 # basic metrics ----
 ## connectance
 # anova of all community variables 
-cntc <- map(sims_all, function(x) map(seq(ctrbs), ~ connectance(pluck(x, .x, "web")))) 
+cntc <- map(sims, function(x) map(seq(ctrbs), ~ connectance(pluck(x, .x, "web")))) 
 
 cntc_org <- map(seq(n_webs), ~ connectance(init_sim[[.x]]$networks[[1]]$web)) %>% 
   unlist() %>% data.table("vals" = .) %>% cbind("group" = "atl") %>% bind_rows()
@@ -37,7 +37,6 @@ cntc_grouped <- bind_rows(cntc_org, cntc_grouped)
 anova(lm(cntc_grouped$vals ~ cntc_grouped$group))
 kruskal.test(cntc_grouped$vals ~ cntc_grouped$group)
 
-library(ggpubr)
 ggboxplot(data = cntc_grouped, x = "group", y = "vals", 
           #color = "group", palette = "npg",
           order = c("Atl", "aTl", "atL", "ATL", "atl"),
@@ -46,10 +45,12 @@ ggboxplot(data = cntc_grouped, x = "group", y = "vals",
 
 ## histograms of dead interactions
 # empty rows
-hist_dead(sims)
+## needs change in hist_dead if networks prior to deleting dead interactions should
+## be used !!!
+hist_dead(sims_all)
 
 # empty cols
-hist_dead(sims, lower = F)
+hist_dead(sims_all, lower = F)
 
 ## two dimensional shannon entropy
 H2 <- map(seq(n_webs), function(x) {
@@ -67,7 +68,6 @@ H2_grouped <- map(seq(n_webs), function(x) pluck(H2, x) %>%
 
 H2_grouped <- bind_rows(H2_org, H2_grouped)
 
-library(ggpubr)
 ggboxplot(data = H2_grouped, x = "group", y = "vals", 
           #color = "group", palette = "npg",
           order = c("Atl", "aTl", "atL", "atl", "org"),
@@ -99,467 +99,284 @@ count_abort(extc_sims_lower_norew)
 # higher no rewiring
 count_abort(extc_sims_higher_norew)
 
-
-
-# AUC / Robustness
-source("helper_functions.R")
-# # lower org; web_mean
-# map(.x = 1:3, function(x) {
-#    auc(x = pluck(sp_remain_lower_web_mean_org, "lower", x) %>%
-#                            rev(),
-#                          y = pluck(sp_remain_lower_web_mean_org, "higher", x))})
+# # find sim with lowest aborted runs
+# sims_null_lower_org_norew <- map(seq(n_webs), function (z) { # loop over webs
+#       map(seq(n_sims), ~ pluck(extc_sims_lower_org_norew, z, .x) %>% is.null
+#       ) %>% unlist %>% sum}) 
 # 
-# # lower org norew; web_mean
-# auc(x = pluck(sp_remain_lower_web_mean_org_norew, "lower") %>%
-#                            rev(),
-#                          y = pluck(sp_remain_lower_web_mean_org_norew, "higher"))
-
-# lower org; all
-auc_lower_org <- map(.x = ctrbs, function(x) {
-  map(seq(n_webs), ~ auc(x = pluck(sp_remain_lower_org, .x, "lower", x) %>%
-                           rev(),
-                         y = pluck(sp_remain_lower_org, .x, "higher", x))) %>% unlist %>% 
-    data.table("robustness" = .) %>% 
-    cbind("rew" = rew_names[x]) %>% 
-    cbind("com_vars" = "org") 
-    }) %>% bind_rows()
-
-auc_lower_org <- bind_cols(auc_lower_org,
-                           "nrow" = map(seq(n_webs), function(x) {
-                             nrow(pluck(init_sim_web, x))
-                             }) %>% unlist() %>% rep(., 3),
-                           "ncol" = map(seq(n_webs), function(x) {
-                             ncol(pluck(init_sim_web, x))
-                           }) %>% unlist() %>% rep(., 3))
-# # lower org; all sd
-# map(.x = 1:3, function(x) {
-#   map(seq(n_webs), ~ auc(x = pluck(sp_remain_lower_org, .x, "lower", x) %>%
-#                            rev(),
-#                          y = pluck(sp_remain_lower_org, .x, "higher", x))) %>% unlist %>% sd})
-
-# lower org norew; all
-auc_lower_org_norew <- map(seq(n_webs), ~ auc(x = pluck(sp_remain_lower_org_norew, .x, "lower") %>%
-                         rev(),
-                       y = pluck(sp_remain_lower_org_norew, .x, "higher"))) %>% unlist %>%
-  data.table("robustness" = .) %>% 
-  cbind("rew" = "norew") %>%
-  cbind("com_vars" = "org") %>%
-  bind_rows()
-
-auc_lower_org_norew <- bind_cols(auc_lower_org_norew,
-                           "nrow" = map(seq(n_webs), function(x) {
-                             nrow(pluck(init_sim_web, x))
-                           }) %>% unlist(),
-                           "ncol" = map(seq(n_webs), function(x) {
-                             ncol(pluck(init_sim_web, x))
-                           }) %>% unlist())
-
-# # lower org norew; all sd
-# map(seq(n_webs), ~ auc(x = pluck(sp_remain_lower_org_norew, .x, "lower") %>%
-#       rev(),
-#     y = pluck(sp_remain_lower_org_norew, .x, "higher"))) %>% unlist %>% sd
-
-# # higher org; web_mean
-# map(.x = 1:3, function(x) {
-#   auc(x = pluck(sp_remain_higher_web_mean_org, "lower", x) %>%
-#         rev(),
-#       y = pluck(sp_remain_higher_web_mean_org, "higher", x))})
+# min_abort_lower_org_norew <- unlist(sims_null_lower_org_norew) %>% which.min
 # 
 # 
-# # higher org norew; web_mean
-# auc(x = pluck(sp_remain_higher_web_mean_org_norew, "lower") %>%
-#       rev(),
-#     y = pluck(sp_remain_higher_web_mean_org_norew, "higher"))
-
-# higher org; all
-auc_higher_org <- map(.x = ctrbs, function(x) {
-  map(seq(n_webs), ~ auc(x = pluck(sp_remain_higher_org, .x, "lower", x) %>%
-                           rev(),
-                         y = pluck(sp_remain_higher_org, .x, "higher", x))) %>% unlist %>%
-    data.table("robustness" = .) %>% 
-    cbind("rew" = rew_names[x]) %>% 
-    cbind("com_vars" = "org")
-}) %>% bind_rows()
-
-auc_higher_org <- bind_cols(auc_higher_org,
-                           "nrow" = map(seq(n_webs), function(x) {
-                             nrow(pluck(init_sim_web, x))
-                           }) %>% unlist() %>% rep(., 3),
-                           "ncol" = map(seq(n_webs), function(x) {
-                             ncol(pluck(init_sim_web, x))
-                           }) %>% unlist() %>% rep(., 3))
-
-
-# # higher org; all sd
-# map(.x = 1:3, function(x) {
-#   map(seq(n_webs), ~ auc(x = pluck(sp_remain_higher_org, .x, "lower", x) %>%
-#                            rev(),
-#                          y = pluck(sp_remain_higher_org, .x, "higher", x))) %>% unlist %>% sd})
-
-# higher org norew; all
-auc_higher_org_norew <- map(seq(n_webs), ~ auc(x = pluck(sp_remain_higher_org_norew, .x, "lower") %>%
-                         rev(),
-                       y = pluck(sp_remain_higher_org_norew, .x, "higher"))) %>% unlist %>% 
-  data.table("robustness" = .) %>%
-  cbind("rew" = "norew") %>%
-  cbind("com_vars" = "org") %>%
-  bind_rows()
-
-auc_higher_org_norew <- bind_cols(auc_higher_org_norew,
-                           "nrow" = map(seq(n_webs), function(x) {
-                             nrow(pluck(init_sim_web, x))
-                           }) %>% unlist(),
-                           "ncol" = map(seq(n_webs), function(x) {
-                             ncol(pluck(init_sim_web, x))
-                           }) %>% unlist())
-
-# # higher org norew; all sd
-# map(seq(n_webs), ~ auc(x = pluck(sp_remain_higher_org_norew, .x, "lower") %>%
-#                          rev(),
-#                        y = pluck(sp_remain_higher_org_norew, .x, "higher"))) %>% unlist %>% sd
-
-# # lower; web_mean
-# map(.x = 1:3, function(x) {
-#   map(.x = 1:3, function(z) {
-#     auc(x = pluck(sp_remain_lower_web_mean, "lower", z, x) %>%
-#                            rev(),
-#                          y = pluck(sp_remain_lower_web_mean, "higher", z, x))})
-#   })
-
-# lower; all
-auc_lower <- map(.x = ctrbs, function(x) {
-  map(.x = 1:3, function(z) {
-    map(seq(n_webs), ~ auc(x = pluck(sp_remain_lower,.x,  "lower", z, x) %>%
-                             rev(),
-                           y = pluck(sp_remain_lower,.x,  "higher", z, x))) %>% 
-      unlist %>% 
-      data.table("robustness" = .) %>% 
-      cbind("rew" = rew_names[z])
-  }) %>% bind_rows() %>% 
-    cbind("com_vars" = names(ctrbs)[x])
-}) %>% bind_rows()
-
-auc_lower <- bind_cols(auc_lower,
-                           "nrow" = map(ctrbs, function(y) { 
-                             map(seq(n_webs), function(x) {
-                               nrow(pluck(sims, x, y, "web"))
-                           })}) %>% unlist() %>% rep(., 3),
-                           "ncol" = map(ctrbs, function(y) {
-                             map(seq(n_webs), function(x) {
-                               ncol(pluck(sims, x, y, "web"))
-                           })}) %>% unlist() %>% rep(., 3))
-
-# # lower; all sd
-# map(.x = 1:3, function(x) {
-#   map(.x = 1:3, function(z) {
-#     map(seq(n_webs), ~ auc(x = pluck(sp_remain_lower,.x,  "lower", z, x) %>%
-#                              rev(),
-#                            y = pluck(sp_remain_lower,.x,  "higher", z, x))) %>% unlist %>% sd})})
+# sims_null_lower <- map(seq(n_webs), function (z) { # loop over webs
+#   map(1:3, function(x) { # loop over rew
+#     map(ctrbs, function(y) { # loop over com_vars
+#       map(seq(n_sims), ~ pluck(extc_sims_lower, z, x, y, .x) %>% is.null # loop over sims
+#       )}) %>% unlist}) %>% unlist %>% sum})
 # 
-# # higher; web_mean
-# map(.x = 1:3, function(x) {
-#   map(.x = 1:3, function(z) {
-#     auc(x = pluck(sp_remain_higher_web_mean, "lower", z, x) %>%
-#                              rev(),
-#                            y = pluck(sp_remain_higher_web_mean, "higher", z, x))})
-# })
+# min_abort_lower <- unlist(sims_null_lower) %>% which.min
 
-# higher; all
-auc_higher <- map(.x = ctrbs, function(x) {
-  map(.x = 1:3, function(z) {
-    map(seq(n_webs), ~ auc(x = pluck(sp_remain_higher,.x,  "lower", z, x) %>%
-                             rev(),
-                           y = pluck(sp_remain_higher,.x,  "higher", z, x))) %>% unlist %>%
-      data.table("robustness" = .) %>% 
-      cbind("rew" = rew_names[z])
-  }) %>% bind_rows() %>% 
-    cbind("com_vars" = names(ctrbs)[x])
-}) %>% bind_rows()
 
-auc_higher <- bind_cols(auc_higher,
-                       "nrow" = map(ctrbs, function(y) { 
-                         map(seq(n_webs), function(x) {
-                           nrow(pluck(sims, x, y, "web"))
-                         })}) %>% unlist() %>% rep(., 3),
-                       "ncol" = map(ctrbs, function(y) {
-                         map(seq(n_webs), function(x) {
-                           ncol(pluck(sims, x, y, "web"))
-                         })}) %>% unlist() %>% rep(., 3))
+## Plot of all sims for one web
+# lower org norew
+ggplot(aes(rev(x), y), data = lower_org_norew_sims_df) + 
+  geom_step(aes(group = sims1)) +
+  geom_line(color = "firebrick", data = lower_org_norew_sims_df_mean, size = .8) +
+  labs(x = "Primary extinction [%]", y = "Secondary extinction [%]") +
+  theme(aspect.ratio = 1)
 
-# # higher; all sd
-# map(.x = 1:3, function(x) {
-#   map(.x = 1:3, function(z) {
-#     map(seq(n_webs), ~ auc(x = pluck(sp_remain_higher,.x,  "lower", z, x) %>%
-#                              rev(),
-#                            y = pluck(sp_remain_higher,.x,  "higher", z, x))) %>% unlist %>% sd})})
+# lower org
+map(rew_names, function(z) {
+  ggplot(aes(rev(x), y),
+         data = filter(lower_org_sims_df,
+                       id == z)) +
+    geom_step(aes(group = sims1)) +
+    geom_line(color = "firebrick", data = pluck(lower_org_sims_df_mean,
+                                                which(rew_names == z)),
+              size = .8) +
+    labs(x = "Primary extinction [%]", y = "Secondary extinction [%]") +
+    theme(aspect.ratio = 1)
+})
 
-# # lower norew; web_mean
-# map(.x = 1:3, function(x) {
-#   auc(x = pluck(sp_remain_lower_web_mean_norew, "lower", x) %>%
-#                            rev(),
-#                          y = pluck(sp_remain_lower_web_mean_norew, "higher", x))})
-# 
-# # higher norew; web_mean
-# map(.x = 1:3, function(x) {
-#   auc(x = pluck(sp_remain_higher_web_mean_norew, "lower", x) %>%
-#                            rev(),
-#                          y = pluck(sp_remain_higher_web_mean_norew, "higher", x))})
+# lower norew
+map(names(ctrbs), function(z) {
+  ggplot(aes(rev(x), y), data = filter(lower_norew_sims_df,
+                                       com_vars == z)) + 
+    geom_step(aes(group = sims1)) +
+    geom_line(color = "firebrick", data = pluck(lower_norew_sims_df_mean,
+                                                z),
+              size = .8) +
+    labs(x = "Primary extinction [%]", y = "Secondary extinction [%]") +
+    theme(aspect.ratio = 1)
+})
 
-# lower norew; all
-auc_lower_norew <- map(.x = ctrbs, function(x) {
-  map(seq(n_webs), ~ auc(x = pluck(sp_remain_lower_norew, .x, "lower", x) %>%
-        rev(),
-      y = pluck(sp_remain_lower_norew, .x, "higher", x))) %>% unlist %>%
-    data.table("robustness" = .) %>%
-    cbind("rew" = "norew") %>%
-    cbind("com_vars" = names(ctrbs)[x])}) %>% 
-  bind_rows()
+# lower AT
+map(names(ctrbs), function(z) {
+  ggplot(aes(rev(x), y), data = filter(lower_AT_sims_df,
+                                       com_vars == z)) + 
+    geom_step(aes(group = sims1)) +
+    geom_line(color = "firebrick", data = pluck(lower_AT_sims_df_mean,
+                                                z),
+              size = .8) +
+    labs(x = "Primary extinction [%]", y = "Secondary extinction [%]") +
+    theme(aspect.ratio = 1)
+})
 
-auc_lower_norew <- bind_cols(auc_lower_norew,
-                       "nrow" = map(ctrbs, function(y) { 
-                         map(seq(n_webs), function(x) {
-                           nrow(pluck(sims, x, y, "web"))
-                         })}) %>% unlist(),
-                       "ncol" = map(ctrbs, function(y) {
-                         map(seq(n_webs), function(x) {
-                           ncol(pluck(sims, x, y, "web"))
-                         })}) %>% unlist())
-# # lower norew; all sd
-# map(.x = 1:3, function(x) {
-#   map(seq(n_webs), ~ auc(x = pluck(sp_remain_lower_norew, .x, "lower", x) %>%
-#                            rev(),
-#                          y = pluck(sp_remain_lower_norew, .x, "higher", x))) %>% unlist %>% sd})
+# lower AP
+map(names(ctrbs), function(z) {
+  ggplot(aes(rev(x), y), data = filter(lower_AP_sims_df,
+                                       com_vars == z)) + 
+    geom_step(aes(group = sims1)) +
+    geom_line(color = "firebrick", data = pluck(lower_AP_sims_df_mean,
+                                                z),
+              size = .8) +
+    labs(x = "Primary extinction [%]", y = "Secondary extinction [%]") +
+    theme(aspect.ratio = 1)
+})
 
-# higher norew; all
-auc_higher_norew <- map(.x = ctrbs, function(x) {
-  map(seq(n_webs), ~ auc(x = pluck(sp_remain_higher_norew, .x, "lower", x) %>%
-        rev(),
-      y = pluck(sp_remain_higher_norew, .x, "higher", x))) %>% unlist %>%
-    data.table("robustness" = .) %>%
-    cbind("rew" = "norew") %>%
-    cbind("com_vars" = names(ctrbs)[x])}) %>% 
-  bind_rows()
+# lower
+map(rew_names, function(z) {
+  map(names(ctrbs), ~ ggplot(aes(rev(x), y), data = filter(lower_sims_df,
+                                                           id == z,
+                                                           com_vars == .x)) + 
+        geom_step(aes(group = sims1)) +
+        geom_line(color = "firebrick", data = pluck(lower_sims_df_mean,
+                                                    which(rew_names == z),
+                                                    .x),
+                  size = .8) +
+        labs(x = "Primary extinction [%]", y = "Secondary extinction [%]") +
+        theme(aspect.ratio = 1)
+  )})
 
-auc_higher_norew <- bind_cols(auc_higher_norew,
-                       "nrow" = map(ctrbs, function(y) { 
-                         map(seq(n_webs), function(x) {
-                           nrow(pluck(sims, x, y, "web"))
-                         })}) %>% unlist(),
-                       "ncol" = map(ctrbs, function(y) {
-                         map(seq(n_webs), function(x) {
-                           ncol(pluck(sims, x, y, "web"))
-                         })}) %>% unlist())
-# # higher norew; all sd
-# map(.x = 1:3, function(x) {
-#   map(seq(n_webs), ~ auc(x = pluck(sp_remain_higher_norew, .x, "lower", x) %>%
-#                            rev(),
-#                          y = pluck(sp_remain_higher_norew, .x, "higher", x))) %>% unlist %>% sd})
+# higher org norew
+ggplot(aes(rev(x), y), data = higher_org_norew_sims_df) + 
+  geom_step(aes(group = sims1)) +
+  geom_line(color = "firebrick", data = higher_org_norew_sims_df_mean, size = .8) +
+  labs(x = "Primary extinction [%]", y = "Secondary extinction [%]") +
+  theme(aspect.ratio = 1)
 
-## differences between all and mean due to jensen inequality
+# higher org
+map(rew_names, function(z) {
+  ggplot(aes(rev(x), y),
+         data = filter(higher_org_sims_df,
+                       id == z)) +
+    geom_step(aes(group = sims1)) +
+    geom_line(color = "firebrick", data = pluck(higher_org_sims_df_mean,
+                                                which(rew_names == z)),
+              size = .8) +
+    labs(x = "Primary extinction [%]", y = "Secondary extinction [%]") +
+    theme(aspect.ratio = 1)
+})
 
-## Anova of Auc values 
-# initial extinction on lower level
-auc_all_lower <- auc_lower %>% bind_rows(auc_lower_norew) %>% 
-  bind_rows(auc_lower_org) %>% 
-  bind_rows(auc_lower_org_norew)
+# higher norew
+map(names(ctrbs), function(z) {
+  ggplot(aes(rev(x), y), data = filter(higher_norew_sims_df,
+                                       com_vars == z)) + 
+    geom_step(aes(group = sims1)) +
+    geom_line(color = "firebrick", data = pluck(higher_norew_sims_df_mean,
+                                                z),
+              size = .8) +
+    labs(x = "Primary extinction [%]", y = "Secondary extinction [%]") +
+    theme(aspect.ratio = 1)
+})
 
-# initial extinction on higher level
-auc_all_higher <- auc_higher %>% bind_rows(auc_higher_norew) %>% 
-  bind_rows(auc_higher_org) %>% 
-  bind_rows(auc_higher_org_norew)
+# higher AT
+map(names(ctrbs), function(z) {
+  ggplot(aes(rev(x), y), data = filter(higher_AT_sims_df,
+                                       com_vars == z)) + 
+    geom_step(aes(group = sims1)) +
+    geom_line(color = "firebrick", data = pluck(higher_AT_sims_df_mean,
+                                                z),
+              size = .8) +
+    labs(x = "Primary extinction [%]", y = "Secondary extinction [%]") +
+    theme(aspect.ratio = 1)
+})
 
-## ANOVA of auc values
-# overall
-aov(robustness ~ nrow + ncol + rew + com_vars, data = auc_all_lower) # lower
-aov(robustness ~ nrow + ncol + rew + com_vars, data = auc_all_higher) # higher
+# higher AP
+map(names(ctrbs), function(z) {
+  ggplot(aes(rev(x), y), data = filter(higher_AP_sims_df,
+                                       com_vars == z)) + 
+    geom_step(aes(group = sims1)) +
+    geom_line(color = "firebrick", data = pluck(higher_AP_sims_df_mean,
+                                                z),
+              size = .8) +
+    labs(x = "Primary extinction [%]", y = "Secondary extinction [%]") +
+    theme(aspect.ratio = 1)
+})
+
+# higher
+map(rew_names, function(z) {
+  map(names(ctrbs), ~ ggplot(aes(rev(x), y), data = filter(higher_sims_df,
+                                                           id == z,
+                                                           com_vars == .x)) + 
+        geom_step(aes(group = sims1)) +
+        geom_line(color = "firebrick", data = pluck(higher_sims_df_mean,
+                                                    which(rew_names == z),
+                                                    .x),
+                  size = .8) +
+        labs(x = "Primary extinction [%]", y = "Secondary extinction [%]") +
+        theme(aspect.ratio = 1)
+  )})
+
+# plot of all mean extc sims
+
+prew <- c("abund" = 3) # set rewiring method to plot
+pcm <- "Atl" # set com_var to plot
 
 # by com_vars
-map(names(ctrbs), ~
+ggplot(mapping = aes(rev(x), y)) +
+  geom_line(data = pluck(lower_sims_df_mean, which(rew_names == names(prew)), pcm), aes(color = "red")) + # lower
+  geom_line(data = pluck(lower_norew_sims_df_mean, pcm), aes(color = "blue")) + # lower norew
+  geom_line(data = pluck(lower_org_sims_df_mean, prew), aes(color = "green")) + # lower org
+  # geom_line(data = lower_org_norew_sims_df_mean, aes(color = "yellow")) + # lower org norew
+  # geom_line(data = pluck(lower_AT_sims_df_mean, pcm), aes(color = "purple")) + # lower AT
+  # geom_line(data = pluck(lower_AP_sims_df_mean, pcm), aes(color = "brown")) + # lower AP
+  # geom_line(data = lower_org_AT_sims_df_mean, aes(color = "black")) + # lower org AT
+  # geom_line(data = lower_org_AP_sims_df_mean, aes(color = "grey")) + # lower org AP
+  scale_color_manual(values = c("red",
+                                "blue",
+                                "green", 
+                                "yellow",
+                                "purple",
+                                "brown",
+                                "black",
+                                "grey"), labels = c(paste(names(prew), pcm),
+                                                 "norew",
+                                                 "org",
+                                                 "org norew",
+                                                 paste("AT", pcm),
+                                                 paste("AP", pcm),
+                                                 "org AT",
+                                                 "org AP")) +
+  labs(title = paste(names(prew), pcm), xlab = "Primary extinctions",
+       ylab = "Secondary extinctions")
+  
+### AUC / Robustness
+## ANOVA of auc values
+# overall
+aov_lo <- aov(robustness ~ nrow + ncol + rew + com_vars, data = auc_all_lower) # lower
+aov_hi <- aov(robustness ~ nrow + ncol + rew + com_vars, data = auc_all_higher) # higher
+
+# aov_both <- aov(robustness ~ nrow + ncol + rew + com_vars + lvl, data = auc_all) # combined
+
+# use type III test from car package
+library(car)
+Anova(aov_lo, type = "III")
+Anova(aov_hi, type = "III")
+# Anova(aov_both, type = "III")
+
+# by com_vars
+map(c(names(ctrbs), "org"), ~
       aov(robustness ~ nrow + ncol + rew,
           data = filter(auc_all_lower, com_vars == .x))) # lower
-map(names(ctrbs), ~
+map(c(names(ctrbs), "org"), ~
       aov(robustness ~ nrow + ncol + rew,
           data = filter(auc_all_higher, com_vars == .x))) # lower
 
 # by rew
-map(rew_names, ~
+map(unique(auc_all_lower$rew), ~
       aov(robustness ~ nrow + ncol + com_vars,
           data = filter(auc_all_lower, rew == .x))) # lower
-map(rew_names, ~
+map(unique(auc_all_lower$rew), ~
       aov(robustness ~ nrow + ncol + com_vars,
           data = filter(auc_all_higher, rew == .x))) # lower
 
+# AUC boxplots
+# by rewiring
+auc_boxplot(auc_all, x.axis = "rew")
 
-# # get min/max auc original web
-# auc_mins_org <- map(.x = 1:3, ~ pluck(aucs, .x) %>% unlist %>% min) # min
-# 
-# auc_maxs_org <- map(.x = 1:3, ~ pluck(aucs, .x) %>% unlist %>% max) # max
-# 
-# auc_meds_org <- map(.x = 1:3, ~ pluck(aucs, .x) %>% unlist %>% sort %>% median) # mean
-# 
-# # get min and max positions of sims based on auc original web
-# mins_org <- map(1:3,~ which(pluck(aucs_org, .x) == pluck(auc_mins_org, .x)))
-# 
-# maxs_org <- map(1:3, ~ which(pluck(aucs_org, .x) == pluck(auc_maxs_org, .x)))
-# 
-# meds_org <- map(1:3, ~ which(pluck(aucs_org, .x) == pluck(auc_meds_org, .x)))
+auc_rew_plots <- map(c(names(ctrbs), "org"), function(x) {
+  auc_boxplot(filter(auc_all, com_vars == x), x.axis = "rew") +
+    ggtitle(x)
+  })
 
-# plot extinction sequences w/ CIs
-# plot_extc(sp_remain_lower_web_mean, ci_lower, save = F, view = T, lower = T)
-# plot_extc(sp_remain_higher_web_mean, ci_higher, save = F, view = T)
+auc_cv_by_rew <- ggarrange(auc_rew_plots[[1]], auc_rew_plots[[2]], auc_rew_plots[[3]],
+          auc_rew_plots[[4]], auc_rew_plots[[5]], auc_rew_plots[[6]], common.legend = T)
+ggsave("auc_com_vars_by_rew.pdf",
+              path = paste0(getwd(), "/plot_sink"),
+              plot = auc_cv_by_rew,
+              device = "pdf",
+              width = 28.7,
+              height = 20,
+              units = "cm")
 
-# Plot of all sims for one web
-sp_remain_lower_org_norew_sims <- list("lower" = pluck(extc_sims_lower_org_norew, 1) %>%
-    as.data.table(.) %>% 
-    select(., contains(c("no", "n.lower"))) %>%
-    replace_duplicate() %>% apply(., 2, list_divide),
-  "higher" = pluck(extc_sims_lower_org_norew, 1) %>%
-      as.data.table(.) %>% 
-      select(., contains(c("no", "n.higher"))) %>%
-      replace_duplicate()%>% apply(., 2, list_divide))
+# by com vars
+auc_boxplot(auc_all, x.axis = "com_vars")
 
-sp_remain_lower_org_sims <- list("lower" = map(1:3, function(x) { # loop rewiring
-  pluck(extc_sims_lower_org, 1, x) %>%
-    as.data.table(.) %>% 
-    select(., contains(c("no", "n.lower"))) %>%
-    replace_duplicate() %>% apply(., 2, list_divide)}),
-  "higher" = map(1:3, function(x) { # loop rewiring
-    pluck(extc_sims_lower_org, 1, x) %>%
-      as.data.table(.) %>% 
-      select(., contains(c("no", "n.higher"))) %>%
-      replace_duplicate()%>% apply(., 2, list_divide)}))
+auc_com_var_plots <- map(c(rew_names,"norew", "abundtrait", "abundphylo"), function(x) {
+  auc_boxplot(filter(auc_all, rew == x), x.axis = "com_vars") +
+    ggtitle(x)
+})
 
-sp_remain_lower_norew_sims <- list("lower" = map(ctrbs, function(x) { # loop com vars
-    pluck(extc_sims_lower_norew, 1, x) %>%
-      as.data.table(.) %>% 
-      select(., contains(c("no", "n.lower"))) %>%
-      replace_duplicate() %>% apply(., 2, list_divide)}),
-  "higher" = map(ctrbs, function(x) { # loop com vars
-      pluck(extc_sims_lower_norew, 1, x) %>%
-        as.data.table(.) %>% 
-        select(., contains(c("no", "n.higher"))) %>%
-        replace_duplicate()%>% apply(., 2, list_divide)}))
+auc_rew_by_cv <- ggarrange(auc_com_var_plots[[1]], auc_com_var_plots[[2]], auc_com_var_plots[[3]],
+          auc_com_var_plots[[4]], auc_com_var_plots[[5]],auc_com_var_plots[[6]], common.legend = T)
 
-sp_remain_lower_sims <- list("lower" = map(1:3, function(x) { # loop rewiring
-      map(ctrbs, function(y) { # loop com vars
-        pluck(extc_sims_lower, 1, x, y) %>%
-           as.data.table(.) %>% 
-           select(., contains(c("no", "n.lower"))) %>%
-           replace_duplicate() %>% apply(., 2, list_divide)})}),
-         "higher" = map(1:3, function(x) { # loop rewiring
-           map(ctrbs, function(y) { # loop com vars
-        pluck(extc_sims_lower, 1, x, y) %>%
-           as.data.table(.) %>% 
-           select(., contains(c("no", "n.higher"))) %>%
-           replace_duplicate()%>% apply(., 2, list_divide)})}))
+ggsave("auc_rew_by_com_vars.pdf",
+       path = paste0(getwd(), "/plot_sink"),
+       plot = auc_cv_by_rew,
+       device = "pdf",
+       width = 28.7,
+       height = 20,
+       units = "cm")
 
-# lower org norew
-lower_org_norew_sims_df <- list_to_df2(sp_remain_lower_org_norew_sims, org = T, norew = T)
+# by specific combination
+auc_all_plots <- map(.x = c(names(ctrbs), "org"), function(x) { # loop com_vars
+  map(.x = c(rew_names, "norew", "abundtrait", "abundphylo"), # loop rewiring methods
+ ~ auc_boxplot(auc_all, x.axis = c(x, .x), save = T))
+  })
 
-# lower org
-lower_org_sims_df <- list_to_df2(sp_remain_lower_org_sims, org = T)
+auc_abund_pair <- ggarrange(auc_all_plots[[1]][[1]], auc_all_plots[[1]][[4]], auc_all_plots[[1]][[5]],
+          auc_all_plots[[1]][[6]], nrow = 2, ncol = 2, common.legend = T) 
 
-# lower norew
-lower_norew_sims_df <- list_to_df2(sp_remain_lower_norew_sims, norew = T)
+auc_trait_pair <- ggarrange(auc_all_plots[[2]][[2]], auc_all_plots[[2]][[4]], auc_all_plots[[2]][[5]],
+                       auc_all_plots[[2]][[6]], nrow = 2, ncol = 2, common.legend = T) 
 
-# lower
-lower_sims_df <- list_to_df2(sp_remain_lower_sims)
+auc_phylo_pair <- ggarrange(auc_all_plots[[3]][[3]], auc_all_plots[[3]][[4]], auc_all_plots[[3]][[5]],
+                            auc_all_plots[[3]][[6]], nrow = 2, ncol = 2, common.legend = T) 
 
-sp_remain_higher_org_norew_sims <- list("lower" = pluck(extc_sims_higher_org_norew, 1) %>%
-                                         as.data.table(.) %>% 
-                                         select(., contains(c("no", "n.lower"))) %>%
-                                         replace_duplicate() %>% apply(., 2, list_divide),
-                                       "higher" = pluck(extc_sims_higher_org_norew, 1) %>%
-                                         as.data.table(.) %>% 
-                                         select(., contains(c("no", "n.higher"))) %>%
-                                         replace_duplicate()%>% apply(., 2, list_divide))
 
-sp_remain_higher_org_sims <- list("lower" = map(1:3, function(x) { # loop rewiring
-  pluck(extc_sims_higher_org, 1, x) %>%
-    as.data.table(.) %>% 
-    select(., contains(c("no", "n.lower"))) %>%
-    replace_duplicate() %>% apply(., 2, list_divide)}),
-  "higher" = map(1:3, function(x) { # loop com vars
-    pluck(extc_sims_higher_org, 1, x) %>%
-      as.data.table(.) %>% 
-      select(., contains(c("no", "n.higher"))) %>%
-      replace_duplicate()%>% apply(., 2, list_divide)}))
 
-sp_remain_higher_norew_sims <- list("lower" = map(ctrbs, function(x) { # loop com vars
-  pluck(extc_sims_higher_norew, 1, x) %>%
-    as.data.table(.) %>% 
-    select(., contains(c("no", "n.lower"))) %>%
-    replace_duplicate() %>% apply(., 2, list_divide)}),
-  "higher" = map(ctrbs, function(x) { # loop com vars
-    pluck(extc_sims_higher_norew, 1, x) %>%
-      as.data.table(.) %>% 
-      select(., contains(c("no", "n.higher"))) %>%
-      replace_duplicate()%>% apply(., 2, list_divide)}))
 
-sp_remain_higher_sims <- list("lower" = map(1:3, function(x) { # loop rewiring
-  map(ctrbs, function(y) { # loop com vars
-    pluck(extc_sims_higher, 1, x, y) %>%
-      as.data.table(.) %>% 
-      select(., contains(c("no", "n.lower"))) %>%
-      replace_duplicate() %>% apply(., 2, list_divide)})}),
-  "higher" = map(1:3, function(x) { # loop rewiring
-    map(ctrbs, function(y) { # loop com vars
-      pluck(extc_sims_higher, 1, x, y) %>%
-        as.data.table(.) %>% 
-        select(., contains(c("no", "n.higher"))) %>%
-        replace_duplicate()%>% apply(., 2, list_divide)})}))
 
-# higher org norew
-higher_org_norew_sims_df <- list_to_df2(sp_remain_higher_org_norew_sims, org = T, norew = T)
-
-# higher org
-higher_org_sims_df <- list_to_df2(sp_remain_higher_org_sims, org = T)
-
-# higher norew
-higher_norew_sims_df <- list_to_df2(sp_remain_higher_norew_sims, norew = T)
-
-# higher
-higher_sims_df <- list_to_df2(sp_remain_higher_sims)
-
-# lower org norew
-ggplot(aes(rev(x), y), data = lower_org_norew_sims_df) + 
-  geom_line(aes(linetype = sims1))
-
-# lower org
-ggplot(aes(rev(x), y), data = filter(lower_org_sims_df,
-                                     id == "abund")) + 
-  geom_line(aes(color = sims1))
-
-# lower norew
-ggplot(aes(rev(x), y), data = filter(lower_norew_sims_df,
-                                     com_vars == "Atl")) + 
-  geom_line(aes(color = sims1))
-
-# lower
-ggplot(aes(rev(x), y), data = filter(lower_sims_df,
-                                     id == "abund",
-                                     com_vars == "Atl")) + 
-  geom_line(aes(color = sims1))
-
-# higher org norew
-ggplot(aes(rev(x), y), data = higher_org_norew_sims_df) + 
-  geom_line(aes(color = sims1))
-
-# higher org
-ggplot(aes(rev(x), y), data = filter(higher_org_sims_df,
-                                     id == "abund")) + 
-  geom_line(aes(color = sims1))
-
-# higher norew
-ggplot(aes(rev(x), y), data = filter(higher_norew_sims_df,
-                                     com_vars == "Atl")) + 
-  geom_line(aes(color = sims1))
-
-# higher
-ggplot(aes(rev(x), y), data = filter(higher_sims_df,
-                                     id == "abund",
-                                     com_vars == "Atl")) + 
-  geom_line(aes(color = sims1))
 
 # base model; lower 
 plot_extc_facet(extc = sp_remain_lower_web_mean_df,
