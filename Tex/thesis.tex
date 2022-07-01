@@ -142,14 +142,18 @@ To identify differences in the network structures among the network simulation s
 % Research questions
 Does network robustness change for different rewiring methods when the driving force of interactions in networks is altered ?
 
-Is network robustness affected by underlying interrelations between the drivers of species interaction and their way of choosing rewiring partners ?
-	-> if yes, matching pairs of network simulation and rewiring method should show either higher or lower robustness compared to non matching.
-	-> if combining rewiring methods, what happens ? are the effects additive ?
-
+Is network robustness affected by underlying interrelations between the drivers of species interaction and their way of choosing rewiring partners 
 % higher connectance leads to higher robustness (following dunne2002, eklöf2006, thebault & fontaine 2010, baumgartner2020
 
-since abundance has been shown to be the major driver of species interactions, it's trivial that robustness values are higher for networks where the abundance info is included with high or normal importance
-I hypothesize that matching network simulation and rewiring method (e.g. Atl and abundance based rewiring) will lead to higher network robustness compared to networks where the network simulation and rewiring method are not overlapping. However, since phylogenetically closely related species often show similar traits, the set of species they interact with also tends to overlap \parencite{Gomez2010, Rezende2007}. The difference in robustness for trait and phylogeny based networks should thus be small when using trait or phylogeny based rewiring. 
+first question: what influence does com_vars have on robustness (compare all com_vars using norew)
+	-> 
+second question: what influence does rew have on robustness (compare all rew using org networks) -> focus of thesis should be rew methods !
+	-> rew should be most efficient for specialised networks
+	
+resulting third question: is there an interrelationship of com_vars and rew that influences robustness (use no of singletons per network comparing rew methods)
+	-> comparing H2' would expect highest effect of rewiring for specialised networks, but maybe only highly abundant/trait matching/phylogeny matching species are specialised and the rest isn't. therefore check no of singeltons in networks (ie sp most endangered by coextinction) and compare the robustness 
+
+%However, since phylogenetically closely related species often show similar traits, the set of species they interact with also tends to overlap \parencite{Gomez2010, Rezende2007}. The difference in robustness for trait and phylogeny based networks should thus be small when using trait or phylogeny based rewiring. 
 \newpage
 
 	\section{Material \& Methods}
