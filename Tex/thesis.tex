@@ -104,9 +104,10 @@ Contrary to a main question in the field of invasion ecology, how novel species 
 		% poisot2016; 10.1111/1365-2435.12799
 		% vazquez2022
 \subsection{Network ecology}
-Network ecology has helped researchers to develop a more detailed understanding of ecological communities. Starting from analysing structures within networks and identifying patterns (e.g. modularity, nestedness, connectance ?) \parencite{Jordano1987, Dunne2002 } % Olesen2007, Bascompte2003 
-to finding the underlying processes that lead to the observed patterns \parencite{Rezende2007, Vazquez2009, Thebault2010}. Especially the role of individual species and their interactions within communities was elucidated \parencite{Waser1996, Lau2017}.
-Ecological communities are subject to constant change, due to a variety of reasons such as habitat fragmentation, global warming, introduction of species or loss thereof, to name some \parencite{}. In the face of the current rate of extinctions (e.g. see \cite{IPBES}), it is crucial to develop a deeper understanding of the changes an extinction event induces in ecological communities, in order to preserve it's function and prevent extinction cascades. 
+Network ecology has helped researchers to develop a more detailed understanding of ecological communities. From analysing structures within networks and identifying patterns \parencite{Jordano1987, Dunne2002 }, % Olesen2007, Bascompte2003 
+to finding the underlying processes that lead to the observed patterns \parencite{Rezende2007, Vazquez2009, Thebault2010}. 
+%Ecological communities are subject to constant change, due to a variety of reasons such as habitat fragmentation, global warming, introduction of species or loss thereof, to name some \parencite{}. 
+In the face of the current rate of extinctions (e.g. see \cite{IPBES}), it is crucial to develop a deeper understanding of the changes an extinction event induces in ecological communities, in order to preserve it's function and prevent extinction cascades. 
 
 	% extinction simulation
 	
@@ -151,8 +152,12 @@ Another result was a substantially higher robustness in mutualistic bipartite ne
 %2012; Nuwagaba et al., 2017) from baumgartner2020; compare with blüthgen2010 and vieira2015
 
 
+% Considering this...
+% i will use....
+% to find out that...
+
 % Explaining problem/ gap of knowledge
-Despite the insights previous studies provided, it is still unclear if rewiring is influenced by how species interact (ie. what drives the interactions), which then affects the number of secondary extinctions in a network. To provide further insight into the mechanistics behind rewiring, this study will focus on modelling extinction cascades using simulated networks controlling the influence of drivers found to influence species interactions.\\
+Despite the insights previous studies provided, it is still unclear if rewiring is influenced by how species interact (ie. what drives the interactions), which could affect the number of secondary extinctions in a network. To provide further insight into the mechanistics behind rewiring, this study will focus on modelling extinction cascades using simulated networks controlling the influence of drivers found to influence species interactions.\\
 
 % For example, using the same rewiring criteria, does robustness change when the main driver of interactions in the network is changed ? Its still unknown if e.g. the abundance of species in a network changes the propagation of extinctions. 
 	% rewiring methods
@@ -197,7 +202,15 @@ For the first question only simulations where no rewiring was used were consider
 \newpage
 
 	\section{Material \& Methods}
-	The simulations in this study were executed in R \parencite{Rcore} (version 3.6.3) based on the functions of the tapnet\footnote{The paper is yet to be published, but the package and it's vignette are available via CRAN and GitHub; https://cran.r-project.org/web/packages/tapnet/index.html, https://github.com/biometry/tapnet} \parencite{Benadi} and bipartite \parencite{Dormann2008} packages as well as the approach of the extinction algorithm developed by \citeauthor{Vizentin-Bugoni2019} \parencite{Vizentin-Bugoni2019}. Some of the functions provided by these sources were modified or augmented to match the specific needs of the presented approach. The source code of this analysis is available as a supplementary file. \par
+	The simulations in this study were executed in R \parencite{Rcore} (version 3.6.3) based on the functions of the tapnet\footnote{The paper is yet to be published, but the package and it's vignette are available via CRAN and GitHub; https://cran.r-project.org/web/packages/tapnet/index.html, https://github.com/biometry/tapnet} \parencite{Benadi} and bipartite \parencite{Dormann2008} packages as well as the approach of the extinction algorithm developed by \citeauthor{Vizentin-Bugoni2019} \parencite{Vizentin-Bugoni2019}. Some of the functions provided by these sources were modified or augmented to match the specific needs of the presented approach. The source code of this analysis is available as a supplementary file. A schematic overview of the network and extinction simulations of this study is presented in the figure below.	
+	
+	\begin{figure}[H]
+	 \includegraphics[width = \textwidth]{/home/leon/Documents/Uni/M.sc/Master Thesis/Networks/approach_overview}
+	 \caption{\textbf{Schematic overview of network \& extinction simulations} The left hand side shows the process of network simulation. From the initial network five networks were simulated according to the approach described in section \ref{sec:net_sim}. The right hand side shows the simplified structure of the extinction algorithm. The primary extinction (2.1) in each iteration is determined based on the user specified methods comprising trophic level (2.1.1) and species selection (2.1.2) (see section \ref{subsec:extc_alg} step \ref{itm:etxc} for details). Network A shows the species that is removed in black and the lost interactions with its partners in red. The algorithm then checks if other species are coextinct (2.2) by comparing the coextinction threshold to the amount of remaining interactions of each species (see section \ref{subsec:extc_alg} step \ref{itm:track} for details). Network B depicts the species lost due to coextinction in black with its interactions in orange. The next step is to determine interaction rewiring (2.3). Using one of the six rewiring methods (2.3.1 to 2.3.6), species try to rewire to new partners or strengthen interactions with their other partners (see section \ref{subsec:extc_alg} step \ref{itm:rew} for details). Network C shows possible rewiring for one species (shown in black) based on abundance (red), traits (blue) or phylogeny (beige).
+	 The last step of each iteration is redrawing the network from a multinomial distribution with the updated interaction probabilities (see section \ref{sec:net_sim} for details). The algorithm stops redrawing networks once only two species in the trophic level chosen for primary extinction are left. The remaining species are determined by running steps 2.1 - 2.3.}
+	 \label{fig:extc_alg}
+\end{figure}
+		\par
 
 
 % describe general approach:
@@ -207,10 +220,7 @@ For the first question only simulations where no rewiring was used were consider
 	% run extc models
 
 	\subsection{Network simulation} \label{sec:net_sim}
-To simulate the networks, each of the three community variables (abundance (a), traits (t), and phylogeny/latent traits (l)) were provided as an independent two-dimensional matrix defined by the species of the two trophic levels. These matrices were the same for all networks and were inherited from an initial network simulation with the default tapnet algorithm. This algorithm first derives interaction frequencies from the linear combination of the three community variable matrices, which are all scaled to sum of one before and after their multiplication. Interaction frequencies are then used as probabilities in a multinomial draw to calculate the desired number of 'observed' interactions (see also fig. 1 in \cite{Benadi} for a conceptual overview).	
-	
-	% first simulate initial network with set no of sp in lower and upper trophic level, no of traits w/ and w/o pems -> done with simulate_tapnet_aug
-The number of species in the trophic levels of the initial network was 40 and 50 for the lower and higher level, respectively. Total number of observations was set to 1111. The number of simulated traits was set to 2 for phylogenetically correlated and uncorrelated traits each.
+To simulate the networks, each of the three community variables (abundance (a), traits (t), and phylogeny/latent traits (l)) were provided as an independent two-dimensional matrix defined by the species of the two trophic levels. The algorithm first derives interaction frequencies from the linear combination of the three community variable matrices, which are all scaled to sum of one before and after their multiplication. Interaction frequencies are then used as probabilities in a multinomial draw to calculate the desired number of 'observed' interactions (see also fig. 1 in \cite{Benadi} for a conceptual overview).	 The community variable matrices were the same for all networks and were inherited from an initial network simulation with the default tapnet algorithm. The number of species in the trophic levels of the initial network was 40 and 50 for the lower and higher level, respectively. Total number of observations was set to 1111. The number of simulated traits was set to 2 for phylogenetically correlated and uncorrelated traits each.\par
 	% caradonna: nobs: 30000, ntraits: 2, nlow: , nhigh:
 	% kaiser-bunbury: nobs: 1278, ntraits: NA, nlow: , nhigh:
 	% costa: nobs: 	3974, ntraits: NA, nlow: , nhigh:
@@ -221,13 +231,9 @@ The number of species in the trophic levels of the initial network was 40 and 50
 	
 
 	% using simulated abundances, traits and other params (paramlist) simulate omat for all com importance scenarios
-	Using the abundance \& trait matrices and the phylogenetic eigenmatrices from the initial simulation, 1000 networks were simulated for each of the six species interaction scenarios. This was achieved by exponentiating the corresponding matrix of each scenario with either 0.1 or 1.9, resulting in high or low importance respectively. For the inital networks none of the variables were regarded as especially important, matrices were thus left unchanged (i.e. the exponent was 1). The scenarios will be referred to as Atl, aTl, atL, atl, and ATL with capital letter(s) indicating high importance and lower letters indicating low importance of the respective community variable. Furthermore, simulations where the community variable importances were not altered are called original.
+	Using the abundance \& trait matrices and the phylogenetic eigenmatrices from the initial simulation, 1000 networks were simulated for each of the six species interaction scenarios. This was achieved by exponentiating the corresponding matrix of each scenario with either 0.1 or 1.9, resulting in high or low importance respectively. For the inital networks none of the variables were regarded as especially important, matrices were thus left unchanged (i.e. the exponent was 1). The scenarios will be referred to as Atl, aTl, atL, atl, and ATL, with capital letter(s) indicating high importance and lower letters indicating low importance of the respective community variable. Furthermore, the simulations of the inital network are called original.\par
 	
-	 The simulation of networks produced pairings where no interaction between species occurred (from now on called 'improbable interactions'). This is due to interaction probabilities being so small that an interaction is not 'observed' every time the network is simulated. Therefore, species pairs with improbable interactions were removed before using the networks for extinction simulation. However, since marginal totals were used to identify and delete species pairs with improbable interactions, there were cases where after removing the species, new improbable interactions were introduced. For example, if a species had only one interaction with another species that was deleted, the first species was then left without interactions.
-	 
-%	 , which is an inherent problem resulting from the approach chosen by the authors. 
-	 
-The distribution of improbable interactions for all simulations can be seen in figure \ref{fig:dead_int} . 
+	 The simulation of networks produced pairings where no interaction between species occurred (from now on called 'improbable interactions'). This is due to interaction probabilities being so small that an interaction is not 'observed' every time the network is simulated. Therefore, species pairs with improbable interactions were removed before using the networks for extinction simulation. However, since marginal totals were used to identify and delete species pairs with improbable interactions, there were cases where after removing a species, other pairings had no observed interactions. For example, if a species had only one interaction with another species that was deleted, the first species was then left without interactions. Because of this, the actual number of species per web was not equal to the number specified during network simulation. The distribution of improbable interactions for all networks can be seen in figure \ref{fig:dead_int}.
 
 % Improbable interactions
 \begin{figure}[H]
@@ -239,28 +245,18 @@ The distribution of improbable interactions for all simulations can be seen in f
 
 % by simulating networks problematic sampling effects are avoided (blüthgen2010, vazquez2022)
 
-
-	% partner choice for rewiring based on values from init sim; using cophenetic.phylo fy for phylogenetic distance
-	Partner choice in the rewiring process of the extinction simulations was based on the abundances, traits and phylogeny of the initial simulation. For phylogeny, the phylogenetic distances of the higher and lower trophic level were computed.
 	\subsection{Extinction simulation} \label{sec:extc_sim}
-	After networks were simulated, a modified version (see supplementary materials 'extc.alg') of \citeauthor{Vizentin-Bugoni2019}'s algorithm was used to simulate extinction. The algorithm used here is structured as follows (see fig. \ref{fig:extc_alg} for a visual overview). To easily distinguish the different scenarios, the following naming convention was established. The trophic level from which species are removed during the extinction simulation as well as the rewiring method are noted in superscript, respecitvely. For example Atl\textsubscript{lower, abund}, refers to a simulation where Abundance was the main driver of species interactions during the network simulation (see section \ref{sec:net_sim} for network abbreviations), species were removed from the lower trophic level during extinction simulation with abundance based rewiring.
+	After networks were simulated, a modified version (see supplementary materials 'extc.alg') of \citeauthor{Vizentin-Bugoni2019}'s algorithm was used to simulate extinction. The algorithm used here is structured as follows (see fig. \ref{fig:extc_alg} for a visual overview). 
+%To easily distinguish the different scenarios, the following naming convention was established. The trophic level from which species are removed during the extinction simulation as well as the rewiring method are noted in superscript, respecitvely. For example Atl\textsubscript{lower, abund}, refers to a simulation where Abundance was the main driver of species interactions during the network simulation (see section \ref{sec:net_sim} for network abbreviations), species were removed from the lower trophic level during extinction simulation with abundance based rewiring.
 
-% put this in a box ?!	
-	\begin{figure}[H]
-	 \includegraphics[width = \textwidth]{/home/leon/Documents/Uni/M.sc/Master Thesis/Networks/approach_overview}
-	 \caption{\textbf{Schematic overview of network \& extinction simulations} The left hand side shows the process of network simulation. From the initial network four netowrks were simulated according to the approach described in section \ref{sec:net_sim}. The right hand side shows the simplified structure of the extinction algorithm. The primary extinction (2.1) in each iteration is determined based on the user specified methods comprising trophic level (2.1.1) and species selection (2.1.2) (see section \ref{subsec:extc_alg} step \ref{itm:etxc} for details). Network A shows the species that is removed in black and the lost interactions with its partners in red. The algorithm then checks if other species are coextinct (2.2) by comparing the coextinction threshold to the amount of remaining interactions of each species (see section \ref{subsec:extc_alg} step \ref{itm:track} for details). Network B depicts the species lost due to coextinction in black with its interactions in orange. The next step is to determine interaction rewiring (2.3). Using one of the three rewiring methods (2.3.1, 2.3.2 or 2.3.3), species try to rewire to new partners or strengthen interactions with their other partners (see section \ref{subsec:extc_alg} step \ref{itm:rew} for details). Network C shows possible rewiring for one species (shown in black) based on abundance (red), traits (blue) or phylogeny (beige).
-	 The last step of each iteration is redrawing the network from a multinomial distribution with the updated interaction probabilities (see section \ref{sec:net_sim} for details). The algorithm stops redrawing networks once only two species in the trophic level chosen for primary extinction are left. The remaining species are determined by running steps 2.1 - 2.3.}
-	 \label{fig:extc_alg}
-\end{figure}
-	
 \subsubsection{Extinction algorithm} \label{subsec:extc_alg}
 \begin{enumerate} 
 	\item \textbf{Delete improbable interactions} {\small Check if improbable interactions were introduced in the simulation process and delete them prior to extinction simulation.}
 	\item \textbf{Set the adaptability of species} {\small This represents a probability which is used to express a species inclination to change interactions partners. The values range from 0 to 1 and are either set to 0.5 if this feature should not be used or originate from a uniform distribution.}
-	\item \label{itm:etxc} \textbf{Extinction} {\small Delete a species from the network based on the provided methods (lower, higher trophic level(s) and random selection).}
+	\item \label{itm:etxc} \textbf{Extinction} {\small Delete a species from the network based on the provided methods (lower or higher trophic level).}
 %This is executed using the extinction.mod function from \citeauthor{vizentin-bugoni2019} which is based on the extinction function from the bipartite package.}
-	\item \label{itm:failsafe} \textbf{Handling improbable interactions} {\small Since the algorithm redraws from a multinomial distribution using the updated interaction matrix to generate the network (see step \ref{itm:redraw} for details), improbable interactions can be introduced. This step is implemented to make sure the extinct species has valid interactions. If the extinct species has no interactions, the previous step is repeated until a species with valid interactions was found or three tries are reached. If this process is unsuccessful, the algorithm 'skips' the current extinction iteration by skipping steps (\ref{itm:rew}, \ref{itm:shift}, \ref{itm:track}, and \ref{itm:update}) and redraws a new network (i.e. continuing at step \ref{itm:redraw}). The simulation is stopped if there are three instances where iterations were skipped because of improbable interactions.}
-	\item \label{itm:rew} \textbf{Rewiring} {\small All species that had at least one observed interaction with the extinct species, will try rewiring. The choice of the rewiring partner, i.e. the species that the afore mentioned species will try to rewire to, can be set by the user and comprises the following three options (all using the values from the initial simulation)}
+	\item \label{itm:failsafe} \textbf{Handling improbable interactions} {\small Since the algorithm redraws from a multinomial distribution using the updated interaction matrix to generate the network (see step \ref{itm:redraw} for details), improbable interactions can be introduced. This step is implemented to make sure the extinct species has valid interactions. If the extinct species has no interactions, the previous step is repeated until a species with valid interactions was found or three tries are reached. If this process is unsuccessful, the algorithm 'skips' the current extinction iteration by skipping steps (\ref{itm:rew}, \ref{itm:shift}, \ref{itm:track}, and \ref{itm:update}) and redraws a new network (i.e. continuing at step \ref{itm:redraw}). The simulation is stopped if there are three instances where iterations were skipped because of improbable interactions. This is an optional feature and users can decide if they want to use it or not.}
+	\item \label{itm:rew} \textbf{Rewiring} {\small All species that had at least one observed interaction with the extinct species, will try rewiring. The choice of the rewiring partner, i.e. the species that the afore mentioned species will try to rewire to, can be set by the user and comprises the following five options (all using the values from the initial simulation)}
 		\begin{itemize}
 		\item \label{itm:abund_rew} \textbf{Abundance} {\small The species with the highest abundance is selected.}
 		\item \label{itm:trait_rew} \textbf{Traits} {\small Euclidean distances of all traits are calculated. The species with the smallest trait distance across all traits compared to the extinct species is selected.}
@@ -268,10 +264,10 @@ The distribution of improbable interactions for all simulations can be seen in f
 		\item \label{itm:AT_rew} \textbf{Abundance x Trait} {\small The rewiring probabilities were calculated according to the respective method and their sum was used}
 		\item \label{itm:AP_rew} \textbf{Abundance x Phylogeny} {\small The rewiring probabilities were calculated according to the respective method and their sum was used}
 		\end{itemize}
-	\item \label{itm:shift} \textbf{Preference shift} {\small Interaction probabilities are updated, simulating the process of species changing their foraging preferences due to losing one of their interaction partners. New interaction probabilities are the sum of (1) the values of the interaction between the extinct species and the rewiring partner and (2) the values of the interaction between the extinct species and the species that try to rewire. The latter is multiplied with the adaptability value of each species to account for the differences in how well or how willingly they rewire. If no adaptability values are provided, the algorithm defaults to 0.5.}
-	\item  \label{itm:track} \textbf{Tracking (co)extinctions} {\small Users can specify a threshold which determines coextinction of species based on the percentage of remaining interactions. If the quotient of total interactions after and before an extinction step is below or equal to the threshold, a species will be considered coextinct. Since the number of interactions are resimulated in each iteration, the divisor is the number of interactions of the last iteration and not the number of interactions of the initial web. Finally, the number of extinct and remaining species are noted for the higher and the lower trophic level.}
+	\item \label{itm:shift} \textbf{Preference shift} {\small Interaction probabilities are updated, simulating the process of species changing their foraging preferences due to losing one of their interaction partners. New interaction probabilities are the sum of (1) the values of the interaction between the extinct species and the rewiring partner and (2) the values of the interaction between the extinct species and the species that they try to rewire. The latter is multiplied with the adaptability value of each species to account for the differences in how well or how willingly they rewire. If no adaptability values are provided, the default vaules was arbitrarily set to 0.5}
+	\item  \label{itm:track} \textbf{Tracking (co)extinctions} {\small Users can specify a threshold which determines coextinction of species based on the percentage of remaining interactions. If the quotient of total interactions after and before an extinction step is below or equal to the threshold, a species will be considered coextinct. Since the number of interactions are resimulated in each iteration, the divisor is the number of interactions of the last iteration and not the number of interactions of the web provided initially. Finally, the number of extinct and remaining species are noted for the higher and the lower trophic level.}
 	\item \label{itm:update} \textbf{Update matrices} {\small The extinct species are deleted from the network and from the interaction matrix.}
-	\item \label{itm:redraw} \textbf{Redraw network} {\small The updated interaction matrix is used to simulate observations by drawing from a multinomial distribution. This is the same step used in the data simulation (see \ref{sec:net_sim} for details) and can lead to the introduction of improbable interactions to the network. Therefore these species will remain in the network if they were 'inherited' from a previous redraw, i.e. extinction iteration because they would otherwise be falsely considered extinct.}
+	\item \label{itm:redraw} \textbf{Redraw network} {\small The updated interaction matrix is used to simulate observations by drawing from a multinomial distribution. This is the same step used in the data simulation (see \ref{sec:net_sim} for details) and can lead to the introduction of improbable interactions to the network. Therefore these species will remain in the network if they were 'inherited' from a previous redraw, i.e. extinction iteration, because they would otherwise be falsely considered extinct.}
 	\end{enumerate}
 	% running extinction functions. using modified version of bugoni's extinction fy
 		% algorithm structure:
@@ -293,7 +289,8 @@ The distribution of improbable interactions for all simulations can be seen in f
 			% abund = abundance led extinction of sp
 			% both = random extc from lower or higher level, random extc of sp
 			% random = random extc of sp
-Two extinction scenarios were simulated. (1) removing species from the lower trophic level and (2) removing species from the higher trophic level. Each combination of the six rewiring methods
+				% partner choice for rewiring based on values from init sim; using cophenetic.phylo fy for phylogenetic distance
+Partner choice in the rewiring process of the extinction simulations was based on the abundances, traits and phylogeny of the initial simulation. For phylogeny, the phylogenetic distances of the higher and lower trophic level were computed. Two extinction scenarios were simulated with 10 runs for each network. (1) removing species from the lower trophic level and (2) removing species from the higher trophic level. The coextinction threshold was set to 0 \%, i.e. a species was coextinct when it lost all interaction partners. Adaptability of all species was set to 0.5, and the algorithm was allowed to terminate simulations early (see step \ref{itm:failsafe})
  
 %\begin{table}[H]
 %\centering
@@ -311,7 +308,8 @@ Two extinction scenarios were simulated. (1) removing species from the lower tro
 %\end{table}
 
 
-Following the extinction simulations, the robustness of each network was calculated. To assess the effects of rewiring and network simulation on robustness a ANOVA was used with the number of species from the lower and the upper trophic level, community variable importance, rewiring method, $H2'$, the interaction between rewiring method and $H2'$, as well as the extinction scenario\footnote{i.e. removing species from the lower or from the higher trophic level} as predictors. Additional ANOVAs were used to see how the effects changed when the data was partitioned by species removal, network simulation scenarios, and rewiring methods.
+Following the extinction simulations, the robustness of each network was calculated. To assess the effects of rewiring and network simulation on robustness a ANOVA was used with the number of species from the lower and the upper trophic level, community variable importance, rewiring method, $H2'$, the interaction between rewiring method and $H2'$, as well as the extinction scenario\footnote{i.e. removing species from the lower or from the higher trophic level} as predictors.
+%Additional ANOVAs were used to see how the effects changed when the data was partitioned by species removal, network simulation scenarios, and rewiring methods.
 
  
 %	% computing means of all simulations for each scenario
@@ -321,7 +319,7 @@ Following the extinction simulations, the robustness of each network was calcula
 %	% computing means of all webs
 %	Finally, the mean over all webs was calculated. Since the extinction scenarios also produced different lengths, the longest extinction sequence per scenario was used as the target length and shorter sequences were padded with zeros to match the target length.
 \section{Results}
-There were a number of extinction simulations that were exited prematurely because of improbable interactions. In these cases the algorithm failed to find alternatives to species with improbable interactions and skipped iterations three times (see section \ref{subsec:extc_alg} step \ref{itm:failsafe}). Simulations using abundance based rewiring, showed the highest percentage of aborted runs. Furthermore, especially aTl, atL, and atl networks resulted in frequent termination. Removing species from the lower level generally resulted in lower aborted simulations than removing species from the higher level. See table \ref{tab:abort_perc} in the supplemental materials for an overview over all combinations of simulations that were run.
+There were a number of extinction simulations that were exited prematurely because of improbable interactions. In these cases the algorithm failed to find alternatives to species with improbable interactions and skipped iterations three times (see section \ref{subsec:extc_alg} step \ref{itm:failsafe}). Simulations using abundance based rewiring, showed the highest percentage of aborted runs. Furthermore, especially aTl, atL, and atl networks resulted in frequent termination. Removing species from the lower level generally resulted in lower aborted simulations than removing species from the higher level. See table \ref{tab:abort_perc} in the supplemental materials for an overview. \paragraph{}
 % Simulation aborts on lower level
 %\begin{table}[H]
 %\centering
@@ -391,10 +389,10 @@ When an ANOVA was calculated separately for removing species from the lower trop
 %
 % rew w/ org
 
-\subsection{Question1}
+\subsection{Question 1}
 % Q1 comparing comvars
 
-Changing the driving force of species interactions during the network simulation, had an effect on the general specialisation of species in a network (see figure \ref{fig:h2}). The networks that were simulated using the standard tapnet approach showed relatively high niche overlap ($ \overline{H2'}_{original} = 0.23 $). The most conform networks were ATL($ \overline{H2'}_{ATL} = 0.14 $). The only other network simulation scenario where specialisation was lower compared to the original networks was aTl ($ \overline{H2'}_{aTl} = 0.21 $). In Atl, atL, and atl networks species' interactions were more unique which led to higher H2' values ($ \overline{H2'}_{Atl} = 0.35 $, $ \overline{H2'}_{atL} = 0.28 $, and $ \overline{H2'}_{atl} = 0.37 $, respectively).
+Changing the driving force of species interactions during the network simulation, had an effect on the general specialisation of species in a network (see figure \ref{fig:h2}). The networks that were simulated using the standard tapnet approach showed relatively high niche overlap ($ \overline{H2'}_{original} = 0.23 $). The ATL networks were most conform($ \overline{H2'}_{ATL} = 0.14 $). The only other network simulation scenario where specialisation was lower compared to the original networks was aTl ($ \overline{H2'}_{aTl} = 0.21 $). In Atl, atL, and atl networks species' interactions were more unique which led to higher H2' values ($ \overline{H2'}_{Atl} = 0.35 $, $ \overline{H2'}_{atL} = 0.28 $, and $ \overline{H2'}_{atl} = 0.37 $, respectively).
 \begin{figure}[h]
 	 \includegraphics[width = \textwidth]{/home/leon/Documents/Uni/M.sc/Master Thesis/Networks/models/plot_sink/h2'_all}
 	 \caption{\textbf{Two dimensional Shannon Entropy of all networks} The boxplots show the H2' values for each community variable importance scenario. See section \ref{sec:net_sim} for a detailed explanation of the abbreviations of community variable importances.}
@@ -430,11 +428,10 @@ There was a clear effect of the importance of community variables during the net
 
 
 
-\subsection{Question2}
+\subsection{Question 2}
 % Q2 comparing rewiring
 
-The second question focused on the differences between the rewiring methods. Therefore, only networks with the original importances of community variables were used. The majority of species from the trophic level where secondary extinctions were observed, remained in the network even after a severe loss of their interaction partners from the other trophic level.
-%Combining rewiring methods, however, had only a small effect on network robustness.
+The second question focused on the differences between the rewiring methods. Therefore, only networks with the original importances of community variables were used. The majority of species from the trophic level where secondary extinctions were observed, remained in the network even after a severe loss of their interaction partners from the other trophic level. When rewiring methods were combined they only had a small effect on network robustness.
 \\ Focusing on the loss of species in the final extinction step, there was little variance between the observed rewiring methods. Between the species removal scenarios, however, was a substantial difference. When animals were removed the final loss of species was considerably smaller than under plant removal. \par
 
 % smallest last extc step lower: org_norew = 37.78, org_abund = 28.89, org_trait = 33.33, org_phylo = 24.44, org_AT = 35.55, org_AP = 40.0
@@ -452,8 +449,7 @@ The second question focused on the differences between the rewiring methods. The
 	 \label{fig:extc_org_rew_higher}
 \end{figure}
 
-Network robustness seemed not to be influenced by the rewiring method to a large extend (see figure \ref{fig:auc_org_rew}. The difference in mean robustness between the most effective (phylogeny) and least effective rewiring method (abundance) was only 1.25 when removing plants and 1.23 when removing animals. Validating the result of the first question, robustness was higher when species from the higher trophic level were removed. Combining multiple rewiring mechanisms had an averaging effect on robustness. \\
-
+Network robustness seemed not to be influenced by the rewiring method to a large extend (see figure \ref{fig:auc_org_rew}). The difference in mean robustness between the most effective (phylogeny) and least effective rewiring method (abundance) was only 1.25 when removing plants and 1.23 when removing animals. Underlining the result of the first question, robustness was higher when species from the higher trophic level were removed. Combining multiple rewiring mechanisms had an averaging effect on robustness.\par 
 Interestingly, simulations using abundance and abundance combined with trait rewiring, showed lower robustness than simulations without rewiring.
 % seems to be connected to percentage of terminated simulation runs -> variance in robustness between extc runs quite high, so over all mean should also depict that.
 \begin{figure}[H]
@@ -467,23 +463,26 @@ Interestingly, simulations using abundance and abundance combined with trait rew
 % Shortly repeat the Question(s)
 
 % Summarize the main findings
-The importance of abundance, traits and phylogeny when simulating species interactions had an effect on the general specialisation of the networks as well as their robustness when no rewiring was allowed. (see figures \ref{fig:h2} and \ref{fig:auc_cv_norew}). When species interactions were mainly based on abundance or phylogeny, the interactions in these networks became more unique. This was also the case when abundance, trait and phylogenetic information was used to simulate species interactions but their influence was kept low. Under the assumption that species mainly happen to interact due to matching traits, the simulations showed that the interactions in these networks were largely redundant. This suggests that niches in these networks are overlapping. The highest niche overlap was observed when the probability of an interaction between species was artificially increased for all community variables.\par
-The propagation of extinctions through networks was lowest when networks were simulated with an amplified influence of all three community variables. Assuming that either abundance, traits or phylogeny were the main driver of species interactions led to lower network robustness compared to the networks fitted with the default tapnet approach. Furthermore, especially trait, and phylogeny based networks showed a high variance in network robustness. Networks where the interaction probabilities of all community variables were set to be low, showed the lowest robustness. \par
+The importance of abundance, traits and phylogeny when simulating species interactions had an effect on the general specialisation of the networks as well as their robustness when no rewiring was allowed (see figures \ref{fig:h2} and \ref{fig:auc_cv_norew}). When species interactions were mainly based on abundance or phylogeny, the interactions in these networks became more unique. This was also the case when abundance, trait and phylogenetic information was used to simulate species interactions but their influence was kept low. Under the assumption that species mainly happen to interact due to matching traits, the simulations showed that the interactions in these networks were largely redundant. This suggests that niches in these networks are overlapping. The highest niche overlap was observed when the probability of an interaction between species was artificially increased for all community variables.\paragraph{}
+
+The propagation of extinctions through networks was lowest when networks were simulated with an amplified influence of all three community variables. Assuming that either abundance, traits or phylogeny were the main driver of species interactions, led to lower network robustness compared to the networks fitted with the default tapnet approach. Furthermore, especially trait, and phylogeny based networks showed a high variance in network robustness. Networks where the interaction probabilities of all community variables were set to be low, showed the lowest robustness. \par
 
 On the contrary, the rewiring method used in the extinction simulation with unaltered networks only had a marginal effect on network robustness (see figure \ref{fig:auc_org_rew}). Trying to shift the interactions of an extinct species to its closest phylogenetic resemblant, showed the highest effect in inhibiting extinction cascades. When species tried to compensate lost interactions by shifting them to the most abundant species in the network, the robustness was lowest.
 
-Removing species from the higher level always led to higher network robustness than removing species from the lower level.
-\par
+Furthermore, removing species from the higher level always led to higher network robustness than removing species from the lower level.
+\paragraph{}
 
 % Q1
 More redundancy among interactions should, in theory, lead to a higher chance of finding an adequate new partner to compensate lost interactions and thus to higher robustness. However, networks with trait based interactions were not showing an increased robustness. This could be explained by the amount of extinction simulations that were terminated prematurely. Comparing the percentages of aborted extinction simulations (table \ref{tab:abort_perc}) with the robustness of the respective interaction simulation scenario (figure \ref{fig:auc_cv_norew}) suggests that when the percentage of terminated simulations was high, robustness tended to have a higher variance and was generally lower.\\ A factor that can also lead to low network robustness is the number of species with only one interaction partner. These singleton species are the most vulnerable to coextinction, since they have to switch their interaction partner successfully in order to survive. This means that if there are a lot of singletons in a network, even though there is a high niche overlap, robustness might still be lower than what would be expected purely from looking at network specialisation.
 
-Even though here the focus 
+% Q2
+The fact that Abundance and Abundance x Trait rewiring scenarios led to a lower robustness than simulations without rewiring, is most likely explained by the high number of terminated simulation runs in these scenarios (see table \ref{tab:abort_perc}). The high variability in extinction simulations of the individual networks is depicted in the mean robustness, 
 
 %The networks simulated with abundance as the main driver of species interactions follow the assumption of neutral theory \parencite{Vazquez2005, Vazquez2007}. It proposes that species are 
 
 % generalisation based adaptability of species to determine no of rewired interactions individually
-Since some species are better in
+Setting the amount of interactions a species can reallocate during rewiring to a fixed percentage, might bias the robustness of the network, since generalists should more effectively transfer their interactions to other partners than specialists.
+Linking the generalisation of a species to its adaptability (see section \ref{subsec:extc_alg}, step \ref{itm:shift}) would be a possibility to remove said bias but would need experimental data to quantify the effect of generalisation on rewiring success.
 
 
 
@@ -494,13 +493,8 @@ Since some species are better in
 
 % see rezende2007 for phylogenetic rewiring !!
 
-
-% construct validity !! can results be translated from simulations into reality ? does it make sense to assume these connections/interrelationships/results in real networks ?
-It should also be considered how well the results of this analysis can be translated to real-world networks. While there is ample support of species interactions being driven by neutral and niche processes \parencite{Jordano2003, Rezende2007, Vazquez2007, Blüthgen2008}, spatio-temporal distribution also plays a role \parencite{}.
-
-
 % restrict formation of new interactions during rewiring process !
-The extinction algorithm did not restrain species to a maximum number of interaction partners, so that species could freely form new interactions as long as the interaction probability was high enough. This could be possible if the observed network is extremely generalised, but is highly unlikely to be observed in real-world networks, since it would imply that species could diversify their foraging behaviour almost arbitrarily at any given time \footnote{However, \citeauthor{Petanidou2008} found that species that were regarded specialists in one year, tended to} .Restricting the number of new possible partners for a species is, however, not trivial. Temporal variance in interactions was reported in many studies due to a variety of reasons (see for example \cite{Olesen2008, Caradonna2017, Schwarz2021}).
+The extinction algorithm did not restrain species to a maximum number of interaction partners, so that species could freely form new interactions as long as the interaction probability was high enough. This could be possible if the observed network is extremely generalised, but is highly unlikely to be observed in real-world networks, since it would imply that species could diversify their foraging behaviour almost arbitrarily at any given time \footnote{However, \citeauthor{Petanidou2008} found that species that were regarded specialists in one year, tended to be generalists in a following year}. Restricting the number of new possible partners for a species is, however, not trivial. Temporal variance in interactions was reported in many studies due to a variety of reasons (see for example \cite{Olesen2008, Caradonna2017, Schwarz2021}).
 
 In VB when multiple attempts with multiple partners are allowed, number of attempts is the number on interactions obsevred between the species and the lost partner.
 
@@ -510,6 +504,9 @@ Baumgartner restricted NUMBER of interactions between species to original degree
 
 % petanidou: species are specialists in one year and generalists in another year -> might support that species are very flexible in the number of interaction partners
 good approach to simulate extinction cascades over many years, since redrawing networks after an extinction can be a proxy for interannual variability in species interactions and species can be specialists in one year and generalists in another year (reason for not restricting number of new interaction partners, see petanidou2008). would additionally need some form of species turnover, e.g. by randomly drawing from a pool of species each extinction iteration.
+
+% construct validity !! can results be translated from simulations into reality ? does it make sense to assume these connections/interrelationships/results in real networks ?
+Finally, it should be considered how well the results of this analysis can be translated to real-world networks. While there is ample support of species interactions being driven by neutral and niche processes \parencite{Jordano2003, Rezende2007, Vazquez2007, Blüthgen2008}, spatio-temporal distribution also plays a role \parencite{}.
 
 Thus, while being a powerful tool, simulating extinctions with artificial networks should be done with great caution. Users should meticulously think about what the drivers of interactions in the particular networks might be and how rewiring might be restricted. Nonetheless, this approach delivered information regarding the influence of abundance, traits, and phylogeny on the formation of species interactions and their role in finding new interaction partners, by untangling their effect on network robustness.
 % only "quantitative" change in com_vars, could be interesting to change "qualitatively" i.e. abundance distribution (log-normal, normal, etc.), phylogeny (branching-early / branching late)...
