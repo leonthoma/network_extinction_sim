@@ -1,6 +1,6 @@
 # Calculation & visualization of results
 setwd("~/Documents/Uni/M.sc/Master Thesis/Networks/models/")
-load("sims_NULL.RData") # load simulations
+load("sims_NULL_full.RData") # load simulations
 
 library(tapnet)
 source("tapnet_helper.R")
@@ -26,7 +26,7 @@ library(ggpubr)
 cntc <- map(sims, function(x) map(seq(ctrbs), ~ connectance(pluck(x, .x, "web")))) 
 
 cntc_org <- map(seq(n_webs), ~ connectance(init_sim[[.x]]$networks[[1]]$web)) %>% 
-  unlist() %>% data.table("vals" = .) %>% cbind("group" = "atl") %>% bind_rows()
+  unlist() %>% data.table("vals" = .) %>% cbind("group" = "org") %>% bind_rows()
 
 cntc_grouped <- map(ctrbs, function(x) map(cntc, ~ pluck(.x, x)) %>%
                       unlist() %>%
@@ -39,7 +39,7 @@ kruskal.test(cntc_grouped$vals ~ cntc_grouped$group)
 
 ggboxplot(data = cntc_grouped, x = "group", y = "vals", 
           #color = "group", palette = "npg",
-          order = c("Atl", "aTl", "atL", "ATL", "atl"),
+          order = c("Atl", "aTl", "atL", "atl", "ATL", "org"),
           ylab = "Connectance", xlab = "Contribution importances", legend = "right")+
   theme(text = element_text(size = 20))
 
@@ -47,16 +47,15 @@ ggboxplot(data = cntc_grouped, x = "group", y = "vals",
 # empty rows
 ## needs change in hist_dead if networks prior to deleting dead interactions should
 ## be used !!!
-hist_dead(sims_all)
+dead_low <- hist_dead(sims_all, save = F)
 
 # empty cols
-hist_dead(sims_all, lower = F)
+dead_high <- hist_dead(sims_all, lower = F, save = F)
+
+ggarrange(dead_low, dead_high, labels = "AUTO")
 
 ## two dimensional shannon entropy
-H2 <- map(seq(n_webs), function(x) {
-  map(ctrbs, ~ H2fun(pluck(sims, x, .x, "web"))["H2"])})
-
-H2_org <- map(seq(n_webs), ~ H2fun(pluck(init_sim_web, .x))[[1]]) %>% 
+H2_org <- map(seq(n_webs), ~ H2_org[[.x]]) %>% 
   unlist() %>%
   data.table("vals" = .) %>% 
   cbind("group" = "org") %>% bind_rows()
@@ -68,12 +67,70 @@ H2_grouped <- map(seq(n_webs), function(x) pluck(H2, x) %>%
 
 H2_grouped <- bind_rows(H2_org, H2_grouped)
 
-ggboxplot(data = H2_grouped, x = "group", y = "vals", 
+h2_plot <- ggboxplot(data = data.frame("vals" = H2_grouped$vals, "group" = H2_grouped$group), x = "group", y = "vals", 
           #color = "group", palette = "npg",
-          order = c("Atl", "aTl", "atL", "atl", "org"),
-          ylab = "H2", xlab = "Contribution importances", legend = "none") +
-  theme(text = element_text(size = 20))
+          order = c( "org", "Atl", "aTl", "atL", "atl", "ATL"),
+          ylab = "H2'", xlab = "Community variable importances", legend = "none") +
+  theme(text = element_text(size = 20), aspect.ratio = 1) +
+  scale_x_discrete(labels = c( "Original", "Atl", "aTl", "atL", "atl", "ATL"))
 
+
+ggsave("h2'_all.pdf",
+       path = paste0(getwd(), "/plot_sink"),
+       plot = h2_plot,
+       device = "pdf",
+       width = 28.7,
+       height = 20,
+       units = "cm")
+
+# Percentage singletons by com_vars
+ps_by_cv <- ggboxplot(data = auc_all, x = "com_vars", y = "p_single", 
+          #color = "group", palette = "npg",
+          outlier.shape = NA,
+          add = "mean",
+          add.params = list(size = .2),
+          order = c( "org", "Atl", "aTl", "atL", "atl", "ATL"),
+          ylab = "Percentage of singletons",
+          xlab = "Community variable importances",
+          legend = "none",
+          ylim = c(0, .4)) +
+  theme(text = element_text(size = 20), aspect.ratio = 1) +
+  scale_x_discrete(labels = c("Original", "Atl", "aTl", "atL", "atl", "ATL"))
+
+ggsave("ps_by_com_vars.pdf",
+       path = paste0(getwd(), "/plot_sink"),
+       plot = ps_by_cv,
+       device = "pdf",
+       width = 28.7,
+       height = 20,
+       units = "cm")
+
+# Robustness by percent singletons
+titles <- c(names(ctrbs), "org")
+names(titles) <- c(names(ctrbs), "Original")
+
+r_by_ps <- map(names(ctrbs), ~ group_by(auc_all, web_no, com_vars) %>%
+  summarise(m_r = mean(robustness, na.rm = T),
+            m_p_s = mean(p_single)) %>% filter(., com_vars == .x) %>% 
+    ggplot(aes(m_p_s, m_r), data = .) + 
+    geom_point() +
+    labs(title = .x,
+         x = "Mean percentage of singletons",
+         y = "Mean Robustness"))
+
+r_by_ps_lower_org <- group_by(auc_all, web_no, com_vars) %>%
+  filter(., com_vars == "org") %>% 
+  summarise(m_r = mean(robustness, na.rm = T),
+            m_p_s = mean(p_single)) %>% 
+  ggplot(aes(m_p_s, m_r), data = .) + 
+  geom_point() +
+  labs(title = "Original",
+       x = "Mean percentage of singletons",
+       y = "Mean Robustness")
+
+ggarrange(r_by_ps_lower_org, r_by_ps_lower[[1]], r_by_ps_lower[[2]],
+          r_by_ps_lower[[3]], r_by_ps_lower[[4]], r_by_ps_lower[[5]],
+          nrow = 2, ncol = 3)
 ## visualize extinction models ----
 
 # count no of NULL in sims
@@ -122,7 +179,7 @@ ggplot(aes(rev(x), y), data = lower_org_norew_sims_df) +
   geom_step(aes(group = sims1)) +
   geom_line(color = "firebrick", data = lower_org_norew_sims_df_mean, size = .8) +
   labs(x = "Primary extinction [%]", y = "Secondary extinction [%]") +
-  theme(aspect.ratio = 1)
+  theme(aspect.ratio = 1, text = element_text(size = 20))
 
 # lower org
 map(rew_names, function(z) {
@@ -134,7 +191,7 @@ map(rew_names, function(z) {
                                                 which(rew_names == z)),
               size = .8) +
     labs(x = "Primary extinction [%]", y = "Secondary extinction [%]") +
-    theme(aspect.ratio = 1)
+    theme(aspect.ratio = 1, text = element_text(size = 20))
 })
 
 # lower norew
@@ -146,7 +203,7 @@ map(names(ctrbs), function(z) {
                                                 z),
               size = .8) +
     labs(x = "Primary extinction [%]", y = "Secondary extinction [%]") +
-    theme(aspect.ratio = 1)
+    theme(aspect.ratio = 1, text = element_text(size = 20))
 })
 
 # lower AT
@@ -158,7 +215,7 @@ map(names(ctrbs), function(z) {
                                                 z),
               size = .8) +
     labs(x = "Primary extinction [%]", y = "Secondary extinction [%]") +
-    theme(aspect.ratio = 1)
+    theme(aspect.ratio = 1, text = element_text(size = 20))
 })
 
 # lower AP
@@ -170,7 +227,7 @@ map(names(ctrbs), function(z) {
                                                 z),
               size = .8) +
     labs(x = "Primary extinction [%]", y = "Secondary extinction [%]") +
-    theme(aspect.ratio = 1)
+    theme(aspect.ratio = 1, text = element_text(size = 20))
 })
 
 # lower
@@ -184,7 +241,7 @@ map(rew_names, function(z) {
                                                     .x),
                   size = .8) +
         labs(x = "Primary extinction [%]", y = "Secondary extinction [%]") +
-        theme(aspect.ratio = 1)
+        theme(aspect.ratio = 1, text = element_text(size = 20))
   )})
 
 # higher org norew
@@ -192,7 +249,7 @@ ggplot(aes(rev(x), y), data = higher_org_norew_sims_df) +
   geom_step(aes(group = sims1)) +
   geom_line(color = "firebrick", data = higher_org_norew_sims_df_mean, size = .8) +
   labs(x = "Primary extinction [%]", y = "Secondary extinction [%]") +
-  theme(aspect.ratio = 1)
+  theme(aspect.ratio = 1, text = element_text(size = 20))
 
 # higher org
 map(rew_names, function(z) {
@@ -204,7 +261,7 @@ map(rew_names, function(z) {
                                                 which(rew_names == z)),
               size = .8) +
     labs(x = "Primary extinction [%]", y = "Secondary extinction [%]") +
-    theme(aspect.ratio = 1)
+    theme(aspect.ratio = 1, text = element_text(size = 20))
 })
 
 # higher norew
@@ -216,7 +273,7 @@ map(names(ctrbs), function(z) {
                                                 z),
               size = .8) +
     labs(x = "Primary extinction [%]", y = "Secondary extinction [%]") +
-    theme(aspect.ratio = 1)
+    theme(aspect.ratio = 1, text = element_text(size = 20))
 })
 
 # higher AT
@@ -228,7 +285,7 @@ map(names(ctrbs), function(z) {
                                                 z),
               size = .8) +
     labs(x = "Primary extinction [%]", y = "Secondary extinction [%]") +
-    theme(aspect.ratio = 1)
+    theme(aspect.ratio = 1, text = element_text(size = 20))
 })
 
 # higher AP
@@ -240,7 +297,7 @@ map(names(ctrbs), function(z) {
                                                 z),
               size = .8) +
     labs(x = "Primary extinction [%]", y = "Secondary extinction [%]") +
-    theme(aspect.ratio = 1)
+    theme(aspect.ratio = 1, text = element_text(size = 20))
 })
 
 # higher
@@ -254,11 +311,175 @@ map(rew_names, function(z) {
                                                     .x),
                   size = .8) +
         labs(x = "Primary extinction [%]", y = "Secondary extinction [%]") +
-        theme(aspect.ratio = 1)
+        theme(aspect.ratio = 1, text = element_text(size = 20))
   )})
 
-# plot of all mean extc sims
+# com_vars by norew
+# lower
+cv_norew <- map(names(ctrbs), function(z) {
+  ggplot(aes(rev(x), y), data = filter(lower_norew_sims_df,
+                                       com_vars == z)) + 
+    geom_step(aes(group = sims1)) +
+    geom_line(color = "firebrick", data = pluck(lower_norew_sims_df_mean,
+                                                z),
+              size = .8) +
+    labs(x = "Primary extinction [%]", y = "Secondary extinction [%]") +
+    theme(aspect.ratio = 1, text = element_text(size = 15)) +
+    ggtitle(z)
+})
 
+cv_norew[[6]] <- ggplot(aes(rev(x), y), data = lower_org_norew_sims_df) + 
+  geom_step(aes(group = sims1)) +
+  geom_line(color = "firebrick", data = lower_org_norew_sims_df_mean, size = .8) +
+  labs(x = "Primary extinction [%]", y = "Secondary extinction [%]") +
+  theme(aspect.ratio = 1, text = element_text(size = 15)) +
+  ggtitle("Original")
+
+cv_norew_lower_all <- ggarrange(cv_norew[[6]], cv_norew[[1]], cv_norew[[2]],
+          cv_norew[[3]], cv_norew[[4]], cv_norew[[5]], nrow  = 2 , ncol = 3)
+
+ggsave("extc_sims_cv_norew_lower.pdf",
+       path = paste0(getwd(), "/plot_sink"),
+       plot = cv_norew_lower_all,
+       device = "pdf",
+       width = 28.7,
+       height = 20,
+       units = "cm")
+
+# higher
+cv_norew <- map(names(ctrbs), function(z) {
+  ggplot(aes(rev(x), y), data = filter(higher_norew_sims_df,
+                                       com_vars == z)) + 
+    geom_step(aes(group = sims1)) +
+    geom_line(color = "firebrick", data = pluck(higher_norew_sims_df_mean,
+                                                z),
+              size = .8) +
+    labs(x = "Primary extinction [%]", y = "Secondary extinction [%]") +
+    theme(aspect.ratio = 1, text = element_text(size = 15)) +
+    ggtitle(z)
+})
+
+cv_norew[[6]] <- ggplot(aes(rev(x), y), data = higher_org_norew_sims_df) + 
+  geom_step(aes(group = sims1)) +
+  geom_line(color = "firebrick", data = higher_org_norew_sims_df_mean, size = .8) +
+  labs(x = "Primary extinction [%]", y = "Secondary extinction [%]") +
+  theme(aspect.ratio = 1, text = element_text(size = 15)) +
+  ggtitle("Original")
+
+cv_norew_higher_all <- ggarrange(cv_norew[[6]], cv_norew[[1]], cv_norew[[2]],
+                                cv_norew[[3]], cv_norew[[4]], cv_norew[[5]], nrow  = 2 , ncol = 3)
+
+ggsave("extc_sims_cv_norew_higher.pdf",
+       path = paste0(getwd(), "/plot_sink"),
+       plot = cv_norew_higher_all,
+       device = "pdf",
+       width = 28.7,
+       height = 20,
+       units = "cm")
+
+
+# org by rew
+# lower
+org_rew_titles <- c("abund" =  "Abundance", "trait" = "Trait", "phylo" = "Phylogeny")
+org_rew <- map(rew_names, function(z) {
+  ggplot(aes(rev(x), y),
+         data = filter(lower_org_sims_df,
+                       id == z)) +
+    geom_step(aes(group = sims1)) +
+    geom_line(color = "firebrick", data = pluck(lower_org_sims_df_mean,
+                                                which(rew_names == z)),
+              size = .8) +
+    labs(x = "Primary extinction [%]", y = "Secondary extinction [%]") +
+    theme(aspect.ratio = 1, text = element_text(size = 15)) +
+    ggtitle(org_rew_titles[z])
+})
+
+org_rew[[4]] <- ggplot(aes(rev(x), y), data = lower_org_AT_sims_df) + 
+  geom_step(aes(group = sims1)) +
+  geom_line(color = "firebrick", data = lower_org_AT_sims_df_mean,
+            size = .8) +
+  labs(x = "Primary extinction [%]", y = "Secondary extinction [%]") +
+  theme(aspect.ratio = 1, text = element_text(size = 15)) +
+  ggtitle("Abundance x Trait")
+
+org_rew[[5]] <- ggplot(aes(rev(x), y), data = lower_org_AP_sims_df) + 
+  geom_step(aes(group = sims1)) +
+  geom_line(color = "firebrick", data = lower_org_AT_sims_df_mean,
+            size = .8) +
+  labs(x = "Primary extinction [%]", y = "Secondary extinction [%]") +
+  theme(aspect.ratio = 1, text = element_text(size = 15)) +
+  ggtitle("Abundance x Phylogeny")
+
+org_rew[[6]] <- ggplot(aes(rev(x), y), data = lower_org_norew_sims_df) + 
+  geom_step(aes(group = sims1)) +
+  geom_line(color = "firebrick", data = lower_org_norew_sims_df_mean, size = .8) +
+  labs(x = "Primary extinction [%]", y = "Secondary extinction [%]") +
+  theme(aspect.ratio = 1, text = element_text(size = 15)) +
+  ggtitle("No rewiring")
+
+org_rew_lower_all <- ggarrange(org_rew[[6]], org_rew[[1]], org_rew[[2]],
+                               org_rew[[3]], org_rew[[4]], org_rew[[5]], nrow  = 2 , ncol = 3)
+
+ggsave("extc_sims_org_rew_lower.pdf",
+       path = paste0(getwd(), "/plot_sink"),
+       plot = org_rew_lower_all,
+       device = "pdf",
+       width = 28.7,
+       height = 20,
+       units = "cm")
+
+# higher
+org_rew_titles <- c("abund" =  "Abundance", "trait" = "Trait", "phylo" = "Phylogeny")
+org_rew <- map(rew_names, function(z) {
+  ggplot(aes(rev(x), y),
+         data = filter(higher_org_sims_df,
+                       id == z)) +
+    geom_step(aes(group = sims1)) +
+    geom_line(color = "firebrick", data = pluck(higher_org_sims_df_mean,
+                                                which(rew_names == z)),
+              size = .8) +
+    labs(x = "Primary extinction [%]", y = "Secondary extinction [%]") +
+    theme(aspect.ratio = 1, text = element_text(size = 15)) +
+    ggtitle(org_rew_titles[z])
+})
+
+org_rew[[4]] <- ggplot(aes(rev(x), y), data = higher_org_AT_sims_df) + 
+  geom_step(aes(group = sims1)) +
+  geom_line(color = "firebrick", data = higher_org_AT_sims_df_mean,
+            size = .8) +
+  labs(x = "Primary extinction [%]", y = "Secondary extinction [%]") +
+  theme(aspect.ratio = 1, text = element_text(size = 15)) +
+  ggtitle("Abundance x Trait")
+
+org_rew[[5]] <- ggplot(aes(rev(x), y), data = higher_org_AP_sims_df) + 
+  geom_step(aes(group = sims1)) +
+  geom_line(color = "firebrick", data = higher_org_AT_sims_df_mean,
+            size = .8) +
+  labs(x = "Primary extinction [%]", y = "Secondary extinction [%]") +
+  theme(aspect.ratio = 1, text = element_text(size = 15)) +
+  ggtitle("Abundance x Phylogeny")
+
+org_rew[[6]] <- ggplot(aes(rev(x), y), data = higher_org_norew_sims_df) + 
+  geom_step(aes(group = sims1)) +
+  geom_line(color = "firebrick", data = higher_org_norew_sims_df_mean, size = .8) +
+  labs(x = "Primary extinction [%]", y = "Secondary extinction [%]") +
+  theme(aspect.ratio = 1, text = element_text(size = 15)) +
+  ggtitle("No rewiring")
+
+org_rew_higher_all <- ggarrange(org_rew[[6]], org_rew[[1]], org_rew[[2]],
+                               org_rew[[3]], org_rew[[4]], org_rew[[5]], nrow  = 2 , ncol = 3)
+
+ggsave("extc_sims_org_rew_higher.pdf",
+       path = paste0(getwd(), "/plot_sink"),
+       plot = org_rew_higher_all,
+       device = "pdf",
+       width = 28.7,
+       height = 20,
+       units = "cm")
+
+
+# plot of all mean extc sims
+ 
 prew <- c("abund" = 3) # set rewiring method to plot
 pcm <- "Atl" # set com_var to plot
 
@@ -290,13 +511,193 @@ ggplot(mapping = aes(rev(x), y)) +
   labs(title = paste(names(prew), pcm), xlab = "Primary extinctions",
        ylab = "Secondary extinctions")
   
+# mean number of secondary extinctions per step without last two steps
+# by com_vars
+# lower norew
+map(ctrbs, function(x) {
+  map(seq(n_webs), function(y) {
+    map(seq(n_sims), function(z) {
+      mean(extc_sims_lower_norew[[y]][[x]][[z]][1:(nrow(extc_sims_lower_norew[[y]][[x]][[z]]) - 2), 3])
+    }) %>% unlist %>% mean
+  }) %>% unlist %>% mean
+})
+
+# higher norew
+map(ctrbs, function(x) {
+  map(seq(n_webs), function(y) {
+    map(seq(n_sims), function(z) {
+      mean(extc_sims_higher_norew[[y]][[x]][[z]][1:(nrow(extc_sims_higher_norew[[y]][[x]][[z]]) - 2), 2])
+    }) %>% unlist %>% mean
+  }) %>% unlist %>% mean
+})
+
+# lower org norew
+m_extc_lower_org_norew <- map(seq(n_webs), function(y) {
+    map(seq(n_sims), function(z) {
+      mean(extc_sims_lower_org_norew[[y]][[z]][1:(nrow(extc_sims_lower_org_norew[[y]][[z]]) - 2), 3])
+    }) %>% unlist %>% mean
+  }) %>% unlist %>% data.table("vals" = ., "id" = "org")
+
+# higher org norew
+map(seq(n_webs), function(y) {
+  map(seq(n_sims), function(z) {
+    mean(extc_sims_higher_org_norew[[y]][[z]][1:(nrow(extc_sims_higher_org_norew[[y]][[z]]) - 2), 2])
+  }) %>% unlist %>% mean
+}) %>% unlist %>% data.table("vals" = ., "id" = "org")
+
+
+# by rew
+# lower org
+m_extc_lower_org <- map(rew_names, function(x) {
+  map(seq(n_webs), function(y) {
+    map(seq(n_sims), function(z) {
+      mean(extc_sims_lower_org[[y]][[x]][[z]][1:(nrow(extc_sims_lower_org[[y]][[x]][[z]]) - 2), 3])
+    }) %>% unlist %>% mean
+  }) %>% unlist %>% data.table("vals" = ., "id" = x)
+}) %>% bind_rows
+
+
+
+# higher org
+map(rew_names, function(x) {
+  map(seq(n_webs), function(y) {
+    map(seq(n_sims), function(z) {
+      mean(extc_sims_higher_org[[y]][[x]][[z]][1:(nrow(extc_sims_higher_org[[y]][[x]][[z]]) - 2), 2])
+    }) %>% unlist %>% mean
+  }) %>% unlist %>% data.table("vals" = ., "id" = x)
+}) %>% bind_rows
+
+# lower org AT
+map(seq(n_webs), function(y) {
+  map(seq(n_sims), function(z) {
+    mean(extc_sims_lower_org_AT[[y]][[z]][1:(nrow(extc_sims_lower_org_AT[[y]][[z]]) - 2), 3])
+  }) %>% unlist %>% mean
+}) %>% unlist %>% mean
+
+# higher org AT
+map(seq(n_webs), function(y) {
+  map(seq(n_sims), function(z) {
+    mean(extc_sims_higher_org_AT[[y]][[z]][1:(nrow(extc_sims_higher_org_AT[[y]][[z]]) - 2), 2])
+  }) %>% unlist %>% mean
+}) %>% unlist %>% mean
+
+# lower org AP
+map(seq(n_webs), function(y) {
+  map(seq(n_sims), function(z) {
+    mean(extc_sims_lower_org_AP[[y]][[z]][1:(nrow(extc_sims_lower_org_AP[[y]][[z]]) - 2), 3])
+  }) %>% unlist %>% mean
+}) %>% unlist %>% mean
+
+# higher org AP
+map(seq(n_webs), function(y) {
+  map(seq(n_sims), function(z) {
+    mean(extc_sims_higher_org_AP[[y]][[z]][1:(nrow(extc_sims_higher_org_AP[[y]][[z]]) - 2), 2])
+  }) %>% unlist %>% mean
+}) %>% unlist %>% mean
+
+
+## mean number of extinctions in last two steps
+# by com_vars
+# lower norew
+map(ctrbs, function(x) {
+  map(seq(n_webs), function(y) {
+    map(seq(n_sims), function(z) {
+      mean(extc_sims_lower_norew[[y]][[x]][[z]][(nrow(extc_sims_lower_norew[[y]][[x]][[z]]) - 1):nrow(extc_sims_lower_norew[[y]][[x]][[z]]), 3])
+    }) %>% unlist %>% mean
+  }) %>% unlist %>% mean
+})
+
+# higher norew
+map(ctrbs, function(x) {
+  map(seq(n_webs), function(y) {
+    map(seq(n_sims), function(z) {
+      mean(extc_sims_higher_norew[[y]][[x]][[z]][(nrow(extc_sims_higher_norew[[y]][[x]][[z]]) - 1):nrow(extc_sims_higher_norew[[y]][[x]][[z]]), 2])
+    }) %>% unlist %>% mean
+  }) %>% unlist %>% mean
+})
+
+# lower org norew
+m_extc_lower_org_norew_last <- map(seq(n_webs), function(y) {
+  map(seq(n_sims), function(z) {
+    mean(extc_sims_lower_org_norew[[y]][[z]][(nrow(extc_sims_lower_org_norew[[y]][[z]]) - 1):nrow(extc_sims_lower_org_norew[[y]][[z]]), 3])
+  }) %>% unlist %>% mean
+}) %>% unlist %>% data.table("vals" = ., "id" = "norew")
+
+# higher org norew
+m_extc_higher_org_norew_last <- map(seq(n_webs), function(y) {
+  map(seq(n_sims), function(z) {
+    mean(extc_sims_higher_org_norew[[y]][[z]][(nrow(extc_sims_higher_org_norew[[y]][[z]]) - 1):nrow(extc_sims_higher_org_norew[[y]][[z]]), 2])
+  }) %>% unlist %>% mean
+}) %>% unlist %>% data.table("vals" = ., "id" = "norew")
+
+
+# by rew
+# lower org
+m_extc_lower_org_last <- map(rew_names, function(x) {
+  map(seq(n_webs), function(y) {
+    map(seq(n_sims), function(z) {
+      mean(extc_sims_lower_org[[y]][[x]][[z]][(nrow(extc_sims_lower_org[[y]][[x]][[z]]) - 1):nrow(extc_sims_lower_org[[y]][[x]][[z]]), 3])
+    }) %>% unlist %>% mean
+  }) %>% unlist %>% data.table("vals" = ., "id" = x)
+}) %>% bind_rows
+
+ggboxplot("id", "vals", data = m_extc_lower_org_last)
+
+# higher org
+m_extc_higher_org_last <- map(rew_names, function(x) {
+  map(seq(n_webs), function(y) {
+    map(seq(n_sims), function(z) {
+      mean(extc_sims_higher_org[[y]][[x]][[z]][(nrow(extc_sims_higher_org[[y]][[x]][[z]]) - 1):nrow(extc_sims_higher_org[[y]][[x]][[z]]), 2])
+    }) %>% unlist %>% mean
+  }) %>% unlist %>% data.table("vals" = ., "id" = x)
+}) %>% bind_rows
+
+# lower org AT
+map(seq(n_webs), function(y) {
+  map(seq(n_sims), function(z) {
+    mean(extc_sims_lower_org_AT[[y]][[z]][(nrow(extc_sims_lower_org_AT[[y]][[z]]) - 1):nrow(extc_sims_lower_org_AT[[y]][[z]]), 3])
+  }) %>% unlist %>% mean
+}) %>% unlist %>% mean
+
+# higher org AT
+map(seq(n_webs), function(y) {
+  map(seq(n_sims), function(z) {
+    mean(extc_sims_higher_org_AT[[y]][[z]][(nrow(extc_sims_higher_org_AT[[y]][[z]]) - 1):nrow(extc_sims_higher_org_AT[[y]][[z]]), 2])
+  }) %>% unlist %>% mean
+}) %>% unlist %>% mean
+
+# lower org AP
+map(seq(n_webs), function(y) {
+  map(seq(n_sims), function(z) {
+    mean(extc_sims_lower_org_AP[[y]][[z]][(nrow(extc_sims_lower_org_AP[[y]][[z]]) - 1):nrow(extc_sims_lower_org_AP[[y]][[z]]), 3])
+  }) %>% unlist %>% mean
+}) %>% unlist %>% mean
+
+# higher org AP
+map(seq(n_webs), function(y) {
+  map(seq(n_sims), function(z) {
+    mean(extc_sims_higher_org_AP[[y]][[z]][(nrow(extc_sims_higher_org_AP[[y]][[z]]) - 1):nrow(extc_sims_higher_org_AP[[y]][[z]]), 2])
+  }) %>% unlist %>% mean
+}) %>% unlist %>% mean
+
+
+m_extc_lower_org_all <- bind_rows(m_extc_lower_org, m_extc_lower_org_norew)
+m_extc_higher_org_all <- bind_rows(m_extc_higher_org, m_extc_higher_org_norew)
+
+m_extc_lower_org_last_all <- bind_rows(m_extc_lower_org_last, m_extc_lower_org_norew_last)
+m_extc_higher_org_last_all <- bind_rows(m_extc_higher_org_last, m_extc_higher_org_norew_last)
+
+ggboxplot("id", "vals", data = m_extc_lower_org_last_all) 
+
+
 ### AUC / Robustness
 ## ANOVA of auc values
 # overall
-aov_lo <- aov(robustness ~ nrow + ncol + rew + com_vars, data = auc_all_lower) # lower
-aov_hi <- aov(robustness ~ nrow + ncol + rew + com_vars, data = auc_all_higher) # higher
+aov_lo <- aov(robustness ~ nrow + ncol + com_vars + rew * H2, data = auc_all_lower) # lower
+aov_hi <- aov(robustness ~ nrow + ncol + com_vars + rew * H2, data = auc_all_higher) # higher
 
-# aov_both <- aov(robustness ~ nrow + ncol + rew + com_vars + lvl, data = auc_all) # combined
+aov_both <- aov(robustness ~ nrow + ncol + com_vars + lvl + rew * H2, data = auc_all) # combined
+summary(aov_both)
 
 # use type III test from car package
 library(car)
@@ -306,11 +707,11 @@ Anova(aov_hi, type = "III")
 
 # by com_vars
 map(c(names(ctrbs), "org"), ~
-      aov(robustness ~ nrow + ncol + rew,
+      aov(robustness ~ nrow + ncol + rew *H2,
           data = filter(auc_all_lower, com_vars == .x))) # lower
 map(c(names(ctrbs), "org"), ~
-      aov(robustness ~ nrow + ncol + rew,
-          data = filter(auc_all_higher, com_vars == .x))) # lower
+      aov(robustness ~ nrow + ncol + rew * H2,
+          data = filter(auc_all_higher, com_vars == .x))) # higher
 
 # by rew
 map(unique(auc_all_lower$rew), ~
@@ -318,26 +719,39 @@ map(unique(auc_all_lower$rew), ~
           data = filter(auc_all_lower, rew == .x))) # lower
 map(unique(auc_all_lower$rew), ~
       aov(robustness ~ nrow + ncol + com_vars,
-          data = filter(auc_all_higher, rew == .x))) # lower
+          data = filter(auc_all_higher, rew == .x))) # higher
 
 # AUC boxplots
-# by rewiring
 auc_boxplot(auc_all, x.axis = "rew")
 
-auc_rew_plots <- map(c(names(ctrbs), "org"), function(x) {
-  auc_boxplot(filter(auc_all, com_vars == x), x.axis = "rew") +
-    ggtitle(x)
-  })
+# com_vars by norew
+auc_all$com_vars <- factor(auc_all$com_vars, level = c("org", "Atl", "aTl",
+                                                       "atL", "atl", "ATL"))
 
-auc_cv_by_rew <- ggarrange(auc_rew_plots[[1]], auc_rew_plots[[2]], auc_rew_plots[[3]],
-          auc_rew_plots[[4]], auc_rew_plots[[5]], auc_rew_plots[[6]], common.legend = T)
-ggsave("auc_com_vars_by_rew.pdf",
+auc_cv_by_norew <- auc_boxplot(auc_all, by = "com_vars", select = "norew") 
+
+ggsave("auc_com_vars_by_norew.pdf",
               path = paste0(getwd(), "/plot_sink"),
-              plot = auc_cv_by_rew,
+              plot = auc_cv_by_norew,
               device = "pdf",
               width = 28.7,
               height = 20,
               units = "cm")
+
+# org by rew
+auc_all$rew <- factor(auc_all$rew, level = c("norew", "abund", "trait",
+                                                       "phylo", "abundtrait", "abundphylo"))
+
+# hardcoded change to create correct color labels & ylim !!
+auc_org_by_cv <- auc_boxplot(auc_all, by = "rew", select = "org") 
+
+ggsave("auc_org_by_cv.pdf",
+       path = paste0(getwd(), "/plot_sink"),
+       plot = auc_org_by_cv,
+       device = "pdf",
+       width = 28.7,
+       height = 20,
+       units = "cm")
 
 # by com vars
 auc_boxplot(auc_all, x.axis = "com_vars")
@@ -352,7 +766,7 @@ auc_rew_by_cv <- ggarrange(auc_com_var_plots[[1]], auc_com_var_plots[[2]], auc_c
 
 ggsave("auc_rew_by_com_vars.pdf",
        path = paste0(getwd(), "/plot_sink"),
-       plot = auc_cv_by_rew,
+       plot = auc_rew_by_cv,
        device = "pdf",
        width = 28.7,
        height = 20,
@@ -364,19 +778,47 @@ auc_all_plots <- map(.x = c(names(ctrbs), "org"), function(x) { # loop com_vars
  ~ auc_boxplot(auc_all, x.axis = c(x, .x), save = T))
   })
 
-auc_abund_pair <- ggarrange(auc_all_plots[[1]][[1]], auc_all_plots[[1]][[4]], auc_all_plots[[1]][[5]],
-          auc_all_plots[[1]][[6]], nrow = 2, ncol = 2, common.legend = T) 
+auc_abund_pair <- ggboxplot(y = "robustness",
+                            color = "lvl", x = "com_vars",
+                            data = filter(auc_all, rew == "abund", com_vars %in% c("Atl", "atl", "org"))) +
+  scale_color_manual(name = "Trophic level",
+                     values = c("#000000", "#787878")) +
+  theme(legend.position = "bottom") +
+  labs(x = element_blank()) +
+  theme(aspect.ratio = 1) +
+  ggtitle("abund/Atl")
 
-auc_trait_pair <- ggarrange(auc_all_plots[[2]][[2]], auc_all_plots[[2]][[4]], auc_all_plots[[2]][[5]],
-                       auc_all_plots[[2]][[6]], nrow = 2, ncol = 2, common.legend = T) 
+auc_trait_pair <- ggboxplot(y = "robustness",
+                            color = "lvl", x = "com_vars",
+                            data = filter(auc_all, rew == "trait", com_vars %in% c("aTl", "atl", "org"))) +
+  scale_color_manual(name = "Trophic level",
+                     values = c("#000000", "#787878")) +
+  theme(legend.position = "bottom") +
+  labs(x = element_blank()) +
+  theme(aspect.ratio = 1) +
+  ggtitle("trait/aTl")
 
-auc_phylo_pair <- ggarrange(auc_all_plots[[3]][[3]], auc_all_plots[[3]][[4]], auc_all_plots[[3]][[5]],
-                            auc_all_plots[[3]][[6]], nrow = 2, ncol = 2, common.legend = T) 
+auc_phylo_pair <- ggboxplot(y = "robustness",
+                            color = "lvl", x = "com_vars",
+                            data = filter(auc_all, rew == "phylo", com_vars %in% c("atL", "atl", "org"))) +
+  scale_color_manual(name = "Trophic level",
+                     values = c("#000000", "#787878")) +
+  theme(legend.position = "bottom") +
+  labs(x = element_blank()) +
+  theme(aspect.ratio = 1) +
+  ggtitle("phylo/atL")
+
+auc_pairs <- ggarrange(auc_abund_pair, auc_trait_pair, auc_phylo_pair, nrow = 1, common.legend = T)
 
 
-
-
-
+# calculate mean of every combination
+auc_means <- map(.x = c(names(ctrbs), "org"), function(x) { # loop com_vars
+  map(.x = c(rew_names, "norew", "abundtrait", "abundphylo"), function(y) { # loop rewiring methods
+      lo <- filter(auc_all, rew == y, com_vars == x, lvl == "lower") %>% select(robustness)
+      hi <- filter(auc_all, rew == y, com_vars == x, lvl == "higher") %>% select(robustness)
+      return(c(mean(hi$robustness, na.rm = T), mean(lo$robustness, na.rm = T)))
+        })
+})
 
 # base model; lower 
 plot_extc_facet(extc = sp_remain_lower_web_mean_df,

@@ -24,7 +24,7 @@ sp_names <- data.frame("plants" = plants,
 
 ### initial simulation ----
 # set no of nets and simulations
-n_webs <- 1000
+n_webs <- 100
 n_sims <- 10
 ctrbs <- c("Atl" = 1, "aTl" = 2, "atL" = 3, "atl" = 4, "ATL" = 5)
 rew_names <- c("abund", "trait", "phylo")
@@ -168,7 +168,8 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
                        phylo.partner.choice = pluck(.x, x),
                        interactions = pluck(init_sim, x)$networks[[1]]$I_mat,
                        method.rewiring = .y, 
-                       coextc.thr = coextc_thr)))})
+                       coextc.thr = coextc_thr,
+                       terminate_early = F)))})
   
   # initial extinction on higher level; original
   extc_sims_higher_org <- map(seq(n_webs), function(x) {
@@ -187,7 +188,8 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
                        phylo.partner.choice = pluck(.x, x),
                        interactions = pluck(init_sim, x)$networks[[1]]$I_mat,
                        method.rewiring = .y, 
-                       coextc.thr = coextc_thr)))})
+                       coextc.thr = coextc_thr,
+                       terminate_early = F)))})
 
   # initial extinction on lower level; original no rewiring
   extc_sims_lower_org_norew <- map(seq(n_webs), function(x) {
@@ -202,7 +204,8 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
                 phylo.partner.choice = NULL,
                 interactions = pluck(init_sim, x)$networks[[1]]$I_mat,
                 method.rewiring = "NULL", 
-                coextc.thr = coextc_thr))})
+                coextc.thr = coextc_thr,
+                terminate_early = F))})
   
   # initial extinction on lower lever; original no rewiring
   extc_sims_higher_org_norew <- map(seq(n_webs), function(x) {
@@ -217,7 +220,8 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
                 phylo.partner.choice = NULL,
                 interactions = pluck(init_sim, x)$networks[[1]]$I_mat,
                 method.rewiring = "NULL", 
-                coextc.thr = coextc_thr))})
+                coextc.thr = coextc_thr,
+                terminate_early = F))})
   
   # initial extinction on lower level; original AT rewiring
   extc_sims_lower_org_AT <- map(seq(n_webs), function(x) {
@@ -231,7 +235,8 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
                                          phylo.partner.choice = NULL, 
                                          interactions = pluck(init_sim, x)$networks[[1]]$I_mat,
                                          method.rewiring = c("abund", "trait"),
-                                         coextc.thr = coextc_thr))
+                                         coextc.thr = coextc_thr,
+                                         terminate_early = F))
   })
   
   # initial extinction on higher level; original AT rewiring
@@ -246,7 +251,8 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
                                          phylo.partner.choice = NULL, 
                                          interactions = pluck(init_sim, x)$networks[[1]]$I_mat,
                                          method.rewiring = c("abund", "trait"),
-                                         coextc.thr = coextc_thr))
+                                         coextc.thr = coextc_thr,
+                                         terminate_early = F))
   })
   
   # initial extinction on lower level; original AP rewiring
@@ -261,7 +267,8 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
                                          phylo.partner.choice = pluck(phylos, x), 
                                          interactions = pluck(init_sim, x)$networks[[1]]$I_mat,
                                          method.rewiring = c("abund", "phylo"),
-                                         coextc.thr = coextc_thr))
+                                         coextc.thr = coextc_thr,
+                                         terminate_early = F))
   })
   
   # initial extinction on higher level; original AP rewiring
@@ -276,7 +283,8 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
                                          phylo.partner.choice = pluck(phylos, x), 
                                          interactions = pluck(init_sim, x)$networks[[1]]$I_mat,
                                          method.rewiring = c("abund", "phylo"),
-                                         coextc.thr = coextc_thr))
+                                         coextc.thr = coextc_thr,
+                                         terminate_early = F))
   })
   
   # # initial extinction on lower level, abundance driven extinction, no rewiring
@@ -340,7 +348,8 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
                     method.rewiring = .y,
                     n_sims = n_sims,
                     multiple.webs = T, 
-                    coextc.thr = coextc_thr))})
+                    coextc.thr = coextc_thr,
+                    terminate_early = F))})
   
   # initial extinction on higher level
   extc_sims_higher <- map(seq(n_webs), function(x) {
@@ -359,7 +368,8 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
                     method.rewiring = .y,
                     n_sims = n_sims,
                     multiple.webs = T, 
-                    coextc.thr = coextc_thr))})
+                    coextc.thr = coextc_thr,
+                    terminate_early = F))})
   
   # initial extinction on lower level, no rewiring
   extc_sims_lower_norew <- map(seq(n_webs), function(x) {
@@ -374,7 +384,8 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
              method.rewiring = "NULL",
              n_sims = n_sims,
              multiple.webs = T, 
-             coextc.thr = coextc_thr)})
+             coextc.thr = coextc_thr,
+             terminate_early = F)})
   
   # initial extinction on higher level, no rewiring
   extc_sims_higher_norew <- map(seq(n_webs), function(x) {
@@ -389,7 +400,8 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
              method.rewiring = "NULL",
              n_sims = n_sims,
              multiple.webs = T, 
-             coextc.thr = coextc_thr)})
+             coextc.thr = coextc_thr,
+             terminate_early = F)})
   
   # initial extinction on lower level, AT
   extc_sims_lower_AT <- map(seq(n_webs), function(x) {
@@ -404,7 +416,8 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
              method.rewiring = c("abund", "trait"),
              n_sims = n_sims,
              multiple.webs = T, 
-             coextc.thr = coextc_thr)})  
+             coextc.thr = coextc_thr,
+             terminate_early = F)})  
   
   # initial extinction on higher level, AT
   extc_sims_higher_AT <- map(seq(n_webs), function(x) {
@@ -419,7 +432,8 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
              method.rewiring = c("abund", "trait"),
              n_sims = n_sims,
              multiple.webs = T, 
-             coextc.thr = coextc_thr)}) 
+             coextc.thr = coextc_thr,
+             terminate_early = F)}) 
   
   # initial extinction on lower level, AP
   extc_sims_lower_AP <- map(seq(n_webs), function(x) {
@@ -434,7 +448,8 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
              method.rewiring = c("abund", "phylo"),
              n_sims = n_sims,
              multiple.webs = T, 
-             coextc.thr = coextc_thr)})  
+             coextc.thr = coextc_thr,
+             terminate_early = F)})  
   
   # initial extinction on higher level, AP
   extc_sims_higher_AP <- map(seq(n_webs), function(x) {
@@ -449,7 +464,8 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
              method.rewiring = c("abund", "phylo"),
              n_sims = n_sims,
              multiple.webs = T, 
-             coextc.thr = coextc_thr)})  
+             coextc.thr = coextc_thr,
+             terminate_early = F)})  
   
   # # initial extinction on lower level; tinoco
   # extc_sims_lower_tin <- map2(.x = list("abund" = abunds_tin,
@@ -513,12 +529,12 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
     list("lower" = map(1:3, function(y) { # loop rewiring
       pluck(extc_sims_lower_org, x, y) %>%
         as.data.table(.) %>% 
-        select(., contains(c("no", "n.lower"))) %>%
+        dplyr::select(., contains(c("no", "n.lower"))) %>%
         replace_duplicate() %>% apply(., 2, list_divide)}),
       "higher" = map(1:3, function(y) { # loop rewiring
         pluck(extc_sims_lower_org, x, y) %>%
           as.data.table(.) %>% 
-          select(., contains(c("no", "n.higher"))) %>%
+          dplyr::select(., contains(c("no", "n.higher"))) %>%
           replace_duplicate()%>% apply(., 2, list_divide)}))
   })
   
@@ -526,78 +542,78 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
     list("lower" = map(1:3, function(y) { # loop rewiring
       pluck(extc_sims_higher_org, x, y) %>%
         as.data.table(.) %>% 
-        select(., contains(c("no", "n.lower"))) %>%
+        dplyr::select(., contains(c("no", "n.lower"))) %>%
         replace_duplicate() %>% apply(., 2, list_divide)}),
       "higher" = map(1:3, function(y) { # loop rewiring
         pluck(extc_sims_higher_org, x, y) %>%
           as.data.table(.) %>% 
-          select(., contains(c("no", "n.higher"))) %>%
+          dplyr::select(., contains(c("no", "n.higher"))) %>%
           replace_duplicate()%>% apply(., 2, list_divide)}))
   })
   
   sp_remain_lower_org_norew_sims <- map(seq(n_webs), function(x) {
     list("lower" = pluck(extc_sims_lower_org_norew, x) %>%
            as.data.table(.) %>% 
-           select(., contains(c("no", "n.lower"))) %>%
+           dplyr::select(., contains(c("no", "n.lower"))) %>%
            replace_duplicate() %>% apply(., 2, list_divide),
          "higher" = pluck(extc_sims_lower_org_norew, x) %>%
            as.data.table(.) %>% 
-           select(., contains(c("no", "n.higher"))) %>%
+           dplyr::select(., contains(c("no", "n.higher"))) %>%
            replace_duplicate()%>% apply(., 2, list_divide))
   })
   
   sp_remain_higher_org_norew_sims <- map(seq(n_webs), function(x) {
     list("lower" = pluck(extc_sims_higher_org_norew, x) %>%
            as.data.table(.) %>% 
-           select(., contains(c("no", "n.lower"))) %>%
+           dplyr::select(., contains(c("no", "n.lower"))) %>%
            replace_duplicate() %>% apply(., 2, list_divide),
          "higher" = pluck(extc_sims_higher_org_norew, x) %>%
            as.data.table(.) %>% 
-           select(., contains(c("no", "n.higher"))) %>%
+           dplyr::select(., contains(c("no", "n.higher"))) %>%
            replace_duplicate()%>% apply(., 2, list_divide))
   })
   
   sp_remain_lower_org_AT_sims <- map(seq(n_webs), function(x) {
     list("lower" = pluck(extc_sims_lower_org_AT, x) %>%
            as.data.table(.) %>% 
-           select(., contains(c("no", "n.lower"))) %>%
+           dplyr::select(., contains(c("no", "n.lower"))) %>%
            replace_duplicate() %>% apply(., 2, list_divide),
          "higher" = pluck(extc_sims_lower_org_AT, x) %>%
            as.data.table(.) %>% 
-           select(., contains(c("no", "n.higher"))) %>%
+           dplyr::select(., contains(c("no", "n.higher"))) %>%
            replace_duplicate()%>% apply(., 2, list_divide))
   })
   
   sp_remain_higher_org_AT_sims <- map(seq(n_webs), function(x) {
     list("lower" = pluck(extc_sims_higher_org_AT, x) %>%
            as.data.table(.) %>% 
-           select(., contains(c("no", "n.lower"))) %>%
+           dplyr::select(., contains(c("no", "n.lower"))) %>%
            replace_duplicate() %>% apply(., 2, list_divide),
          "higher" = pluck(extc_sims_higher_org_AT, x) %>%
            as.data.table(.) %>% 
-           select(., contains(c("no", "n.higher"))) %>%
+           dplyr::select(., contains(c("no", "n.higher"))) %>%
            replace_duplicate()%>% apply(., 2, list_divide))
   })
   
   sp_remain_lower_org_AP_sims <- map(seq(n_webs), function(x) {
     list("lower" = pluck(extc_sims_lower_org_AP, x) %>%
            as.data.table(.) %>% 
-           select(., contains(c("no", "n.lower"))) %>%
+           dplyr::select(., contains(c("no", "n.lower"))) %>%
            replace_duplicate() %>% apply(., 2, list_divide),
          "higher" = pluck(extc_sims_lower_org_AP, x) %>%
            as.data.table(.) %>% 
-           select(., contains(c("no", "n.higher"))) %>%
+           dplyr::select(., contains(c("no", "n.higher"))) %>%
            replace_duplicate()%>% apply(., 2, list_divide))
   })
   
   sp_remain_higher_org_AP_sims <- map(seq(n_webs), function(x) {
     list("lower" = pluck(extc_sims_higher_org_AP, x) %>%
            as.data.table(.) %>% 
-           select(., contains(c("no", "n.lower"))) %>%
+           dplyr::select(., contains(c("no", "n.lower"))) %>%
            replace_duplicate() %>% apply(., 2, list_divide),
          "higher" = pluck(extc_sims_higher_org_AP, x) %>%
            as.data.table(.) %>% 
-           select(., contains(c("no", "n.higher"))) %>%
+           dplyr::select(., contains(c("no", "n.higher"))) %>%
            replace_duplicate()%>% apply(., 2, list_divide))
   })
   
@@ -607,13 +623,13 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
       map(ctrbs, function(z) { # loop com vars
         pluck(extc_sims_lower, x, y, z) %>%
           as.data.table(.) %>% 
-          select(., contains(c("no", "n.lower"))) %>%
+          dplyr::select(., contains(c("no", "n.lower"))) %>%
           replace_duplicate() %>% apply(., 2, list_divide)})}),
       "higher" = map(1:3, function(y) { # loop rewiring
         map(ctrbs, function(z) { # loop com vars
           pluck(extc_sims_lower, x, y, z) %>%
             as.data.table(.) %>% 
-            select(., contains(c("no", "n.higher"))) %>%
+            dplyr::select(., contains(c("no", "n.higher"))) %>%
             replace_duplicate()%>% apply(., 2, list_divide)})}))
   })
   
@@ -622,13 +638,13 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
       map(ctrbs, function(z) { # loop com vars
         pluck(extc_sims_higher, x, y, z) %>%
           as.data.table(.) %>% 
-          select(., contains(c("no", "n.lower"))) %>%
+          dplyr::select(., contains(c("no", "n.lower"))) %>%
           replace_duplicate() %>% apply(., 2, list_divide)})}),
       "higher" = map(1:3, function(y) { # loop rewiring
         map(ctrbs, function(z) { # loop com vars
           pluck(extc_sims_higher, x, y, z) %>%
             as.data.table(.) %>% 
-            select(., contains(c("no", "n.higher"))) %>%
+            dplyr::select(., contains(c("no", "n.higher"))) %>%
             replace_duplicate()%>% apply(., 2, list_divide)})}))
   })
   
@@ -636,12 +652,12 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
     list("lower" = map(ctrbs, function(y) { # loop com vars
       pluck(extc_sims_lower_norew, x, y) %>%
         as.data.table(.) %>% 
-        select(., contains(c("no", "n.lower"))) %>%
+        dplyr::select(., contains(c("no", "n.lower"))) %>%
         replace_duplicate() %>% apply(., 2, list_divide)}),
       "higher" = map(ctrbs, function(y) { # loop com vars
         pluck(extc_sims_lower_norew, x, y) %>%
           as.data.table(.) %>% 
-          select(., contains(c("no", "n.higher"))) %>%
+          dplyr::select(., contains(c("no", "n.higher"))) %>%
           replace_duplicate()%>% apply(., 2, list_divide)}))
   })
   
@@ -649,12 +665,12 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
     list("lower" = map(ctrbs, function(y) { # loop com vars
       pluck(extc_sims_higher_norew, x, y) %>%
         as.data.table(.) %>% 
-        select(., contains(c("no", "n.lower"))) %>%
+        dplyr::select(., contains(c("no", "n.lower"))) %>%
         replace_duplicate() %>% apply(., 2, list_divide)}),
       "higher" = map(ctrbs, function(y) { # loop com vars
         pluck(extc_sims_higher_norew, x, y) %>%
           as.data.table(.) %>% 
-          select(., contains(c("no", "n.higher"))) %>%
+          dplyr::select(., contains(c("no", "n.higher"))) %>%
           replace_duplicate()%>% apply(., 2, list_divide)}))
   })
   
@@ -662,12 +678,12 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
     list("lower" = map(ctrbs, function(y) { # loop com vars
       pluck(extc_sims_lower_AT, x, y) %>%
         as.data.table(.) %>% 
-        select(., contains(c("no", "n.lower"))) %>%
+        dplyr::select(., contains(c("no", "n.lower"))) %>%
         replace_duplicate() %>% apply(., 2, list_divide)}),
       "higher" = map(ctrbs, function(y) { # loop com vars
         pluck(extc_sims_lower_AT, x, y) %>%
           as.data.table(.) %>% 
-          select(., contains(c("no", "n.higher"))) %>%
+          dplyr::select(., contains(c("no", "n.higher"))) %>%
           replace_duplicate()%>% apply(., 2, list_divide)}))
   })
   
@@ -675,12 +691,12 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
     list("lower" = map(ctrbs, function(y) { # loop com vars
       pluck(extc_sims_higher_AT, x, y) %>%
         as.data.table(.) %>% 
-        select(., contains(c("no", "n.lower"))) %>%
+        dplyr::select(., contains(c("no", "n.lower"))) %>%
         replace_duplicate() %>% apply(., 2, list_divide)}),
       "higher" = map(ctrbs, function(y) { # loop com vars
         pluck(extc_sims_higher_AT, x, y) %>%
           as.data.table(.) %>% 
-          select(., contains(c("no", "n.higher"))) %>%
+          dplyr::select(., contains(c("no", "n.higher"))) %>%
           replace_duplicate()%>% apply(., 2, list_divide)}))
   })
   
@@ -688,12 +704,12 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
     list("lower" = map(ctrbs, function(y) { # loop com vars
       pluck(extc_sims_lower_AP, x, y) %>%
         as.data.table(.) %>% 
-        select(., contains(c("no", "n.lower"))) %>%
+        dplyr::select(., contains(c("no", "n.lower"))) %>%
         replace_duplicate() %>% apply(., 2, list_divide)}),
       "higher" = map(ctrbs, function(y) { # loop com vars
         pluck(extc_sims_lower_AP, x, y) %>%
           as.data.table(.) %>% 
-          select(., contains(c("no", "n.higher"))) %>%
+          dplyr::select(., contains(c("no", "n.higher"))) %>%
           replace_duplicate()%>% apply(., 2, list_divide)}))
   })
   
@@ -701,12 +717,12 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
     list("lower" = map(ctrbs, function(y) { # loop com vars
       pluck(extc_sims_higher_AP, x, y) %>%
         as.data.table(.) %>% 
-        select(., contains(c("no", "n.lower"))) %>%
+        dplyr::select(., contains(c("no", "n.lower"))) %>%
         replace_duplicate() %>% apply(., 2, list_divide)}),
       "higher" = map(ctrbs, function(y) { # loop com vars
         pluck(extc_sims_higher_AP, x, y) %>%
           as.data.table(.) %>% 
-          select(., contains(c("no", "n.higher"))) %>%
+          dplyr::select(., contains(c("no", "n.higher"))) %>%
           replace_duplicate()%>% apply(., 2, list_divide)}))
   })
   

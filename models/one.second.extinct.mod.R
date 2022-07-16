@@ -21,12 +21,15 @@ one.second.extinct.mod.aug <- function(web,
                                        adapt = F,
                                        vis.steps = F,
                                        shift = F,
-                                       coextc.thr = NULL) {
+                                       coextc.thr = NULL,
+                                       terminate_early = T,
+                                       seed = F) {
   i <- 1L
   j <- 1L
   retry <- 1L # set counter for max retries for empty m2
   abort <- F # abort rewiring if extc sp only has dead interactions
   skip <- F # skip updating dead if extc sp only has dead interactions
+  fail <- F # prevent Nobs from being 0
   
   dead <- matrix(nrow = 0, ncol = 5L)
   
@@ -112,31 +115,42 @@ one.second.extinct.mod.aug <- function(web,
     # extinction.mod returns list w/ plants (rows; "rexcl") that lost partners and
     # animals (cols; "cexcl") that lost partners as well as network ("web")
     
-    Nobs <- sum(ext_temp$web) # no of obs interaction
+    if (sum(ext_temp$web) == 0) {
+      fail <- T
+      Nobs_fail <- sum(m2)
+    }
+    
+    if (fail) {
+      Nobs <- Nobs_fail
+    } else {
+        Nobs <- sum(ext_temp$web) # no of obs interaction
+      }
 
     # handle edge case where extc. sp has only dead interactions
     if (sum(ext_temp$rexcl, ext_temp$cexcl) == 0) {
       j <- 1
       warning("Extinct sp only has dead interactions, trying to find alternative")
+      # should extinction simulations be terminated when trying to select valid
+      # extinct species too often
       while (j <= 3) {
-
         # add max number of iterations before break; if still not valid stop sim and restart with initial imat
         ext_temp <- extinction.mod(m2, participant = participant, method = method, ext.row = ext.row, ext.col = ext.col)
-        
+          
         j <- j + 1
-
+  
         if (sum(ext_temp$rexcl, ext_temp$cexcl) != 0){
           break
         }
-        
+          
         if (j == 3) {
           warning("Failed to find alternative, skipping current simulation step(", i, ")")
           abort <- T
           # skip <- T
           break
           }
+        }
       }
-    }
+    
     if (!abort
         ) {
       if (rewiring) {
@@ -449,9 +463,11 @@ one.second.extinct.mod.aug <- function(web,
       }
     } else {
       retry <- retry + 1L
-      if (retry > 3L) {
-        warning("Max no. of retries for dead interactions reached, aborting")
-        break
+      if (terminate_early) {
+        if (retry > 3L) {
+          warning("Max no. of retries for dead interactions reached, aborting")
+          break
+        }
       }
     }
     
@@ -509,6 +525,9 @@ one.second.extinct.mod.aug <- function(web,
 
     # calculate new web w/ updated o_mat
     if (nrow(interactions) >= 2L | ncol(interactions) >= 2L) {
+      if (seed) {
+        set.seed(420)
+      }
       m2 <- matrix(rmultinom(1, Nobs, interactions), nrow = nrow(interactions),
                   ncol = ncol(interactions))
       dimnames(m2) <- dimnames(interactions)
@@ -571,7 +590,7 @@ one.second.extinct.mod.aug <- function(web,
   }
 
   # Add last line of dead
-  if (abort) {
+  if (abort & terminate_early) {
     dead2 <- NULL
   } else {
     dead2 <- rbind(dead, c(NROW(dead), tail(dead, 1)[, "n.lower"], tail(dead, 1)[, "n.higher"], 0L, 0L)) # add last line of dead (i.e. all sp extc)
