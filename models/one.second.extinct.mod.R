@@ -24,6 +24,22 @@ one.second.extinct.mod.aug <- function(web,
                                        coextc.thr = NULL,
                                        terminate_early = T,
                                        seed = F) {
+  if(!any(c("NULL", "abund", "phylo", "trait") %in% method.rewiring)) {
+    stop("\n Invalid rewiring method. Choose either NULL, abund, phylo or trait \n")
+  }
+  if(rewiring){
+    if(any(web%%1!=0)){
+      stop("\n If rewiring is TRUE the web must must contain only integers \n")
+    }
+    if(is.null(rownames(web)) | is.null(colnames(web))){
+      stop("\n If rewiring is TRUE the web must contain rownames and colnames\n")
+    }
+  }
+  
+  if (rewiring & method.rewiring == "NULL") {
+    stop("\n Invalid rewiring method. Please use either abund, phylo, or trait\n")
+  }
+  
   i <- 1L
   j <- 1L
   retry <- 1L # set counter for max retries for empty m2
@@ -40,20 +56,26 @@ one.second.extinct.mod.aug <- function(web,
   # drop sp w/o any interactions from web
   m2 <- web[sp_low, sp_high, drop = F]
   
-  # # set networks
-  # m2 <- web
+  # match web and interactions
+  interactions <- interactions[rownames(interactions) %in% rownames(m2), colnames(interactions) %in% colnames(m2)]
   
-  # # match web and interactions
-  # abund.partner.choice$low <- abund.partner.choice$low[names(abund.partner.choice$low) %in% rownames(web)]
-  # abund.partner.choice$high <- abund.partner.choice$high[names(abund.partner.choice$high) %in% colnames(web)]
-  # 
-  # trait.partner.choice$low <- trait.partner.choice$low[rownames(trait.partner.choice$low) %in% rownames(web), ]
-  # trait.partner.choice$high <- trait.partner.choice$high[rownames(trait.partner.choice$high) %in% colnames(web), ]
-  # 
-  # phylo.partner.choice$low <- phylo.partner.choice$low[rownames(phylo.partner.choice$low) %in% rownames(web),
-  #                                                      rownames(phylo.partner.choice$low) %in% rownames(web)]
-  # phylo.partner.choice$high <- phylo.partner.choice$high[colnames(phylo.partner.choice$high) %in% colnames(web),
-  #                                                        colnames(phylo.partner.choice$high) %in% colnames(web)]
+  # match web and partner choice
+  if (method.rewiring == "abund") {
+  abund.partner.choice$low <- abund.partner.choice$low[names(abund.partner.choice$low) %in% rownames(web)]
+  abund.partner.choice$high <- abund.partner.choice$high[names(abund.partner.choice$high) %in% colnames(web)]
+  }
+
+  if (method.rewiring == "trait") {
+  trait.partner.choice$low <- trait.partner.choice$low[rownames(trait.partner.choice$low) %in% rownames(web), ]
+  trait.partner.choice$high <- trait.partner.choice$high[rownames(trait.partner.choice$high) %in% colnames(web), ]
+  }
+
+  if (method.rewiring == "phylo") {
+  phylo.partner.choice$low <- phylo.partner.choice$low[rownames(phylo.partner.choice$low) %in% rownames(web),
+                                                       rownames(phylo.partner.choice$low) %in% rownames(web)]
+  phylo.partner.choice$high <- phylo.partner.choice$high[colnames(phylo.partner.choice$high) %in% colnames(web),
+                                                         colnames(phylo.partner.choice$high) %in% colnames(web)]
+  }
 
   # track no of shifts
   if (shift) {
@@ -100,17 +122,6 @@ one.second.extinct.mod.aug <- function(web,
                   "high" = rep(.5, ncol(m2)))
   }
 
-  if(!any(c("NULL", "abund", "phylo", "trait") %in% method.rewiring)) {
-    stop("\n Invalid rewiring method. Choose either NULL, abund, phylo or trait \n")
-  }
-  if(rewiring){
-    if(any(web%%1!=0)){
-      stop("\n If rewiring is TRUE the web must must contain only integers \n")
-    }
-    if(is.null(rownames(web)) | is.null(colnames(web))){
-      stop("\n If rewiring is TRUE the web must contain rownames and colnames\n")
-    }
-  }
   repeat {
     ext_temp <- extinction.mod(m2, participant = participant, method = method, ext.row = ext.row, ext.col = ext.col)
     # extinction.mod returns list w/ plants (rows; "rexcl") that lost partners and
@@ -526,6 +537,7 @@ one.second.extinct.mod.aug <- function(web,
       if (participant == "lower") {
         interactions <- interactions[-which(rownames(interactions) == sp_ext), , drop = F]
       }
+      #cat(dim(interactions)) #cfd
       
       if (participant == "higher") {
         interactions <- interactions[, -which(colnames(interactions) == sp_ext), drop = F]
@@ -592,22 +604,132 @@ one.second.extinct.mod.aug <- function(web,
     # renormalize interactions
     interactions <- interactions/sum(interactions)
 
+    ##Debugging
+    old_int <- interactions
+    old_m2 <- m2
+    
     # calculate new web w/ updated o_mat
-    if (nrow(interactions) >= 2L | ncol(interactions) >= 2L) {
-      if (seed) {
-        set.seed(420)
+    if (nrow(interactions) >= 2L & ncol(interactions) >= 2L) {
+      # delete extinct species from network when no rewiring
+      m2 <- ext_temp$web[rem_low, rem_high]
+      
+      if (rewiring) {
+        if (seed) {
+          set.seed(420)
+        } # Redraw "observed" interactions when species rewired
+        if (participant == "lower") {
+          # number of interactions of extc. sp
+          Nobs <- sum(ext_temp$rexcl)
+          
+          # check if sp are secondarily extinct and delete from sp_try_rewiring
+          # if necessary
+          coextinct <- sp_try_rewiring[which(sp_try_rewiring %in% rem_high == F)]
+          
+          if (length(coextinct) > 0) { # change sp_try_rewring when one sp is coextc.
+            sp_try_rewiring <- sp_try_rewiring[-which(sp_try_rewiring %in% coextinct)]
+            
+            # If only one sp from sp try rewiring had interactions and is coextinct skip
+            if (!length(sp_try_rewiring) == 0) {
+            
+            if (method.rewiring == "abund") {
+                interactions_abund <- interactions_abund[sp_try_rewiring]
+              }
+              if (method.rewiring == "trait") {
+                interactions_trait <- interactions_trait[sp_try_rewiring]
+              }
+              if (method.rewiring == "phylo") {
+                interactions_phylo <- interactions_phylo[sp_try_rewiring]
+              }
+
+              # number of interactions of extc. sp corrected for coextc sp
+              Nobs <- sum(ext_temp$rexcl) - ext_temp$rexcl[which(colnames(ext_temp$web) %in% coextinct)]
+            }
+            
+          # If only one sp from sp try rewiring had interactions and is coextinct skip
+          if (!length(sp_try_rewiring) == 0) {
+            if (method.rewiring == "abund") {
+              m2[abund_rew_partner, sp_try_rewiring] <- m2[abund_rew_partner,
+                                                           sp_try_rewiring] +
+                floor(matrix(rmultinom(1, Nobs, interactions_abund), nrow = 1,
+                             ncol = length(interactions_abund))/2)
+              }  
+              
+            if (method.rewiring == "trait") {
+              m2[trait_rew_partner, sp_try_rewiring] <- m2[trait_rew_partner,
+                                                           sp_try_rewiring] +
+                floor(matrix(rmultinom(1, Nobs, interactions_trait), nrow = 1,
+                  ncol = length(interactions_trait))/2)
+              }
+              
+            if (method.rewiring == "phylo") {
+              m2[phylo_rew_partner, sp_try_rewiring] <- m2[phylo_rew_partner,
+                                                            sp_try_rewiring] +
+                floor(matrix(rmultinom(1, Nobs, interactions_phylo), nrow = 1,
+                  ncol = length(interactions_phylo))/2)
+              }
+            }
+          }
+        }
+        
+        if (participant == "higher") {
+          # number of interactions of extc. sp
+          Nobs <- sum(ext_temp$cexcl)
+          
+          # check if sp are secondarily extinct and delete from sp_try_rewiring
+          # if necessary
+          coextinct <- sp_try_rewiring[which(sp_try_rewiring %in% rem_low == F)]
+          
+          if (length(coextinct) > 0) { # only change when sp is coextc.
+            sp_try_rewiring <- sp_try_rewiring[-which(sp_try_rewiring %in% coextinct)]
+            
+            # If only one sp from sp try rewiring had interactions and is coextinct: skip
+            if (!length(sp_try_rewiring) == 0) {
+              if (method.rewiring == "abund") {
+                  interactions_abund <- interactions_abund[sp_try_rewiring]
+                }
+                if (method.rewiring == "trait") {
+                  interactions_trait <- interactions_trait[sp_try_rewiring]
+                }
+                if (method.rewiring == "phylo") {
+                  interactions_phylo <- interactions_phylo[sp_try_rewiring]
+                }
+                # # number of interactions of extc. sp corrected for coextc sp
+                Nobs <- sum(ext_temp$cexcl) - ext_temp$cexcl[which(rownames(ext_temp$web) %in% coextinct)]
+            }
+            
+          # If only one sp from sp try rewiring had interactions and is coextinct skip
+          if (!length(sp_try_rewiring) == 0) {
+            if (method.rewiring == "abund") {
+              m2[sp_try_rewiring, abund_rew_partner] <- m2[sp_try_rewiring, 
+                                                            abund_rew_partner] +
+                floor(matrix(rmultinom(1, Nobs, interactions_abund), nrow = 1,
+                  ncol = length(interactions_abund))/2)
+              }  
+              
+            if (method.rewiring == "trait") {
+              m2[sp_try_rewiring, trait_rew_partner] <- m2[sp_try_rewiring, 
+                                                            trait_rew_partner] +
+                floor(matrix(rmultinom(1, Nobs, interactions_trait), nrow = 1,
+                  ncol = length(interactions_trait))/2)
+              }
+              
+            if (method.rewiring == "phylo") {
+              m2[sp_try_rewiring, phylo_rew_partner] <- m2[sp_try_rewiring, 
+                                                            phylo_rew_partner] +
+                floor(matrix(rmultinom(1, Nobs, interactions_phylo), nrow = 1,
+                  ncol = length(interactions_phylo))/2)
+              }
+            }
+          }
+        }
+            
+        # # get dead interactions
+        # dead_low <- which(rowSums(m2) == 0L)
+        # dead_high <- which(colSums(m2) == 0L)
+        } 
+      } else {
+        break
       }
-      m2 <- matrix(rmultinom(1, Nobs, interactions), nrow = nrow(interactions),
-                  ncol = ncol(interactions))
-      dimnames(m2) <- dimnames(interactions)
-      
-      # get dead interactions
-      dead_low <- which(rowSums(m2) == 0L)
-      dead_high <- which(colSums(m2) == 0L)
-      
-    } else {
-      break
-    }
     
     # update partners for tracking shifts
     if (shift) {
@@ -686,4 +808,3 @@ one.second.extinct.mod.aug <- function(web,
   }
   return(out)
 }
-
