@@ -84,18 +84,19 @@ ggsave("h2'_all.pdf",
        units = "cm")
 
 # Percentage singletons by com_vars
-ps_by_cv <- ggboxplot(data = auc_all, x = "com_vars", y = "p_single", 
-          #color = "group", palette = "npg",
+ps_by_cv <- ggboxplot(data = auc_all, x = "lvl", y = "p_single", 
+          color = "com_vars", palette = "npg",
           outlier.shape = NA,
           add = "mean",
           add.params = list(size = .2),
-          order = c( "org", "Atl", "aTl", "atL", "atl", "ATL"),
           ylab = "Percentage of singletons",
-          xlab = "Community variable importances",
-          legend = "none",
+          xlab = "Species removed",
           ylim = c(0, .4)) +
-  theme(text = element_text(size = 20), aspect.ratio = 1) +
-  scale_x_discrete(labels = c("Original", "Atl", "aTl", "atL", "atl", "ATL"))
+  theme(text = element_text(size = 20), aspect.ratio = 1,
+        legend.position = "bottom")  +
+  scale_x_discrete(labels = c("Lower level", "Higher level")) +
+  scale_color_discrete(name = "Community variable importance",
+                       labels = c("Original", "Atl", "aTl", "atL", "atl", "ATL"))
 
 ggsave("ps_by_com_vars.pdf",
        path = paste0(getwd(), "/plot_sink"),
@@ -109,28 +110,69 @@ ggsave("ps_by_com_vars.pdf",
 titles <- c(names(ctrbs), "org")
 names(titles) <- c(names(ctrbs), "Original")
 
-r_by_ps <- map(names(ctrbs), ~ group_by(auc_all, web_no, com_vars) %>%
-  summarise(m_r = mean(robustness, na.rm = T),
-            m_p_s = mean(p_single)) %>% filter(., com_vars == .x) %>% 
-    ggplot(aes(m_p_s, m_r), data = .) + 
-    geom_point() +
-    labs(title = .x,
-         x = "Mean percentage of singletons",
-         y = "Mean Robustness"))
+auc_all_lower$com_vars <- factor(auc_all_lower$com_vars, 
+                                    levels = c("org", "Atl", "aTl", "atL", "atl", "ATL"))
 
-r_by_ps_lower_org <- group_by(auc_all, web_no, com_vars) %>%
-  filter(., com_vars == "org") %>% 
+r_by_ps_lower <- group_by(auc_all_lower, web_no, com_vars) %>%
   summarise(m_r = mean(robustness, na.rm = T),
-            m_p_s = mean(p_single)) %>% 
-  ggplot(aes(m_p_s, m_r), data = .) + 
-  geom_point() +
-  labs(title = "Original",
-       x = "Mean percentage of singletons",
-       y = "Mean Robustness")
+            m_p_s = mean(p_single)) %>%
+  ggplot(aes(m_p_s, m_r), data = .) +
+  geom_point(aes(color = com_vars)) +
+  facet_wrap(vars(com_vars), scale = "free",
+             labeller = as_labeller(c("org" = "Original", "Atl" = "Atl", 
+                                      "aTl" = "aTl", "atL" = "atL",
+                                      "atl" = "atl", "ATL" = "ATL"))) +
+  labs(x = "Mean percentage of singletons",
+       y = "Robustness") +
+  scale_color_manual(values = c("#1b9e77",
+                                "#d95f02",
+                                "#7570b3",
+                                "#e7298a",
+                                "#66a61e",
+                                "#e6ab02")) +
+  theme(text = element_text(size = 20), aspect.ratio = 1,
+        legend.position = "none")
 
-ggarrange(r_by_ps_lower_org, r_by_ps_lower[[1]], r_by_ps_lower[[2]],
-          r_by_ps_lower[[3]], r_by_ps_lower[[4]], r_by_ps_lower[[5]],
-          nrow = 2, ncol = 3)
+ggsave("r_by_ps_lower.pdf",
+       path = paste0(getwd(), "/plot_sink"),
+       plot = r_by_ps_lower,
+       device = "pdf",
+       width = 28.7,
+       height = 20,
+       units = "cm")
+
+
+auc_all_higher$com_vars <- factor(auc_all_higher$com_vars, 
+                                 levels = c("org", "Atl", "aTl", "atL", "atl", "ATL"))
+
+r_by_ps_higher <- group_by(auc_all_higher, web_no, com_vars) %>%
+  summarise(m_r = mean(robustness, na.rm = T),
+            m_p_s = mean(p_single)) %>%
+  ggplot(aes(m_p_s, m_r), data = .) +
+  geom_point(aes(color = com_vars)) +
+  facet_wrap(vars(com_vars), scale = "free",
+             labeller = as_labeller(c("org" = "Original", "Atl" = "Atl", 
+                                      "aTl" = "aTl", "atL" = "atL",
+                                      "atl" = "atl", "ATL" = "ATL"))) +
+  labs(x = "Mean percentage of singletons",
+       y = "Robustness") +
+  scale_color_manual(values = c("#1b9e77",
+                                "#d95f02",
+                                "#7570b3",
+                                "#e7298a",
+                                "#66a61e",
+                                "#e6ab02")) +
+  theme(text = element_text(size = 20), aspect.ratio = 1,
+        legend.position = "none")
+
+ggsave("r_by_ps_higher.pdf",
+       path = paste0(getwd(), "/plot_sink"),
+       plot = r_by_ps_higher,
+       device = "pdf",
+       width = 28.7,
+       height = 20,
+       units = "cm")
+
 ## visualize extinction models ----
 
 # count no of NULL in sims
@@ -706,20 +748,30 @@ Anova(aov_hi, type = "III")
 # Anova(aov_both, type = "III")
 
 # by com_vars
-map(c(names(ctrbs), "org"), ~
-      aov(robustness ~ nrow + ncol + rew *H2,
-          data = filter(auc_all_lower, com_vars == .x))) # lower
-map(c(names(ctrbs), "org"), ~
-      aov(robustness ~ nrow + ncol + rew * H2,
-          data = filter(auc_all_higher, com_vars == .x))) # higher
+aov_cv_low <- map(c(names(ctrbs), "org"), ~
+      summary(aov(robustness ~ nrow + ncol + rew *H2,
+          data = filter(auc_all_lower, com_vars == .x)))) # lower
+aov_cv_high <- map(c(names(ctrbs), "org"), ~
+      summary(aov(robustness ~ nrow + ncol + rew * H2,
+          data = filter(auc_all_higher, com_vars == .x)))) # higher
+
+## extract R2 for each predictor of each scenario
+map(1:6, function(x) {# map scenarios
+  map(1:6, ~ aov_cv_low[[x]][[1]]$"Sum Sq"[.x] / sum(aov_cv_low[[x]][[1]]$"Sum Sq"))
+})
 
 # by rew
-map(unique(auc_all_lower$rew), ~
-      aov(robustness ~ nrow + ncol + com_vars,
-          data = filter(auc_all_lower, rew == .x))) # lower
-map(unique(auc_all_lower$rew), ~
-      aov(robustness ~ nrow + ncol + com_vars,
-          data = filter(auc_all_higher, rew == .x))) # higher
+aov_rew_low <- map(unique(auc_all_lower$rew), ~
+        summary(aov(robustness ~ nrow + ncol + com_vars + H2,
+          data = filter(auc_all_lower, rew == .x)))) # lower
+aov_rew_high <- map(unique(auc_all_lower$rew), ~
+        summary(aov(robustness ~ nrow + ncol + com_vars + H2,
+          data = filter(auc_all_higher, rew == .x)))) # higher
+
+## extract R2 for each predictor of each scenario
+map(1:6, function(x) {# map scenarios
+  map(1:5, ~ aov_rew_low[[x]][[1]]$"Sum Sq"[.x] / sum(aov_rew_low[[x]][[1]]$"Sum Sq")*100)
+})
 
 # AUC boxplots
 auc_boxplot(auc_all, x.axis = "rew")

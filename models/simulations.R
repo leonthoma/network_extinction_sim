@@ -93,7 +93,10 @@ sims <- modify_depth(sims, 1,
                                            "atl",
                                            "ATL")))
 
-### Need to also crop interaction mat to size of clean sims !!
+init_sims <- map(seq(n_webs), function(x) {
+  list("web" = pluck(init_sim_web, x), 
+                    "I_mat" = pluck(init_sim, x, "networks", 1,  "I_mat"))
+})
 
 # # Create tapnet from tinoco data
 # data(Tinoco)
@@ -127,6 +130,34 @@ sims <- modify_depth(sims, 1,
 
 
 ### rewiring partner choice ----
+# # abundances
+# abunds <- map(seq(n_webs), function(x) {
+#   list("low" = pluck(init_sim, x)$networks[[1]]$abuns$low[names(pluck(init_sim, x)$networks[[1]]$abuns$low) %in% rownames(pluck(init_sims, x, "web"))],
+#        "high" = pluck(init_sim, x)$networks[[1]]$abuns$high[names(pluck(init_sim, x)$networks[[1]]$abuns$high) %in% colnames(pluck(init_sims, x, "web"))])
+#   })
+# 
+# # abunds_tin <- pluck(tin_init$networks, 1, "abuns")
+# 
+# # traits 
+# traits <- map(seq(n_webs), function(x) {
+#   list("low" = pluck(init_sim, x)$networks[[1]]$traits$low[rownames(pluck(init_sim, x)$networks[[1]]$traits$low) %in% rownames(pluck(init_sims, x, "web")),],
+#        "high" = pluck(init_sim, x)$networks[[1]]$traits$high[rownames(pluck(init_sim, x)$networks[[1]]$traits$high) %in% colnames(pluck(init_sims, x, "web")),])
+# })
+# # traits_tin <- pluck(tin_init$networks, 1, "traits")
+# 
+# # phylogenetic distances
+# library(ape)
+# 
+# phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$trees$low), 
+#                                   "high" = cophenetic.phylo(pluck(init_sim, .x)$trees$high)))
+# 
+# phylos <- map(seq(n_webs), function(x) {
+#   list("low" = pluck(phylos, x)$low[rownames(pluck(phylos, x)$low) %in% rownames(pluck(init_sims, x, "web")),
+#                                     colnames(pluck(phylos, x)$low) %in% rownames(pluck(init_sims, x, "web"))],
+#        "high" = pluck(phylos, x)$high[rownames(pluck(phylos, x)$high) %in% colnames(pluck(init_sims, x, "web")),
+#                                      colnames(pluck(phylos, x)$high) %in% colnames(pluck(init_sims, x, "web"))])
+# })
+
 # abundances
 abunds <- map(seq(n_webs), ~ pluck(init_sim, .x)$networks[[1]]$abuns)
 # abunds_tin <- pluck(tin_init$networks, 1, "abuns")
@@ -159,14 +190,14 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
          .y = c("abund", "trait", "phylo"),
          ~ replicate(n_sims, simplify = F,
                      one.second.extinct.mod.aug(
-                       web = pluck(init_sim, x)$networks[[1]]$web,
+                       web = pluck(init_sims, x, "web"),
                        participant = "lower",
                        method = "random",
                        rewiring = T,
                        abund.partner.choice = pluck(.x, x),
                        trait.partner.choice = pluck(.x, x),
                        phylo.partner.choice = pluck(.x, x),
-                       interactions = pluck(init_sim, x)$networks[[1]]$I_mat,
+                       interactions = pluck(init_sims, x, "I_mat"),
                        method.rewiring = .y, 
                        coextc.thr = coextc_thr)))})
   
@@ -178,14 +209,14 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
          .y = c("abund", "trait", "phylo"),
          ~ replicate(n_sims, simplify = F,
                      one.second.extinct.mod.aug(
-                       web = pluck(init_sim, x)$networks[[1]]$web,
+                       web = pluck(init_sims, x, "web"),
                        participant = "higher",
                        method = "random",
                        rewiring = T,
                        abund.partner.choice = pluck(.x, x),
                        trait.partner.choice = pluck(.x, x),
                        phylo.partner.choice = pluck(.x, x),
-                       interactions = pluck(init_sim, x)$networks[[1]]$I_mat,
+                       interactions = pluck(init_sims, x, "I_mat"),
                        method.rewiring = .y, 
                        coextc.thr = coextc_thr)))})
 
@@ -193,14 +224,14 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
   extc_sims_lower_org_norew <- map(seq(n_webs), function(x) {
     replicate(n_sims, simplify = F,
               one.second.extinct.mod.aug(
-                web = pluck(init_sim, x)$networks[[1]]$web,
+                web = pluck(init_sims, x, "web"),
                 participant = "lower",
                 method = "random",
                 rewiring = F,
                 abund.partner.choice = NULL,
                 trait.partner.choice = NULL,
                 phylo.partner.choice = NULL,
-                interactions = pluck(init_sim, x)$networks[[1]]$I_mat,
+                interactions = pluck(init_sims, x, "I_mat"),
                 method.rewiring = "NULL", 
                 coextc.thr = coextc_thr))})
   
@@ -208,28 +239,28 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
   extc_sims_higher_org_norew <- map(seq(n_webs), function(x) {
     replicate(n_sims, simplify = F,
               one.second.extinct.mod.aug(
-                web = pluck(init_sim, x)$networks[[1]]$web,
+                web = pluck(init_sims, x, "web"),
                 participant = "higher",
                 method = "random",
                 rewiring = F,
                 abund.partner.choice = NULL,
                 trait.partner.choice = NULL,
                 phylo.partner.choice = NULL,
-                interactions = pluck(init_sim, x)$networks[[1]]$I_mat,
+                interactions = pluck(init_sims, x, "I_mat"),
                 method.rewiring = "NULL", 
                 coextc.thr = coextc_thr))})
   
   # initial extinction on lower level; original AT rewiring
   extc_sims_lower_org_AT <- map(seq(n_webs), function(x) {
     replicate(n_sims, simplify = F,
-              one.second.extinct.mod.aug(web = pluck(init_sim, x)$networks[[1]]$web,
+              one.second.extinct.mod.aug(web = pluck(init_sims, x, "web"),
                                          participant = "lower",
                                          method = "random",
                                          rewiring = T,
                                          abund.partner.choice = pluck(abunds, x),
                                          trait.partner.choice = pluck(traits, x),
                                          phylo.partner.choice = NULL, 
-                                         interactions = pluck(init_sim, x)$networks[[1]]$I_mat,
+                                         interactions = pluck(init_sims, x, "I_mat"),
                                          method.rewiring = c("abund", "trait"),
                                          coextc.thr = coextc_thr))
   })
@@ -237,14 +268,14 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
   # initial extinction on higher level; original AT rewiring
   extc_sims_higher_org_AT <- map(seq(n_webs), function(x) {
     replicate(n_sims, simplify = F,
-              one.second.extinct.mod.aug(web = pluck(init_sim, x)$networks[[1]]$web,
+              one.second.extinct.mod.aug(web = pluck(init_sims, x, "web"),
                                          participant = "higher",
                                          method = "random",
                                          rewiring = T,
                                          abund.partner.choice = pluck(abunds, x),
                                          trait.partner.choice = pluck(traits, x),
                                          phylo.partner.choice = NULL, 
-                                         interactions = pluck(init_sim, x)$networks[[1]]$I_mat,
+                                         interactions = pluck(init_sims, x, "I_mat"),
                                          method.rewiring = c("abund", "trait"),
                                          coextc.thr = coextc_thr))
   })
@@ -252,14 +283,14 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
   # initial extinction on lower level; original AP rewiring
   extc_sims_lower_org_AP <- map(seq(n_webs), function(x) {
     replicate(n_sims, simplify = F,
-              one.second.extinct.mod.aug(web = pluck(init_sim, x)$networks[[1]]$web,
+              one.second.extinct.mod.aug(web = pluck(init_sims, x, "web"),
                                          participant = "lower",
                                          method = "random",
                                          rewiring = T,
                                          abund.partner.choice = pluck(abunds, x),
                                          trait.partner.choice = NULL,
                                          phylo.partner.choice = pluck(phylos, x), 
-                                         interactions = pluck(init_sim, x)$networks[[1]]$I_mat,
+                                         interactions = pluck(init_sims, x, "I_mat"),
                                          method.rewiring = c("abund", "phylo"),
                                          coextc.thr = coextc_thr))
   })
@@ -267,14 +298,14 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
   # initial extinction on higher level; original AP rewiring
   extc_sims_higher_org_AP <- map(seq(n_webs), function(x) {
     replicate(n_sims, simplify = F,
-              one.second.extinct.mod.aug(web = pluck(init_sim, x)$networks[[1]]$web,
+              one.second.extinct.mod.aug(web = pluck(init_sims, x, "web"),
                                          participant = "higher",
                                          method = "random",
                                          rewiring = T,
                                          abund.partner.choice = pluck(abunds, x),
                                          trait.partner.choice = NULL,
                                          phylo.partner.choice = pluck(phylos, x), 
-                                         interactions = pluck(init_sim, x)$networks[[1]]$I_mat,
+                                         interactions = pluck(init_sims, x, "I_mat"),
                                          method.rewiring = c("abund", "phylo"),
                                          coextc.thr = coextc_thr))
   })
@@ -504,8 +535,6 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
   #                                        interactions = pluck(tin, "I_mat"),
   #                                        method.rewiring = "NULL",
   #                                        coextc_thr = coextc_thr))
-
-
   
 ### calculate remaining species ----  
 ## original web ----
@@ -719,12 +748,12 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
   lower_org_sims_df_mean <- map(1:3, ~ data.frame("x" = rowMeans(pluck(sp_remain_lower_org_sims,1 ,"lower", .x)),
                                                   "y" = rowMeans(pluck(sp_remain_lower_org_sims, 1, "higher", .x))))
   
-  lower_org_sims_df <- map(seq(n_webs), ~list_to_df2(sp_remain_lower_org_sims[[.x]], org = T))
-  
-  lower_org_sims_df_mean <- map(seq(n_webs), function(x) {
-    map(1:3, ~ data.frame("x" = rowMeans(pluck(sp_remain_lower_org_sims, x ,"lower", .x))%>% rev(),
-                          "y" = rowMeans(pluck(sp_remain_lower_org_sims, x, "higher", .x))))%>% bind_rows(., .id = "id")
-  }) %>% bind_rows(., .id = "web")
+  # lower_org_sims_df <- map(seq(n_webs), ~list_to_df2(sp_remain_lower_org_sims[[.x]], org = T))
+  # 
+  # lower_org_sims_df_mean <- map(seq(n_webs), function(x) {
+  #   map(1:3, ~ data.frame("x" = rowMeans(pluck(sp_remain_lower_org_sims, x ,"lower", .x))%>% rev(),
+  #                         "y" = rowMeans(pluck(sp_remain_lower_org_sims, x, "higher", .x))))%>% bind_rows(., .id = "id")
+  # }) %>% bind_rows(., .id = "web")
   
   # higher org
   higher_org_sims_df <- list_to_df2(sp_remain_higher_org_sims[[1]], org = T)
@@ -877,7 +906,7 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
         data.table("robustness" = .) %>% 
         cbind("rew" = rew_names[y]) %>% 
         cbind("com_vars" = "org") %>% 
-        cbind("p_single" = singleton(pluck(init_sim_web, x))) %>% 
+        cbind("p_single" = singleton(pluck(init_sim_web, x), lower = F)) %>% 
         cbind("web_no" = x) %>% 
         cbind("H2" = H2_org[[x]])
     }) %>% bind_rows()
@@ -919,7 +948,7 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
       data.table("robustness" = .) %>% 
       cbind("rew" = "norew") %>%
       cbind("com_vars" = "org") %>% 
-      cbind("p_single" = singleton(pluck(init_sim_web, x))) %>% 
+      cbind("p_single" = singleton(pluck(init_sim_web, x), lower = F)) %>% 
       cbind("web_no" = x) %>% 
       cbind("H2" = H2_org[[x]])})
   
@@ -957,7 +986,7 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
       data.table("robustness" = .) %>% 
       cbind("rew" = "abundtrait") %>%
       cbind("com_vars" = "org") %>% 
-      cbind("p_single" = singleton(pluck(init_sim_web, x))) %>% 
+      cbind("p_single" = singleton(pluck(init_sim_web, x), lower = F)) %>% 
       cbind("web_no" = x) %>% 
       cbind("H2" = H2_org[[x]])})
   
@@ -995,7 +1024,7 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
       data.table("robustness" = .) %>% 
       cbind("rew" = "abundphylo") %>%
       cbind("com_vars" = "org") %>% 
-      cbind("p_single" = singleton(pluck(init_sim_web, x))) %>% 
+      cbind("p_single" = singleton(pluck(init_sim_web, x), lower = F)) %>% 
       cbind("web_no" = x) %>% 
       cbind("H2" = H2_org[[x]])})
   
@@ -1033,43 +1062,6 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
                 rep(., nrow(pluck(auc_lower[[x]]))))
   }) %>% bind_rows()
   
-# ####### testing singleton plot 
-#   single_lower <- map(seq(n_webs), function(x) {
-#     map(.x = 1:3, function(y) {
-#       map(.x = ctrbs, function(z) {
-#         map(seq(ncol(pluck(sp_remain_lower_sims, x, "lower", y, z))), function(.x) {
-#           auc(x = pluck(sp_remain_lower_sims, x,  "lower", y, z)[, .x] %>%
-#                 rev(),
-#               y = pluck(sp_remain_lower_sims, x,  "higher", y, z)[, .x])}) %>% 
-#           unlist %>% 
-#           data.table("robustness" = .) %>% 
-#           cbind("com_vars" = names(ctrbs)[z]) %>% 
-#           cbind("p_single" = singleton(pluck(sims, x, z, "web"))) %>% 
-#           cbind("web_no" = x) %>% 
-#           cbind("H2" = H2fun(pluck(sims, x, z, "web"))[["H2"]])
-#       }) %>% bind_rows() %>% 
-#         cbind("rew" = rew_names[y])
-#     }) %>% bind_rows()
-#   })
-#   
-#   single_lower_mean <- group_by(single_lower, web_no, rew) %>%
-#     summarise(m_r = mean(robustness, na.rm = T),
-#               m_p_s = mean(p_single))
-#   
-#   single_lower_org <- 
-#   
-#  ggplot(aes(m_p_s, m_r, color = rew), data = single_lower_mean) +
-#    geom_point() +
-#    scale_color_manual(name = "Rewiring method", values = c("#1b9e77",
-#                                                              "#d95f02",
-#                                                              "#7570b3",
-#                                                              "#e7298a",
-#                                                              "#66a61e",
-#                                                              "#e6ab02"))
-#    
-#   
-# ####### end testing  
-  
   # higher
   auc_higher <- map(seq(n_webs), function(x) {
     map(.x = 1:3, function(y) {
@@ -1081,7 +1073,7 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
           unlist %>% 
           data.table("robustness" = .) %>% 
           cbind("com_vars" = names(ctrbs)[z]) %>% 
-          cbind("p_single" = singleton(pluck(sims, x, z, "web"))) %>% 
+          cbind("p_single" = singleton(pluck(sims, x, z, "web"), lower = F)) %>% 
           cbind("web_no" = x) %>% 
           cbind("H2" = pluck(H2, x, z))
       }) %>% bind_rows() %>% 
@@ -1133,7 +1125,7 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
         data.table("robustness" = .) %>% 
         cbind("com_vars" = names(ctrbs)[y]) %>% 
         cbind("rew" = "norew") %>% 
-        cbind("p_single" = singleton(pluck(sims, x, y, "web"))) %>% 
+        cbind("p_single" = singleton(pluck(sims, x, y, "web"), lower = F)) %>% 
         cbind("web_no" = x) %>% 
         cbind("H2" = pluck(H2, x, y))
     }) %>% bind_rows()
@@ -1183,7 +1175,7 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
         data.table("robustness" = .) %>% 
         cbind("com_vars" = names(ctrbs)[y]) %>% 
         cbind("rew" = "abundtrait") %>% 
-        cbind("p_single" = singleton(pluck(sims, x, y, "web"))) %>% 
+        cbind("p_single" = singleton(pluck(sims, x, y, "web"), lower = F)) %>% 
         cbind("web_no" = x) %>% 
         cbind("H2" = pluck(H2, x, y))
     }) %>% bind_rows()
@@ -1233,7 +1225,7 @@ phylos <- map(seq(n_webs), ~ list("low" = cophenetic.phylo(pluck(init_sim, .x)$t
         data.table("robustness" = .) %>% 
         cbind("com_vars" = names(ctrbs)[y]) %>% 
         cbind("rew" = "abundphylo") %>% 
-        cbind("p_single" = singleton(pluck(sims, x, y, "web"))) %>% 
+        cbind("p_single" = singleton(pluck(sims, x, y, "web"), lower = F)) %>% 
         cbind("web_no" = x) %>% 
         cbind("H2" = pluck(H2, x, y))
     }) %>% bind_rows()

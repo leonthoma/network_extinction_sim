@@ -14,7 +14,9 @@ run_extc <- function(web,
                      n_sims = 0,
                      multiple.webs = F,
                      make.bipartite = F,
-                     coextc.thr = NULL
+                     coextc.thr = NULL,
+                     terminate_early = T,
+                     seed = F
                      ) {
   if (multiple.webs == T) {
    map(.x = seq(ctrbs),
@@ -29,7 +31,9 @@ run_extc <- function(web,
                                                    interactions = pluck(interactions, .x, "I_mat"),
                                                    method.rewiring = method.rewiring,
                                                    make.bipartite = make.bipartite,
-                                                   coextc.thr = coextc.thr)))
+                                                   coextc.thr = coextc.thr,
+                                                   terminate_early = terminate_early,
+                                                   seed = seed)))
   } else {
   map(web, ~replicate(n_sims, simplify = F, 
                       one.second.extinct.mod.aug(web = pluck(.x, 1), 
@@ -42,7 +46,9 @@ run_extc <- function(web,
                                                  interactions = pluck(.x, 2),
                                                  method.rewiring = method.rewiring,
                                                  make.bipartite = make.bipartite,
-                                                 coextc.thr = coextc.thr)))
+                                                 coextc.thr = coextc.thr,
+                                                 terminate_early = terminate_early,
+                                                 seed = seed)))
   }
 }
 
@@ -58,12 +64,12 @@ list_mean <- function(x, y, lower = T, original = F) {
     if (lower == T) {
       # mean of n.lower
       out <- pluck(x, y) %>% as.data.table(.) %>% 
-        select(., contains(c("no", "n.lower"))) %>%
+        dplyr::select(., contains(c("no", "n.lower"))) %>%
         replace_duplicate(.) %>% rowMeans(., na.rm = T)
     } else {
       # mean of n.higher
       out <- pluck(x, y) %>% as.data.table(.) %>% 
-        select(., contains(c("no", "n.higher"))) %>%
+        dplyr::select(., contains(c("no", "n.higher"))) %>%
         replace_duplicate(.) %>% rowMeans(., na.rm = T)
     }  
   } else {
@@ -71,13 +77,13 @@ list_mean <- function(x, y, lower = T, original = F) {
       # mean of n.lower
       out <- map(c("Atl" = 1, "aTl" = 2, "atL" = 3, "atl" = 4),
                  ~ pluck(x, y, .x) %>% as.data.table(.) %>% 
-                   select(., contains(c("no", "n.lower"))) %>%
+                   dplyr::select(., contains(c("no", "n.lower"))) %>%
                    replace_duplicate(.) %>% rowMeans(., na.rm = T))
     } else {
       # mean of n.higher
       out <- map(c("Atl" = 1, "aTl" = 2, "atL" = 3, "atl" = 4),
                  ~ pluck(x, y, .x) %>% as.data.table(.) %>% 
-                   select(., contains(c("no", "n.higher"))) %>%
+                   dplyr::select(., contains(c("no", "n.higher"))) %>%
                    replace_duplicate(.) %>% rowMeans(., na.rm = T))
     }
   }
@@ -89,18 +95,18 @@ list_mean <- function(x, y, lower = T, original = F) {
 
 replace_duplicate <- function(x) {
   # get length of each df; add 1 to match no with actual length
-  lens <- select(x, contains("no")) %>%
+  lens <- dplyr::select(x, contains("no")) %>%
     map_dbl(., ~ max(.x) + 1)  
   max_len <- max(lens) # max length of all dfs
   
   # Do nothing if all sims have equal length
   if (all(max_len == lens)) {
-    return(as.data.table(x) %>% select(., contains("n.")))
+    return(as.data.table(x) %>% dplyr::select(., contains("n.")))
   } else {
   # for shorter dfs replace recycled values with 0s
-  out <- map2(.x = select(x, contains("n.")), .y = lens, ~ replace(.x, .y:max_len, values = NA))
+  out <- map2(.x = dplyr::select(x, contains("n.")), .y = lens, ~ replace(.x, .y:max_len, values = NA))
   
-  return(as.data.table(out) %>% select(., contains("n.")))
+  return(as.data.table(out) %>% dplyr::select(., contains("n.")))
   }
 }
 
@@ -116,8 +122,11 @@ match_lengths <- function(x, df = T) {
 
 # helper function used in per_surv
 list_divide <- function(x) {
-  x / x[1] * 100 %>% 
-    replace(., is.nan(.), 0)
+  if (is.null(coextc_thr)) {
+    replace(x, is.nan(x), 0) / replace(x, is.nan(x), 0)[1] * 100 
+  } else {
+  replace(x, is.na(x), 0) / replace(x, is.na(x), 0)[1] * 100 
+  }
 }
 
 # function to calculate percentages of remaining species
@@ -176,10 +185,10 @@ plot_extc_facet <- function(extc, ci, extc_norew, ci_norew, org, org_norew, ci_o
   
   # create df for ggplot
   df <- cbind(ci,
-             select(extc, -c("id", "com_vars"))) %>% 
+             dplyr::select(extc, -c("id", "com_vars"))) %>% 
     tidyr::unite(., col = "group", c("id", "com_vars"), remove = F)
   
-  df_org <- cbind(ci_org, select(org, -c("id", "com_vars")))
+  df_org <- cbind(ci_org, dplyr::select(org, -c("id", "com_vars")))
   
   # set grouping variable to factor
     df$group <- factor(df$group, levels = c("abund_Atl", "abund_aTl", "abund_atL",
@@ -980,7 +989,7 @@ list_to_df <- function(x, org = F, norew = F, ci = F) {
                 melt(., id.vars = ".id",
                      value.name = "y_lower",
                      variable.name = "com_vars")) %>% 
-          select(., -c(4,5)) %>% 
+          dplyr::select(., -c(4,5)) %>% 
           setNames(., c("id", "com_vars", "x_lower", "y_lower")) %>% 
         bind_rows()
       
@@ -994,11 +1003,11 @@ list_to_df <- function(x, org = F, norew = F, ci = F) {
                 melt(., id.vars = ".id",
                      value.name = "y_higher",
                      variable.name = "com_vars")) %>% 
-          select(., -c(4,5)) %>% 
+          dplyr::select(., -c(4,5)) %>% 
           setNames(., c("id", "com_vars", "x_higher", "y_higher")) %>% 
         bind_rows()
       
-      out <- cbind(lower, select(higher, -c(1, 2)))
+      out <- cbind(lower, dplyr::select(higher, -c(1, 2)))
     } else {
       # make ci df 
       lower <- map(1:3, function(y) {
@@ -1012,7 +1021,7 @@ list_to_df <- function(x, org = F, norew = F, ci = F) {
                 melt(., id.vars = ".id",
                      value.name = "y_lower",
                      variable.name = "com_vars")) %>% 
-          select(., -c(4,5)) %>% 
+          dplyr::select(., -c(4,5)) %>% 
           setNames(., c("id", "com_vars", "x_lower", "y_lower"))}) %>% 
         bind_rows()
       
@@ -1027,11 +1036,11 @@ list_to_df <- function(x, org = F, norew = F, ci = F) {
                     melt(., id.vars = ".id",
                          value.name = "y_higher",
                          variable.name = "com_vars")) %>% 
-          select(., -c(4,5)) %>% 
+          dplyr::select(., -c(4,5)) %>% 
           setNames(., c("id", "com_vars", "x_higher", "y_higher"))}) %>% 
         bind_rows()
       
-      out <- cbind(lower, select(higher, -c(1, 2)))
+      out <- cbind(lower, dplyr::select(higher, -c(1, 2)))
     }
   } else {
     if (org & norew) {
@@ -1044,7 +1053,7 @@ list_to_df <- function(x, org = F, norew = F, ci = F) {
                 melt(., id.vars = ".id",
                      value.name = "y",
                      variable.name = "com_vars")) %>% bind_rows(.) %>%
-        select(., -c(4,5)) %>% 
+        dplyr::select(., -c(4,5)) %>% 
         setNames(., c("id", "com_vars", "x", "y"))
     } else {
       # make extc df 
@@ -1057,7 +1066,7 @@ list_to_df <- function(x, org = F, norew = F, ci = F) {
                 melt(., id.vars = ".id",
                      value.name = "y",
                      variable.name = "com_vars"))}) %>% bind_rows(.) %>%
-        select(., -c(4,5)) %>% 
+        dplyr::select(., -c(4,5)) %>% 
         setNames(., c("id", "com_vars", "x", "y"))
     }
   }
@@ -1309,12 +1318,12 @@ get_ci <- function(x, means, org = F, norew = F, tin = F) {
   return(out)
 }
 
-hist_dead <- function(x, lower = T) {
+hist_dead <- function(x, lower = T, save = F) {
   
-  com_vars <- c("Atl" = 1, "aTl" = 2, "atL" = 3, "atl" = 4)
+  com_vars <- c("Atl" = 1, "aTl" = 2, "atL" = 3, "atl" = 4, "ATL" = 5)
   
-  ifelse(lower, title <- "Lower trophic level",
-         title <- "Higher trophic level")
+  ifelse(lower, title <- "lower",
+         title <- "higher")
   
   
   # get data
@@ -1326,7 +1335,7 @@ hist_dead <- function(x, lower = T) {
     
     # org
     df$org <- map(seq(n_webs), function(y) {
-      length(which(rowSums(pluck(init_sim_web, y)) == 0))}) %>%
+      length(which(rowSums(pluck(init_sim, y, "networks", 1, "web")) == 0))}) %>%
       unlist
     
   } else {
@@ -1337,20 +1346,34 @@ hist_dead <- function(x, lower = T) {
     
     # org
     df$org <- map(seq(n_webs), function(y) {
-      length(which(colSums(pluck(init_sim_web, y)) == 0))}) %>%
+      length(which(colSums(pluck(init_sim, y, "networks", 1, "web")) == 0))}) %>%
       unlist
   }
   
-  ggplot(df) +
+  out <- ggplot(df) +
     geom_boxplot(aes(x = names(com_vars)[1], y = Atl)) +
     geom_boxplot(aes(x = names(com_vars)[2], y = aTl)) +
     geom_boxplot(aes(x = names(com_vars)[3], y = atL)) +
     geom_boxplot(aes(x = names(com_vars)[4], y = atl)) +
+    geom_boxplot(aes(x = names(com_vars)[5], y = ATL)) +
     geom_boxplot(aes(x = "org", y = org)) +
-    scale_x_discrete(limits = c("Atl", "aTl", "atL", "atl", "org")) +
-    labs(y = "No. of dead interactions", x = "Community variable importances") +
+    scale_x_discrete(limits = c("org", "Atl", "aTl", "atL", "atl", "ATL"),
+                     labels = c("Original", "Atl", "aTl", "atL", "atl", "ATL")) +
+    labs(y = "No. improbable interactions", x = "Community variable importances") +
     theme_classic() +
-    theme(text = element_text(size = 20)) 
+    theme(text = element_text(size = 20), aspect.ratio = 1)
+    
+  if (save) {
+    ggsave(c(paste("dead_pre", title, sep = "_"), ".pdf"),
+           path = paste0(getwd(), "/plot_sink"),
+           plot = out,
+           device = "pdf",
+           width = 28.7,
+           height = 20,
+           units = "cm")
+  }
+  
+  return(out)
 }
 
 # calculate number of aborted simulations
@@ -1435,144 +1458,7 @@ del_dead_int <- function(x) {
   out <- x[sp_low, sp_high, drop = F]
 }
 
-auc_boxplot <- function(x, x.axis, log = F, save = F) {
-  # extinction on lower or higher level ?
-  lvl_match_extc <- grepl("lower", substitute(x))
-  
-  ifelse(lvl_match_extc, lvl <- "lower", lvl <- "higher")
-  
-  if (is.null(x.axis) | !any(c(rew_names,
-                               names(ctrbs),
-                               "rew",
-                               "com_vars",
-                               "org") %in% x.axis)) {
-    stop("invalid x axis ! Please provide a character vector of a variable that
-    should be used as x axis. Either use rew or com_vars or a specific 
-    value/combination from among them")
-  }
-  
-  # should y axis be logarithmic ?
-  if (log) {
-    scale <- "log10"
-  } else {
-    scale <- "none"
-  }
-  
-  # filter data according to input
-  if (length(x.axis) <= 1) {
-    if (x.axis == "rew") {
-      aucs <- x
-      x_axis <- x.axis
-      x_lab <- unique(x$rew)
-    }
-    
-    if (x.axis == "com_vars") {
-      aucs <- x
-      x_axis <- x.axis
-      x_lab <- unique(x$com_vars)
-    }
-    
-    if (any(x.axis == c(rew_names, "norew", "abundtrait", "abundphylo"))){
-      aucs <- filter(x, rew == x.axis)
-      x_axis <- "com_vars"
-      x_lab <- unique(x$com_vars)
-    }
-    
-    if (any(x.axis == c(names(ctrbs), "org"))){
-      aucs <- filter(x, com_vars == x.axis)
-      x_axis <- "rew"
-      x_lab <- unique(x$rew)
-    }
-  } else {
-    if (length(x.axis) > 2)
-      stop("Too many values in x.axis. Please provide a character vector of 
-           lenght one or two")
-    
-    rew_choice <- ifelse(any(x.axis[1] == rew_names), x.axis[1], x.axis[2])
-    com_vars_choice <- ifelse(any(x.axis[1] == c(names(ctrbs), "org")),
-                              x.axis[1], x.axis[2])
-    
-    if (any(rew_choice == rew_names) & any(com_vars_choice == rew_names) |
-        any(rew_choice == c(names(ctrbs), "org")) & any(com_vars_choice == c(names(ctrbs), "org"))) {
-      stop("Invalid combination of x.axis values. Did you provide two rew/com_vars values ?")
-    }
-    
-    aucs <- filter(x, com_vars == com_vars_choice, rew == rew_choice)
-    x_axis <- NULL
-    x_lab <- paste(rew_choice, com_vars_choice)
-    
-  }
-  
-  if (length(x.axis) <= 1) {
-    out <- ggboxplot(y = "robustness",
-              x = x_axis,
-              color = "lvl",
-              data = aucs,
-              order = x_lab) +
-      scale_color_manual(name = "Trophic level",
-                         values = c("#000000", "#787878")) +
-      yscale(scale) +
-      theme(legend.position = "bottom") +
-      labs(x = element_blank()) +
-      theme(aspect.ratio = 1)
-  } else {
-    out <- ggboxplot(y = "robustness",
-              x = x_axis,
-              color = "lvl",
-              data = aucs,
-              order = x_lab) +
-      scale_color_manual(name = "Trophic level",
-                         values = c("#000000", "#787878")) +
-      scale_x_discrete(labels = paste(rew_choice, com_vars_choice)) +
-      yscale(scale) +
-      theme(legend.position = "bottom") +
-      labs(x = element_blank()) +
-      theme(aspect.ratio = 1)
-  }
-  
-  if (save) {
-    # generate names
-    if (length(x.axis) <= 1) {
-        size <- c(14.3, 20.5)
-      if (x.axis == "rew") {
-        name <- paste("auc", x.axis, "all_com_vars.pdf", sep = "_")
-      }
-      
-      if (x.axis == "com_vars") {
-        name <- paste("auc", x.axis, "all_rew.pdf", sep = "_")
-      }
-      
-      if (any(x.axis == c(rew_names, "norew", "abundtrait", "abundphylo"))) {
-        name <- c(paste("auc", x.axis, x_axis, sep = "_"), ".pdf")
-      }
-      
-      if (any(x.axis == c(names(ctrbs), "org"))) {
-        name <- c(paste("auc", x.axis, x_axis, sep = "_"), ".pdf")
-      }
-      
-    } else {
-      size <- c(14.3, 10)
-      name <- c(paste("auc", x.axis[1], x.axis[2], sep = "_"), ".pdf")
-    }
-  
-  ggsave(name,
-    path = paste0(getwd(), "/plot_sink"),
-    plot = out,
-    device = "pdf",
-    width = size[1],
-    height = size[2],
-    units = "cm")
-  }
-  return(out)
-}
-
-# same as auc_boxplot but x.axis shows higher/lower
-auc_boxplot2 <- function(x, by, log = F) {
-  # extinction on lower or higher level ?
-  lvl_match_extc <- grepl("lower", substitute(x))
-  
-  ifelse(lvl_match_extc, lvl <- "lower", lvl <- "higher")
-  # 
+auc_boxplot <- function(x, by = NULL, select = NULL, log = F, save = F) {
   # if (is.null(x.axis) | !any(c(rew_names,
   #                              names(ctrbs),
   #                              "rew",
@@ -1591,68 +1477,170 @@ auc_boxplot2 <- function(x, by, log = F) {
   }
   
   # filter data according to input
-  if (length(by) <= 1) {
+  if (is.null(select)) {
     if (by == "rew") {
       aucs <- x
-      x_axis <- x.axis
-      x_lab <- unique(x$rew)
+      col <- by
+      legend <- "Rewiring method"
     }
     
-    if (x.axis == "com_vars") {
+    if (by == "com_vars") {
       aucs <- x
-      x_axis <- x.axis
-      x_lab <- unique(x$com_vars)
+      col <- by
+      legend <- "Community variable importance"
     }
     
-    if (any(x.axis == rew_names)){
-      aucs <- filter(x, rew == x.axis)
-      x_axis <- "com_vars"
-      x_lab <- unique(x$com_vars)
+    if (any(by == c(rew_names, "norew", "abundtrait", "abundphylo"))){
+      aucs <- filter(x, rew == by)
+      col <- "com_vars"
+      legend <- "Community variable importance"
     }
     
-    if (any(x.axis == c(names(ctrbs), "org"))){
-      aucs <- filter(x, com_vars == x.axis)
-      x_axis <- "rew"
-      x_lab <- unique(x$rew)
+    if (any(by == c(names(ctrbs), "org"))){
+      aucs <- filter(x, com_vars == by)
+      col <- "rew"
+      legend <- "Rewiring method"
     }
   } else {
-    if (length(x.axis) > 2)
-      stop("Too many values in x.axis. Please provide a character vector of 
-           lenght one or two")
+    # if (length(x.axis) > 2)
+    #   stop("Too many values in x.axis. Please provide a character vector of 
+    #        lenght one or two")
+    # 
     
-    rew_choice <- ifelse(any(x.axis[1] == rew_names), x.axis[1], x.axis[2])
-    com_vars_choice <- ifelse(any(x.axis[1] == c(names(ctrbs), "org")),
-                              x.axis[1], x.axis[2])
+    # match by and select to rew and com_vars
+    rew_choice <- ifelse(any(by == c(rew_names,
+                                     "norew",
+                                     "abundtrait",
+                                     "abundphylo")), by, # if "rew" provided choose all
+                         ifelse(by == "rew", "all", select))
     
-    if (any(rew_choice == rew_names) & any(com_vars_choice == rew_names) |
-        any(rew_choice == c(names(ctrbs), "org")) & any(com_vars_choice == c(names(ctrbs), "org"))) {
-      stop("Invalid combination of x.axis values. Did you provide two rew/com_vars values ?")
+    com_vars_choice <- ifelse(any(by == c(names(ctrbs),
+                                          "org")), # if "com_vars" provided choose all 
+                              by, ifelse (by == "com_vars",
+                                          "all", select))
+    
+    if (rew_choice == "all" | com_vars_choice == "all") {
+      if (rew_choice == "all") {
+        rew_choice <- c(rew_names,
+                        "norew",
+                        "abundtrait",
+                        "abundphylo")
+        
+        legend <- "Rewiring method"
+        col <- by
+        col_vals <- c("#1b9e77",
+                      "#d95f02",
+                      "#7570b3",
+                      "#e7298a",
+                      "#66a61e",
+                      "#e6ab02")
+        
+      col_labs <- c("No rewiring", "Abundance", "Trait", "Phylogeny",
+                    "Abundance x Trait", "Abundance x Phylogeny")
+      }
+      
+      if (com_vars_choice == "all") {
+        com_vars_choice <- unique(x$com_vars)
+        
+        legend <- "Community variable importance"
+        col <- by
+        col_vals <- c("#1b9e77",
+          "#d95f02",
+          "#7570b3",
+          "#e7298a",
+          "#66a61e",
+          "#e6ab02")
+        col_labs <- c("Original", "Atl", "aTl", "atL",
+                      "atl", "ATL")
+      }
+      aucs <- filter(x, com_vars %in% com_vars_choice, rew %in% rew_choice)
+    } else {
+    aucs <- filter(x, com_vars %in% com_vars_choice, rew %in% rew_choice)
+    col <- "black"
     }
-    
-    aucs <- filter(x, com_vars == com_vars_choice, rew == rew_choice)
-    x_axis <- NULL
-    x_lab <- paste(rew_choice, com_vars_choice)
+      
+    # if (any(rew_choice == rew_names) & any(com_vars_choice == rew_names) |
+    #     any(rew_choice == c(names(ctrbs), "org")) & any(com_vars_choice == c(names(ctrbs), "org"))) {
+    #   stop("Invalid combination of x.axis values. Did you provide two rew/com_vars values ?")
+    # }
     
   }
   
-  if (length(x.axis) <= 1) {
-    ggboxplot(y = "robustness",
-              x = lvl,
-              color = "by",
+  if (is.null(select)) {
+    out <- ggboxplot(y = "robustness",
+              x = "lvl",
+              color = col,
               data = aucs,
-              order = x_lab,) +
-      scale_color_manual(name = by,
-                         values = c("#000000", "#787878")) +
+              order = c("lower", "higher"),
+              outlier.shape = NA) +
+      scale_color_discrete(name = legend) +
       yscale(scale) +
       theme(legend.position = "bottom") +
-      labs(x = element_blank()) +
-      theme(aspect.ratio = 1)
+      scale_x_discrete(labels = c("Lower level", "Higher level")) +
+      labs(x = element_text("Species removed"),
+           y = element_text("Robustness")) +
+      theme(text = element_text(size = 20), aspect.ratio = 1)
   } else {
-    ggboxplot(y = "robustness",
-              x = "lvl", color = "rew",
-              data = filter(auc_all, com_vars == "org")) +
+    out <- ggboxplot(y = "robustness",
+              x = "lvl",
+              color = col,
+              data = aucs,
+              order = c("lower", "higher"),
+              outlier.shape = NA,
+              add = "mean",
+              add.params = list(size = .2)) +
+      scale_color_manual(name = legend, values = col_vals, labels = col_labs) +
+      scale_x_discrete(labels = c("Lower level", "Higher level")) +
+      yscale(scale) +
       theme(legend.position = "bottom") +
-      labs(x = element_blank()) +
-      theme(aspect.ratio = 1)
+      labs(x = element_text("Species removed"),
+           y = element_text("Robustness")) +
+      theme(text = element_text(size = 20), aspect.ratio = 1) +
+      ylim(c(55, 100))# +
+      # ggtitle(paste(by, "filtered by", select))
+  }
+  
+  # if (save) {
+  #   # generate names
+  #   if (length(x.axis) <= 1) {
+  #       size <- c(14.3, 20.5)
+  #     if (x.axis == "rew") {
+  #       name <- paste("auc", x.axis, "all_com_vars.pdf", sep = "_")
+  #     }
+  #     
+  #     if (x.axis == "com_vars") {
+  #       name <- paste("auc", x.axis, "all_rew.pdf", sep = "_")
+  #     }
+  #     
+  #     if (any(x.axis == c(rew_names, "norew", "abundtrait", "abundphylo"))) {
+  #       name <- c(paste("auc", x.axis, x_axis, sep = "_"), ".pdf")
+  #     }
+  #     
+  #     if (any(x.axis == c(names(ctrbs), "org"))) {
+  #       name <- c(paste("auc", x.axis, x_axis, sep = "_"), ".pdf")
+  #     }
+  #     
+  #   } else {
+  #     size <- c(14.3, 10)
+  #     name <- c(paste("auc", x.axis[1], x.axis[2], sep = "_"), ".pdf")
+  #   }
+  # 
+  # ggsave(name,
+  #   path = paste0(getwd(), "/plot_sink"),
+  #   plot = out,
+  #   device = "pdf",
+  #   width = size[1],
+  #   height = size[2],
+  #   units = "cm")
+  # }
+  return(out)
+}
+
+# calculate percentage of sp with only one interaction total
+singleton <- function(web, lower = T) {
+  if (lower) {
+  length(which(apply(web, 1, sum) == 1)) / nrow(web)
+  } else {
+  length(which(apply(web, 2, sum) == 1)) / ncol(web)
   }
 }
