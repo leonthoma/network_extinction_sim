@@ -113,6 +113,7 @@ to finding the underlying processes that lead to the observed patterns \parencit
 % relation between network properties/structure  https://doi.org/10.1111/j.1365-2656.2010.01688.x 
 %Ecological communities are subject to constant change, due to a variety of reasons such as habitat fragmentation, global warming, introduction of species or loss thereof, to name some \parencite{}. 
 
+Focused on mutualistic interactions such as plant-pollinator networks since these are very well studied.
 
 \subsubsection{Species interactions}
 A major part of understanding the formation, upkeep and remodelling that is observed in ecological communities, is how interactions between species are formed as well as how and why the change. Historically, researchers tried to explain interactions with two main theories. Niche theory based the reasoning on biological information such as morphology, phenology, behaviour, evolutionary history and phylogeny \parencite{Webb2002, Jordano2003, Vazquez2009}. % all from vazquez2022
@@ -243,13 +244,13 @@ To simulate the networks, each of the three community variables (abundance (a), 
 	
 
 	% using simulated abundances, traits and other params (paramlist) simulate omat for all com importance scenarios
-	Using the abundance \& trait matrices and the phylogenetic eigenmatrices from the initial simulation, 1000 networks were simulated for each of the six species interaction scenarios. This was achieved by exponentiating the corresponding matrix of each scenario with either 0.1 or 1.9, resulting in high or low importance respectively. For the inital networks none of the variables were regarded as especially important, matrices were thus left unchanged (i.e. the exponent was 1). The scenarios will be referred to as Atl, aTl, atL, atl, and ATL, with capital letter(s) indicating high importance and lower letters indicating low importance of the respective community variable. The simulations of the initial network are called original.\par
+	Using the abundance \& trait matrices and the phylogenetic eigenmatrices from the initial simulation, 1000 networks were simulated for each of the six species interaction scenarios. This was achieved by exponentiating the matrices of community variables with either 0.1 or 1.9, to match their pattern to the interaction matrix\footnote{i.e. the result of the linear combination of community variable matrices}. For networks with abundance driven interactions, the abundance matrix was exponentiated with 0.1, the other two with 1.9. When interactions in a network should be driven mainly by traits, the abundance and trait matrices were exponentiated with 0.1 and the phylogeny matrix with 1.9. In networks where phylogeny dominated interactions, abundance and phylogeny matrices were exponentiated with 0.1, and the trait matrix with 1.9. When none of the community variables should be dominating interactions between species, all community variable matrices were exponentiated with 0.1. Conversely, if all community variables were set to have a higher influence on species interactions the exponent of all matrices was 1.9. For the initial networks none of the variables were regarded as especially important, matrices were thus left unchanged (i.e. the exponent was 1). The scenarios will be referred to as Atl, aTl, atL, atl, and ATL, with capital letter(s) indicating drivers of species interactions. The simulations of the initial network are called original.\par
 	
 	 The simulation of networks produced pairings where no interaction between species occurred (from now on called 'improbable interactions'). This is due to interaction probabilities being so small that an interaction is not 'observed' every time the network is simulated. Therefore, species pairs with improbable interactions were removed before using the networks for extinction simulation. However, since marginal totals were used to identify and delete species pairs with improbable interactions, there were cases where after removing a species, other pairings had no observed interactions. For example, if a species had only one interaction with another species that was deleted, the first species was then left without interactions. Because of this, the actual number of species per web was not equal to the number specified during network simulation. The distribution of improbable interactions for all networks can be seen in figure \ref{fig:dead_int}.
 
 % Improbable interactions
 \begin{figure}[H]
-	 \includegraphics[width = \textwidth]{/home/leon/Documents/Uni/M.sc/Master Thesis/Networks/models/plot_sink/dead_pre_both}
+	 \includegraphics[width = \textwidth]{/home/leon/Documents/Uni/M.sc/Master Thesis/Networks/models/plot_sink/dead_pre_both_rev}
 	 \caption{\textbf{Number of improbable interactions} The boxplots show the number of improbable interactions for each community variable importance scenario.
 	 The left plot (A) shows species from the lower trophic level, the right plot (B) shows species from the higher trophic level. See section \ref{sec:net_sim} for a definition of improbable interactions and a detailed explanation of the abbreviations of community variable importance scenarios.}
 	 \label{fig:dead_int}
@@ -258,7 +259,7 @@ To simulate the networks, each of the three community variables (abundance (a), 
 % by simulating networks problematic sampling effects are avoided (blüthgen2010, vazquez2022)
 
 	\subsection{Extinction simulation} \label{sec:extc_sim}
-	After networks were simulated, a modified version (see supplementary materials 'extc.alg') of \citeauthor{Vizentin-Bugoni2019}'s algorithm was used to simulate extinction. The algorithm used here is structured as follows (see fig. \ref{fig:extc_alg} for a visual overview). 
+	After networks were simulated, a modified version (see supplementary files 'extc.alg') of \citeauthor{Vizentin-Bugoni2019}'s algorithm was used to simulate extinction. The algorithm used here is structured as follows (see fig. \ref{fig:extc_alg} for a visual overview). 
 %To easily distinguish the different scenarios, the following naming convention was established. The trophic level from which species are removed during the extinction simulation as well as the rewiring method are noted in superscript, respecitvely. For example Atl\textsubscript{lower, abund}, refers to a simulation where Abundance was the main driver of species interactions during the network simulation (see section \ref{sec:net_sim} for network abbreviations), species were removed from the lower trophic level during extinction simulation with abundance based rewiring.
 
 \subsubsection{Extinction algorithm} \label{subsec:extc_alg}
@@ -389,11 +390,11 @@ Following the extinction simulations, the robustness of each network was calcula
 
 
 
-Changing the driving force of species interactions during the network simulation, had an effect on the general specialisation of species in a network (see figure \ref{fig:h2}). The networks that were simulated using the standard tapnet approach showed relatively high niche overlap ($ \overline{H2'}_{original} = 0.23 $). The interaction between species in the ATL networks were most conform ($ \overline{H2'}_{ATL} = 0.14 $). The only other network simulation scenario where specialisation was lower compared to the original networks was in trait based networks ($ \overline{H2'}_{aTl} = 0.21 $). In Atl, atL, and atl networks species' interactions were more unique which led to higher H2' values ($ \overline{H2'}_{Atl} = 0.35 $, $ \overline{H2'}_{atL} = 0.27 $, and $ \overline{H2'}_{atl} = 0.38 $, respectively).
+Changing the driving force of species interactions during the network simulation, had an effect on the specialisation of species in a network (see figure \ref{fig:h2}). Overall, the interactions in the simulated networks were quite complementary. Using the standard tapnet approach resulted in networks where interactions were largely redundant. On the contrary, the interaction between species in the ATL networks were least conform and $H2'$ values showed the highest variability. In abundance based networks, the interactions between species were the most redundant. Trait and phylogeny based networks were showing a similar degree of generalisation compared to the original networks. Finally, atl networks showed the second highest generalisation.
 
 \begin{figure}[H]
 	 \centering
-	 \includegraphics[width = .8\textwidth]{/home/leon/Documents/Uni/M.sc/Master Thesis/Networks/models/plot_sink/h2'_all}
+	 \includegraphics[width = .8\textwidth]{/home/leon/Documents/Uni/M.sc/Master Thesis/Networks/models/plot_sink/h2'_all_rev}
 	 \captionsetup{width = .8\textwidth}
 	 \caption{\textbf{Two dimensional Shannon Entropy of all networks} The boxplots show the H2' values \parencite{Bluethgen2006} for each community variable importance scenario. See section \ref{sec:net_sim} for a detailed explanation of the abbreviations of community variable importances.}
 	 \label{fig:h2}
@@ -402,8 +403,8 @@ Changing the driving force of species interactions during the network simulation
 \subsection{Influence of community variables on network robustness}
 % Q1 comparing comvars
 
-To analyse the effect of community variable importance on robustness, networks were compared using no rewiring in the extinction simulation (see plots \ref{fig:extc_cv_norew_lower} and \ref{fig:extc_cv_norew_higher}). There was a clear trend of ATL networks being most resistant to extinction cascades, regardless from which trophic level species were removed. Original and Atl networks showed a relatively low rate of secondary extinctions until a certain percentage of primary extinctions was met, after which secondary extinctions substantially increased. Extinction curves of trait and phylogeny based networks as well as atl networks had steeper slopes at the beginning but also showed thresholds after which secondary extinctions further increased.\\
-Trait based networks showed a high variance over the 10 individual extinction runs, for both removal of lower and higher level species. In fact, there appeared to be a higher variance among extinction runs also for phylogeny based and atl networks. It should be noted though, that the extinction curves in plots \ref{fig:extc_cv_norew_lower} and \ref{fig:extc_cv_norew_higher} only represent one network, therefore variances might differ for another network. The boxplots in figure \ref{fig:auc_cv_norew} show the robustness values of all networks and their individual extinction simulation runs.
+To analyse the effect of community variable importance on robustness, networks were compared using no rewiring in the extinction simulation (see plots \ref{fig:extc_cv_norew_lower} and \ref{fig:extc_cv_norew_higher}). There was a clear trend of atl networks being most resistant to extinction cascades, regardless from which trophic level species were removed. Trait and phylogeny based networks showed a relatively low rate of secondary extinctions until a certain percentage of primary extinctions was met, after which secondary extinctions substantially increased. Comparing the species removal scenarios of these three networks showed that under the loss of higher trophic species, secondary extinctions began to impact the network much more early than the removal of lower trophic species. Networks that were simulated using unaltered community variable matrices, were more effected by initial species loss than atl, trait and phylogeny based networks but supported a higher number of species under increasing amount of primary extinctions than abundance based and ATL networks.\\
+Extinction curves of abundance based networks had steeper slopes at the beginning and thresholds after which secondary extinctions further increased were less pronounced. Additionally, primary extinctions induced secondary extinctions a lot earlier than for the other networks under both species removal scenarios. The extinction cascades observed in ATL networks were very similar to those of abundance based networks, also showing early increase of secondary extinctions and a less pronounced increase in secondary extinctions with increasing primary extinctions. Trait based and ATL networks showed a high variance over the 10 individual extinction runs for both, removal of lower and higher level species. It should be noted though, that the extinction curves in plots \ref{fig:extc_cv_norew_lower} and \ref{fig:extc_cv_norew_higher} only represent one network, therefore variances might differ for another network.
 
 %old
 %This effect was especially present in original, Atl, and ATL networks, when species were removed from the lower trophic level.  Between 99.7 \% (ATL) and 98.1 \% (Atl) of species from the higher trophic level remained after the loss of 75 \% of species from the lower trophic level. However, this trend was less pronounced in the other networks for both species removal scenarios. \par
@@ -412,7 +413,7 @@ Trait based networks showed a high variance over the 10 individual extinction ru
 
 \begin{figure}[H]
 	 \centering
-	 \includegraphics[width = \textwidth]{/home/leon/Documents/Uni/M.sc/Master Thesis/Networks/models/plot_sink/extc_sims_cv_norew_lower}
+	 \includegraphics[width = \textwidth]{/home/leon/Documents/Uni/M.sc/Master Thesis/Networks/models/plot_sink/extc_sims_cv_norew_lower_rev}
 	 \captionsetup{width = \textwidth}
 	 \caption{\textbf{Extinction cascades of a single network} The plots shows extinction curves that were simulated for one of the generated networks. Species were removed randomly from the \textbf{lower level} and no rewiring was allowed. Individual extinction simulations are represented by the black lines, while the red line shows their mean. Plot titles indicate the importances of community variables used in the network simulation process. See section \ref{sec:net_sim} for a detailed explanation of the abbreviations of community variable importances.}
 	 \label{fig:extc_cv_norew_lower}
@@ -421,18 +422,18 @@ Trait based networks showed a high variance over the 10 individual extinction ru
 
 \begin{figure}[H]
 	 \centering
-	 \includegraphics[width = \textwidth]{/home/leon/Documents/Uni/M.sc/Master Thesis/Networks/models/plot_sink/extc_sims_cv_norew_higher}
+	 \includegraphics[width = \textwidth]{/home/leon/Documents/Uni/M.sc/Master Thesis/Networks/models/plot_sink/extc_sims_cv_norew_higher_rev}
 	 \captionsetup{width = \textwidth}
-	 \caption{\textbf{Variation of extinction cascades of a single network} The plots shows extinction curves that were simulated for one of the generated networks. Species were removed randomly from the \textbf{higher level} and no rewiring was allowed. Individual extinction simulations are represented by the black lines, while the red line shows their mean. Plot titles indicate the importances of community variables used in the network simulation process. See section \ref{sec:net_sim} for a detailed explanation of the abbreviations of community variable importances.}
+	 \caption{\textbf{Extinction cascades of a single network} The plots shows extinction curves that were simulated for one of the generated networks. Species were removed randomly from the \textbf{higher level} and no rewiring was allowed. Individual extinction simulations are represented by the black lines, while the red line shows their mean. Plot titles indicate the importances of community variables used in the network simulation process. See section \ref{sec:net_sim} for a detailed explanation of the abbreviations of community variable importances.}
 	 \label{fig:extc_cv_norew_higher}
 \end{figure}
 
-There was a clear effect of the importance of community variables during the network simulation regarding robustness. The highest robustness was observed in networks were all community variables were considered important ($R^2_{ATL,\: lower} = 94.76\%$ \& $R^2_{ATL,\: higher} = 95.76\%$). Networks where the importance of all community variables was set to low, showed the lowest robustness ($R^2_{atl,\: lower} = 76.16\%$ \& $R^2_{atl,\: higher} = 78.35\%$). Extinction simulations in original networks resulted in the second highest robustness with $R^2_{Original,\: lower} = 86.78\%$ \& $R^2_{Original,\: higher} = 88.41\%$. When interactions were determined by abundances, the network robustness was only a little bit lower than what was observed in original networks ($R^2_{Atl,\: lower} = 87.14\%$ \& $R^2_{Atl,\: higher} = 88.45\%$). aTl and atL networks also showed similar robustness values.  Generally, networks were less affected by primary extinctions when species were removed from the higher trophic level compared to species removal from the lower level ($R^2_{lower} = 83.29\% $ and $R^2_{higher} = 85.02\%$). \par
+There was a clear effect of the importance of community variables during the network simulation regarding robustness (see figure \ref{fig:auc_cv_norew}). The highest robustness was observed in networks were all community variables were considered unimportant. Networks where the importance of all community variables was set to high, showed the lowest robustness. Extinction simulations in original networks resulted in higher robustness than Atl and ATL networks. Simulating species interactions mainly by traits or phylogeny resulted in the third and second highest robustness, respectively. When interactions were determined by abundances, the network robustness was only a little bit higher than what was observed in ATL networks. Generally, networks were less affected by primary extinctions when species were removed from the higher trophic level compared to species removal from the lower level. \par
 
 
 \begin{figure}[H]
 	 \centering
-	 \includegraphics[width = .8\textwidth]{/home/leon/Documents/Uni/M.sc/Master Thesis/Networks/models/plot_sink/auc_com_vars_by_norew}
+	 \includegraphics[width = .8\textwidth]{/home/leon/Documents/Uni/M.sc/Master Thesis/Networks/models/plot_sink/auc_com_vars_by_norew_rev}
 	 \captionsetup{width = .8\textwidth}
 	 \caption{\textbf{Network robustness } The boxplots show the robustness values of all extinction simulations without rewiring and random removal of species. See section \ref{sec:net_sim} for a detailed explanation of the abbreviations of community variable importances.}
 	 \label{fig:auc_cv_norew}
@@ -446,12 +447,12 @@ There was a clear effect of the importance of community variables during the net
 \subsection{Network robustness under different rewiring methods}
 % Q2 comparing rewiring
 
-The second question focused on the differences between the rewiring methods. Therefore, only networks with the original importances of community variables were used. 
-Figures \ref{fig:extc_org_rew_lower} and \ref{fig:extc_org_rew_higher} show the extinction cascades of the rewiring scenarios. When rewiring was allowed over 75 \% of species from the higher trophic level remained in the network even after a loss of more than 75 \% of their interaction partners from the other trophic level. When secondary extinction occurred on the lower trophic level, even a loss of 82,5 \% of higher trophic species still allowed at least 75 \% of their interaction partners to remain in the network. Not letting species reallocate lost interactions, resulted in a higher rate of secondary extinctions under both species removal scenarios. When rewiring methods were combined they only increased network robustness by a small margin compared to the best singular rewiring method (Phylogeny). Unlike for the comparison between network simulation scenarios, the variance between the individual extinction runs per network were similar for each of the rewiring methods. 
+The second question focused on the differences between the rewiring methods. Therefore, only networks with the original importances of community variables were used. There was only a small effect of the simulated rewiring methods on network robustness  (see figures \ref{fig:extc_org_rew_lower} and \ref{fig:extc_org_rew_higher}). The only clear difference was apparent when species weren't allowed to compensate for lost interactions through rewiring. This resulted in a higher rate of secondary extinctions under both species removal scenarios.
+Regardless of the rewiring method, over 75 \% of species from the higher trophic level remained in the network even after a loss of more than 75 \% of their interaction partners from the lower trophic level. When extinctions were simulated for the higher trophic species and species were allowed to rewire, a loss of 82.5 \% resulted in a decline of less than 25 \% of species in the lower trophic level. Without rewiring the remaining species in the lower level dropped to 68 \%.\\ Similar to the results of the first question, the removal of lower level species led to secondary extinctions earlier than the removal of higher level species. When rewiring methods were combined they only increased network robustness by a small margin compared to the best singular rewiring method (Phylogeny). Unlike for the comparison between network simulation scenarios, the variance between the individual extinction runs per network were similar for each of the rewiring methods. 
 
 \begin{figure}[H]
 	 \centering
-	 \includegraphics[width = \textwidth]{/home/leon/Documents/Uni/M.sc/Master Thesis/Networks/models/plot_sink/extc_sims_org_rew_lower}
+	 \includegraphics[width = \textwidth]{/home/leon/Documents/Uni/M.sc/Master Thesis/Networks/models/plot_sink/extc_sims_org_rew_lower_rev}
 	 \captionsetup{width = \textwidth}
 	 \caption{\textbf{Extinction cascades of a single network} The plots shows extinction curves that were simulated for one of the generated networks. Species were removed randomly from the \textbf{lower level} using only original networks. Individual extinction simulations are represented by the black lines, while the red line shows their mean. Plot titles indicate the rewiring method used in the extinction simulation. See section \ref{itm:rew} for a details about the rewiring methods.}
 	 \label{fig:extc_org_rew_lower}
@@ -460,21 +461,21 @@ Figures \ref{fig:extc_org_rew_lower} and \ref{fig:extc_org_rew_higher} show the 
 
 \begin{figure}[H]
 	 \centering
-	 \includegraphics[width = \textwidth]{/home/leon/Documents/Uni/M.sc/Master Thesis/Networks/models/plot_sink/extc_sims_org_rew_higher}
+	 \includegraphics[width = \textwidth]{/home/leon/Documents/Uni/M.sc/Master Thesis/Networks/models/plot_sink/extc_sims_org_rew_higher_rev}
 	 \captionsetup{width = \textwidth}
-	 \caption{\textbf{Variation of extinction cascades of a single network} The plots shows extinction curves that were simulated for one of the generated networks. Species were removed randomly from the \textbf{higher level} using only original networks. Individual extinction simulations are represented by the black lines, while the red line shows their mean. Plot titles indicate the rewiring method used in the extinction simulation. See section \ref{subsec:extc_alg} step \ref{itm:rew} for details)}
+	 \caption{\textbf{Extinction cascades of a single network} The plots shows extinction curves that were simulated for one of the generated networks. Species were removed randomly from the \textbf{higher level} using only original networks. Individual extinction simulations are represented by the black lines, while the red line shows their mean. Plot titles indicate the rewiring method used in the extinction simulation. See section \ref{subsec:extc_alg} step \ref{itm:rew} for details)}
 	 \label{fig:extc_org_rew_higher}
 \end{figure}
 
-Network robustness seemed not to be influenced by the rewiring method as much as it is by network simulations scenario (see figure \ref{fig:auc_org_rew}). The difference in mean robustness between the most effective (Abundance x Phylogeny) and least effective rewiring method (no rewiring) was 4.46 when removing lower level species and 4.14 for higher level species. 
+The difference in mean robustness between the most effective (Abundance x Phylogeny) and least effective rewiring method (no rewiring) was 4.46 when removing lower level species and 4.14 for higher level species (see figure \ref{fig:auc_org_rew}). 
 
-The two scenarios where rewiring methods were combined resulted in the highest mean robustness and were virtually the same ($ \overline{H2'}_{AP,\: lower} = 85.03 $, $ \overline{H2'}_{AP, \:higher} = 86.62 $ and $ \overline{H2'}_{AT,\: lower} = 84.86  $, $ \overline{H2'}_{AT,\: higher} = 86.43 $). As expected, not allowing species to rewire lost interactions led to the lowest mean robustness ($\overline{H2'}_{No\:rewiring,\: lower} = 85.03 $, $ \overline{H2'}_{No\:rewiring,\: higher} = 86.62 $). Phylogeny proved to be the most effective singular rewiring method followed by trait based rewiring ($\overline{H2'}_{Phylogeny\: lower} = 85.01 $, $ \overline{H2'}_{Phylogeny,\: higher} = 85.34 $ and $\overline{H2'}_{Trait,\: lower} = 83.09 $, $ \overline{H2'}_{Trait,\: higher} = 84.81 $). Out of all rewiring methods that let species shift interactions to new partners, abundance had the least influence on preventing extinction cascades ($\overline{H2'}_{Abudance,\: lower} = 82.31 $, $ \overline{H2'}_{Abundance,\: higher} = 84.24 $). 
-Underlining the result of the first question, networks were more robust under removal of higher species than of lower species \par 
+The two scenarios where rewiring methods were combined resulted in the highest mean robustness and were virtually the same. As expected, not allowing species to rewire lost interactions led to the lowest mean robustness. Phylogeny proved to be the most effective singular rewiring method followed by trait based rewiring. Out of all rewiring methods that let species shift interactions to new partners, abundance had the least influence on preventing extinction cascades. 
+Underlining the result of the first question, networks were more robust under removal of higher species than of lower species. \par 
 
 
 \begin{figure}[H]
 	 \centering
-	 \includegraphics[width = .8\textwidth]{/home/leon/Documents/Uni/M.sc/Master Thesis/Networks/models/plot_sink/auc_org_by_rew}
+	 \includegraphics[width = .8\textwidth]{/home/leon/Documents/Uni/M.sc/Master Thesis/Networks/models/plot_sink/auc_org_by_rew_rev}
 	 \captionsetup{width = .8\textwidth}
 	 \caption{\textbf{Network robustness } The boxplots show the robustness values of all extinction simulations fore each rewiring method and random removal of species. See section \ref{subsec:extc_alg} step \ref{itm:rew} for details) for a detailed explanation of the abbreviations of community variable importances. See section \ref{itm:rew} for a details about the rewiring methods.}
 	 \label{fig:auc_org_rew}
@@ -483,32 +484,32 @@ Underlining the result of the first question, networks were more robust under re
 \subsection{Analysis of variance}
 % Anova; put after Q1 + Q2 ??
 % all
-The ANOVA of the whole dataset showed, that changing the importance of community variables to simulate species interactions explained the most variance ($ R^2_{Community\: variables} = 52.42 \% $). The number of species in the lower trophic level explained 5.06 \% of variance. How rewiring partners were chosen explained 3.08 \%. The effects of the other predictors were explaining less than 1 \% of total variance each (see table \ref{tab:anova_full}).
+The ANOVA of the whole dataset showed, that changing the importance of community variables to simulate species interactions explained the most variance (see table \ref{tab:anova_full}). The number of species in the lower trophic level explained 5.06 \% of variance. How rewiring partners were chosen explained 3.08 \%. The effects of the other predictors were explaining less than 1 \% of total variance each.
 
 % lower & higher
-When an ANOVA was calculated separately for removing species from the lower trophic level and from the higher trophic level, community variable importance and number of species in the lower level were still explaining the most variance ($ R^2_{Community\: variables,\: lower} = 52.96 \% $, $ R^2_{Community\: variables, higher} = 52.79 \% $, $ R^2_{N\:lower,\: lower} = 5.63 \% $, $ R^2_{N\:lower,\: higher} = 4.52 \% $). The explained variance of the rewiring methods was virtually the same as for the whole data set with 3.09 \% and 3.11 \% for the removal of lower and higher species respectively. Furthermore, the unexplained variance did not differ much between species removal scenarios ($ R^2_{Residuals,\: lower} = 37.57 \% $ and $ R^2_{Residuals,\: higher} = 37.79 \% $). Again, the effects of species in the higher trophic level, $H2'$ and the interaction between rewiring method and $H2'$ were negligible (see table \ref{tab:anova_lo_hi}). \paragraph{}
+When an ANOVA was calculated separately for removing species from the lower trophic level and from the higher trophic level, community variable importance and number of species in the lower level were still explaining the most variance (see table \ref{tab:anova_lo_hi}). The explained variance of the rewiring methods was virtually the same as for the whole data set with 3.09 \% and 3.11 \% for the removal of lower and higher species respectively. Furthermore, the unexplained variance did not differ much between species removal scenarios. Again, the effects of species in the higher trophic level, $H2'$ and the interaction between rewiring method and $H2'$ were negligible. \paragraph{}
 
 
-For a more detailed insight into what effects were important, an ANOVA was carried out for each network simulation scenario (see table \ref{tab:anova_by_cv} in the supplemental material). As for the full ANOVA, the response was robustness and predictors were, number of lower species, number of higher species, rewiring method, $H2'$ and the interaction between the latter two. The data was subsetted by species removal scenario, which resulted in two ANOVAs per network simulation scenario. \\
-% rew
-When networks were simulated with the original tapnet algorithm, the rewiring method was the most important effect, for either species removal scenario ($R^2_{Original,\: lower} = 23.05\%$ , $R^2_{Original,\: higher} = 13.86\%$). For the other network simulation scenarios the effect of the rewiring method differed greatly. In trait and phylogeny based networks, rewiring only had a marginal effect compared to the other scenarios, irrespective of the level from which species were removed ($R^2_{aTl,\: lower} = 4.30\%$ , $R^2_{aTl,\: higher} = 2.90\%$ and ($R^2_{atL,\: lower} = 5.72\%$ , $R^2_{atL,\: higher} = 4.50\%$)). In Atl networks the effect of rewiring was rather low when lower species were going extinct, but explained almost twice as much variance as all predictors of the latter ANOVA combined when species were removed from the higher level ($R^2_{Atl,\: lower} = 2.77\%$ , $R^2_{Atl,\: higher} = 20.22\%$). A similar, yet opposite relationship was observed for atl networks. There, rewiring alone explained more variance for lower trophic level extinctions than all predictors combined in the higher level exctinction scenario($R^2_{atl,\: lower} = 35.66\%$ , $R^2_{atl,\: higher} = 6.56\%$). Finally, in ATL networks the effect of rewiring were both high compared to aTl and atL networks. Explained variance from rewiring methods was again more than double under the removal of higher species compared to the removal of lower species($R^2_{ATL,\: lower} = 15.28	\%$ \& $R^2_{ATL,\: higher} = 36.93\%$).
-
-%n low
-The number of species in the higher level explained the second most variance for either species removal and network simulation scenario (see table \ref{tab:anova_by_cv}). It explained similar amounts of variance except for four cases. The effect was almost zero in original networks when higher species were removed, and noticeably low for abundance based networks ($R^2_{Original,\: higher} = 0.06\%$ \& $R^2_{Atl,\: higher} = 2.35\%$). Under the extinction of lower level species, the effect was more than double of the maximum of all other network scenarios in atl networks, and again very low in ATl networks($R^2_{atl,\: lower} = 19.75 \%$ , $R^2_{ATL,\: lower} = 0.34\%$).
-
-% n high
-There was a more distinguished trend of variance explained by the number of species in the higher trophic level, as it was always higher under extinction of higher level species, with the exception of original networks. Overall this effect was generally low for all network simulation scenarios. However, there was again an exception, when higher species were removed from ATL networks the effect explained 12.65 \% of variance. 
-
-% h2 and rew x h2
-The other two predictors, $H2'$ as well as the interaction between rewiring method and $H2'$ were never explaining notable amounts of variance. \paragraph{}
-
-In addition to the already presented ANOVAs, the effects of the number of species in their respective trophic level, the influence of community variables on species interactions as well as $H2'$ were used to predict robustness using data subsetted by rewiring methods. For each rewiring scenario an ANOVA was calculated for the two species removal scenarios (see table \ref{tab:anova_by_rew}in the supplemental material). \\
-
-As for the whole dataset, the most variance was explained by the network simulation scenarios. The highest effect was observed under the removal of lower trophic species when abundance and traits were used as the rewiring scenario. ($R^2_{AT,\: lower} = 57.31 \%$). Networks where no rewiring was allowed and also lower species were removed, showed the lowest $R^2$ value with 51.41 \%. The variance explained by changing the influence of community variables to determine species interactions, was not differing consistently between species removal scenarios. Simulations without rewiring and with abundance based rewiring resulted in higher $R^2$ values under the removal of higher species than removal of lower, yet their difference was small ($R^2_{No \: rewiring,\: lower} = 51.41\%$ , $R^2_{No \: rewiring,\: higher} = 53.30\%$ and $R^2_{Abundance,\: lower} = 54.27\%$ , $R^2_{Abundance,\: higher} = 55.13\%$). The other rewiring methods showed the opposite result regarding species removal scenario. However, combining rewiring methods, seemed to enhance the effect of community variables, at least under loss of lower trophic species. \\
-
-The number of species in the lower level was consistently explaining more variance when species from this trophic level were removed rather than species from the higher trophic level. Furthermore, this effect explained the second most variance in all of the ANOVAs discussed in this section. While the number of lower species always carried some information, the number of species in the higher level did not. When removing species from the lower level, the effect was explaining less than 1\% of variance over each of the rewiring scenarios. This changed slightly when species were removed from the higher level, where $R^2$ values ranged between 1.14 \% (Abundance combined with Phylogeny) and 2.19 \% (without rewiring).\\
-
-Similar to the ANOVA compartmentalized by rewiring scenarios, $H2'$ did not provide any significant amount of information on the variance in robustness values under any scenario.
+%For a more detailed insight into what effects were important, an ANOVA was carried out for each network simulation scenario (see table \ref{tab:anova_by_cv} in the supplemental material). As for the full ANOVA, the response was robustness and predictors were, number of lower species, number of higher species, rewiring method, $H2'$ and the interaction between the latter two. The data was subsetted by species removal scenario, which resulted in two ANOVAs per network simulation scenario. \\
+%% rew
+%When networks were simulated with the original tapnet algorithm, the rewiring method was the most important effect, for either species removal scenario ($R^2_{Original,\: lower} = 23.05\%$ , $R^2_{Original,\: higher} = 13.86\%$). For the other network simulation scenarios the effect of the rewiring method differed greatly. In trait and phylogeny based networks, rewiring only had a marginal effect compared to the other scenarios, irrespective of the level from which species were removed ($R^2_{aTl,\: lower} = 4.30\%$ , $R^2_{aTl,\: higher} = 2.90\%$ and ($R^2_{atL,\: lower} = 5.72\%$ , $R^2_{atL,\: higher} = 4.50\%$)). In Atl networks the effect of rewiring was rather low when lower species were going extinct, but explained almost twice as much variance as all predictors of the latter ANOVA combined when species were removed from the higher level ($R^2_{Atl,\: lower} = 2.77\%$ , $R^2_{Atl,\: higher} = 20.22\%$). A similar, yet opposite relationship was observed for atl networks. There, rewiring alone explained more variance for lower trophic level extinctions than all predictors combined in the higher level exctinction scenario($R^2_{atl,\: lower} = 35.66\%$ , $R^2_{atl,\: higher} = 6.56\%$). Finally, in ATL networks the effect of rewiring were both high compared to aTl and atL networks. Explained variance from rewiring methods was again more than double under the removal of higher species compared to the removal of lower species($R^2_{ATL,\: lower} = 15.28	\%$ \& $R^2_{ATL,\: higher} = 36.93\%$).
+%
+%%n low
+%The number of species in the higher level explained the second most variance for either species removal and network simulation scenario (see table \ref{tab:anova_by_cv}). It explained similar amounts of variance except for four cases. The effect was almost zero in original networks when higher species were removed, and noticeably low for abundance based networks ($R^2_{Original,\: higher} = 0.06\%$ \& $R^2_{Atl,\: higher} = 2.35\%$). Under the extinction of lower level species, the effect was more than double of the maximum of all other network scenarios in atl networks, and again very low in ATl networks($R^2_{atl,\: lower} = 19.75 \%$ , $R^2_{ATL,\: lower} = 0.34\%$).
+%
+%% n high
+%There was a more distinguished trend of variance explained by the number of species in the higher trophic level, as it was always higher under extinction of higher level species, with the exception of original networks. Overall this effect was generally low for all network simulation scenarios. However, there was again an exception, when higher species were removed from ATL networks the effect explained 12.65 \% of variance. 
+%
+%% h2 and rew x h2
+%The other two predictors, $H2'$ as well as the interaction between rewiring method and $H2'$ were never explaining notable amounts of variance. \paragraph{}
+%
+%In addition to the already presented ANOVAs, the effects of the number of species in their respective trophic level, the influence of community variables on species interactions as well as $H2'$ were used to predict robustness using data subsetted by rewiring methods. For each rewiring scenario an ANOVA was calculated for the two species removal scenarios (see table \ref{tab:anova_by_rew}in the supplemental material). \\
+%
+%As for the whole dataset, the most variance was explained by the network simulation scenarios. The highest effect was observed under the removal of lower trophic species when abundance and traits were used as the rewiring scenario. ($R^2_{AT,\: lower} = 57.31 \%$). Networks where no rewiring was allowed and also lower species were removed, showed the lowest $R^2$ value with 51.41 \%. The variance explained by changing the influence of community variables to determine species interactions, was not differing consistently between species removal scenarios. Simulations without rewiring and with abundance based rewiring resulted in higher $R^2$ values under the removal of higher species than removal of lower, yet their difference was small ($R^2_{No \: rewiring,\: lower} = 51.41\%$ , $R^2_{No \: rewiring,\: higher} = 53.30\%$ and $R^2_{Abundance,\: lower} = 54.27\%$ , $R^2_{Abundance,\: higher} = 55.13\%$). The other rewiring methods showed the opposite result regarding species removal scenario. However, combining rewiring methods, seemed to enhance the effect of community variables, at least under loss of lower trophic species. \\
+%
+%The number of species in the lower level was consistently explaining more variance when species from this trophic level were removed rather than species from the higher trophic level. Furthermore, this effect explained the second most variance in all of the ANOVAs discussed in this section. While the number of lower species always carried some information, the number of species in the higher level did not. When removing species from the lower level, the effect was explaining less than 1\% of variance over each of the rewiring scenarios. This changed slightly when species were removed from the higher level, where $R^2$ values ranged between 1.14 \% (Abundance combined with Phylogeny) and 2.19 \% (without rewiring).\\
+%
+%Similar to the ANOVA compartmentalized by rewiring scenarios, $H2'$ did not provide any significant amount of information on the variance in robustness values under any scenario.
 
 \begin{table}[H]
 \centering
@@ -520,14 +521,14 @@ Similar to the ANOVA compartmentalized by rewiring scenarios, $H2'$ did not prov
 \begin{tabularx}{\linewidth}{@{} X *3{c} @{}}
 \toprule
   						& Df 	& Sum of squares	& $R^2$ 		\\ \midrule
-Residuals 				& 707640	& 21500134 		& 37.46 \% 	\\ 
-N\textsubscript{lower} 	& 1 		& 2903286 		& 5.06 \% 	\\
-N\textsubscript{higher} 	& 1 		& 468351 		& 0.82 \% 	\\
-Community variables 		& 5 		& 30081539 		& 52.42 \% 	\\
-Rewiring method 			& 5 		& 1767877 		& 3.08 \% 	\\ 
-$H2'$ 					& 1 		& 121106			& 0.21 \% 	\\
-Rewiring method x $H2'$ 	& 5 		& 53965 			& 0.09 \% 	\\ 
-Trophic level 			& 1 		& 491497 		& 0.85 \%  \\ \bottomrule
+Residuals 				& 719835 & 18224087 		& 32.37 \% 	\\ 
+N\textsubscript{lower} 	& 1 & 1122299 		& 1.99 \% 	\\
+N\textsubscript{higher} 	& 1 & 95541 			& 0.17 \% 	\\
+Community variables 		& 5 & 34897751 		& 61.86 \% 	\\
+Rewiring method 			& 5 & 1628065 		& 2.88 \% 	\\ 
+$H2'$ 					& 1 & 8846			& 0.01 \% 	\\
+Rewiring method x $H2'$ 	& 5 & 30600 			& 0.05 \% 	\\ 
+Trophic level 			& 1 & 367608 		& 0.65 \%  \\ \bottomrule
 \end{tabularx}
 \end{subtable}
 \medskip
@@ -540,13 +541,13 @@ Trophic level 			& 1 		& 491497 		& 0.85 \%  \\ \bottomrule
 \toprule
   & \multicolumn{3}{c}{Lower} & \multicolumn{3}{c}{Higher} \\ \cmidrule(l){2-4} \cmidrule(l){5-7} 
   						& Df 	& Sum of squares	& $R^2$ 		& Df 	& Sum of squares 	& $R^2$  \\ \midrule
-Residuals 				& 355281	& 1136403 		& 37.57 \% 	& 352341	& 10058661 			& 37.79 \%\\ 
-N\textsubscript{lower} 	& 1 		& 1704751 		& 5.63 \% 	& 1 		& 1204245 			& 4.52 \%\\
-N\textsubscript{higher} 	& 1 		& 117304 		& 0.39 \% 	& 1 		& 398278 			& 1.50 \%\\
-Community variables 		& 5 		& 16017326 		& 52.96 \% 	& 5 		& 14052161 			& 52.79 \%\\
-Rewiring method 			& 5 		& 935970			& 3.09 \% 	& 5 		& 829000				& 3.11 \%\\ 
-$H2'$ 					& 1 		& 79597 			& 0.26 \% 	& 1 		& 44178 				& 0.16 \%\\
-Rewiring method x $H2'$ 	& 5 		& 5000 			& 0.08 \% 	& 5 		& 28593				& 0.11 \%\\ \bottomrule
+Residuals 				& 359921 & 9432633 		& 32.06 \% 	& 352341	& 8731155 			& 32.80 \%\\ 
+N\textsubscript{lower} 	& 1 		& 692679 		& 2.35 \% 	& 1 		& 443456 			& 1.66 \%\\
+N\textsubscript{higher} 	& 1 		& 3820 			& 0.01 \% 	& 1 		& 140866 			& 0.53 \%\\
+Community variables 		& 5 		& 18406451 		& 62.56 \% 	& 5 		& 16521384 			& 62.06 \%\\
+Rewiring method 			& 5 		& 863462			& 2.93 \% 	& 5 		& 766266				& 2.87 \%\\ 
+$H2'$ 					& 1 		& 8487 			& 0.03 \% 	& 1 		& 1672 				& 0.01 \%\\
+Rewiring method x $H2'$ 	& 5 		& 14484 			& 0.05 \% 	& 5 		& 16433				& 0.06 \%\\ \bottomrule
 \end{tabularx}
 \end{subtable}
 \medskip
@@ -555,33 +556,42 @@ Rewiring method x $H2'$ 	& 5 		& 5000 			& 0.08 \% 	& 5 		& 28593				& 0.11 \%\\
 
 	\section{Discussion}
 % Shortly repeat the Question(s)
-
+To disentangle the effects of rewiring and on the propagation of extinctions in networks, 
 % Summarize the main findings
-The importance of abundance, traits and phylogeny when simulating species interactions had an effect on the general specialisation of the networks as well as their robustness when no rewiring was allowed (see figures \ref{fig:h2} and \ref{fig:auc_cv_norew}). When species interactions were mainly based on abundance or phylogeny, the interactions in these networks became more unique. This was also the case when abundance, trait and phylogenetic information was used to simulate species interactions but their influence was kept low. Under the assumption that species mainly happen to interact due to matching traits, the simulations showed that the interactions in these networks were largely redundant. This suggests that niches in these networks are overlapping. The highest niche overlap was observed when the probability of an interaction between species was artificially increased for all community variables.\paragraph{}
+The results of this study showed that the method used to choose a new partner to reallocate interactions after an extinction event only had a small effect on network robustness. However, the mechanisms that were used to determine species interactions during the network simulations exhibited a strong influence on robustness.
+% SHORTEN TO SMALL PARAGRAPH !!!!		
+The importance of abundance, traits and phylogeny when simulating species interactions, had an effect on the general specialisation of the networks as well as their robustness when no rewiring was allowed (see figures \ref{fig:h2} and \ref{fig:auc_cv_norew}). Furthermore, removing species from the higher level always led to higher network robustness than removing species from the lower level. When species interactions were mainly based on abundance or phylogeny, the interactions in these networks became more unique. This was also the case when abundance, trait and phylogenetic information was used to simulate species interactions but their influence was kept low. Under the assumption that species mainly happen to interact due to matching traits, the simulations showed that the interactions in these networks were rather redundant. This suggests that niches in these networks are overlapping. The highest niche overlap was observed when the probability of an interaction between species was artificially increased for all community variables.\paragraph{}
 
-The propagation of extinctions through networks was lowest when networks were simulated with an amplified influence of all three community variables. Assuming that either abundance, traits or phylogeny were the main driver of species interactions, led to lower network robustness compared to the networks fitted with the default tapnet approach. Furthermore, especially trait, and phylogeny based networks showed a high variance in network robustness. Networks where the interaction probabilities of all community variables were set to be low, showed the lowest robustness. \par
+The propagation of extinctions through networks was lowest when networks were simulated with an amplified influence of all three community variables (see figure \ref{fig:auc_cv_norew}). Assuming that either traits or phylogeny were the main driver of species interactions, led to substantially lower network robustness compared to the networks fitted with the default tapnet approach. Robustness in abundance based networks was only slightly lower than the defualt approach. Networks where the interaction probabilities of all community variables were set to be low, showed the lowest robustness.\\
+Furthermore, especially trait, and phylogeny based networks as well as the networks where interaction probabilities of all community variables were lowered, showed a high variance in network robustness. \par
 
-On the contrary, the rewiring method used in the extinction simulation with unaltered networks only had a marginal effect on network robustness (see figure \ref{fig:auc_org_rew}). Trying to shift the interactions of an extinct species to its closest phylogenetic resemblant, showed the highest effect in inhibiting extinction cascades. When species tried to compensate lost interactions by shifting them to the most abundant species in the network, the robustness was lowest.
+The rewiring method used in the extinction simulation with unaltered networks also had an effect on their robustness (see figure \ref{fig:auc_org_rew}). As expected, not allowing species to reallocate their interactions after losing a partner, facilitated secondary extinctions. When the most abundant species in the network was chosen as a rewiring partner, network robustness was increased. Shifting the interactions of an extinct species to its closest phylogenetic resemblant, showed the highest effect in inhibiting extinction cascades when only one rewiring method was used. Under the assumption that the species with the most similar traits to the extinct species would be chosen as a new interaction partner, the network robustness was higher than the abundance scenario but lower than phylogeny and combined rewiring methods. When species were allowed to compensate lost interactions by shifting them based on a combination of rewiring methods, the robustness was highest. The two combinations of rewiring methods could be regarded equally effective, yet combining abundance and trait was marginally lower than using abundance and phylogeny. \paragraph{}
 
-Furthermore, removing species from the higher level always led to higher network robustness than removing species from the lower level.
+Changing how species form interactions with one another, by altering the probabilities of abundance, traits, and phylogeny during the network simulation process, explained the most variance in network robustness (see table \ref{tab:anova_full}). How species chose their rewiring partner only explained a very small amount of variance. The only other effect that held some information was the number of species in the lower trophic level. However, both the rewiring method and the number of species in the lower trophic level were lower than community variable importance by a magnitude of over 10. Total amount of variance explained was 62.54 \%.
+
+% H2
+Networks where species interactions were mainly determined by abundance, showed the lowest $H2'$ values, suggesting a high niche overlap (see \ref{fig:h2}). This result is in line with the assumption of neutral theory and has been observed in previous studies \parencite{Vazquez2005, Vazquez2007}. \\
+Furthermore, simulating species interactions based predominantly on trait-matching, led to substantially higher specialisation compared to abundance based networks. This was also observed for the assumption that species interactions chiefly stem from phylogenetic relatedness. Both of these results underline what is posited by niche theory. Instead of being the product of random encounter, interactions between species are an amalgam of biological factors \parencite{Jordano2003, Rezende2007, Vazquez2009, Olesen2011}. \par
+
+When all community variable matrices were exponentiated with 1.9 they became more homogenous, and in turn did the resulting interaction probabilities (i.e their linear combination). This means interactions in these networks were more or less evenly distributed among all species, which is also the reason for their low specialisation. If, on the other hand, the abundance, trait and phylogeny matrices were exponentiated with 0.1, the interactions that were predicted to be most likely were emphasized. This meant that interactions that were less likely to happen due to one of the community variables, became even more improbable, leading to the higher specialisation observed for these networks. 
 \paragraph{}
 
 % Q1
-More redundancy among interactions should, in theory, lead to a higher chance of finding an adequate new partner to compensate lost interactions and thus to higher robustness. However, networks with trait based interactions were not showing an increased robustness. A factor that can also lead to low network robustness is the number of species with only one interaction partner. These singleton species are the most vulnerable to coextinction, since they have to switch their interaction partner successfully in order to survive. This means that if there are a lot of singletons in a network, even though there is a high niche overlap, robustness might still be lower than what would be expected purely from looking at network specialisation.
+% low H2 should mean high robustness
+More redundancy among interactions should, in theory, lead to a higher chance of finding an adequate new partner to compensate lost interactions and thus to higher robustness. However, networks with abundance based interactions were not showing an increased robustness as one would expect by their low $H2'$ values. In fact, the interrelation between $H2'$ and robustness seemed to be the opposite of what was expected (compare \ref{fig:h2} and \ref{fig:auc_cv_norew}). Interestingly, when comparing the robustness of networks in relation to each other they supported the original assumption, except for original and Atl networks.\\ A factor that can lead to lower than expected network robustness is the number of species with only one interaction partner. These singleton species are the most vulnerable to coextinction, since they have to switch their interaction partner successfully in order to survive. This means that if there are a lot of singletons in a network, even though there is a high niche overlap, robustness might still be lower than what would be expected purely from looking at network specialisation. This seemed to be at least partly responsible for the high generalisation in abundance based networks, as they showed the second highest percentage of singeltons after ATL networks (see \ref{fig:ps_by_cv} in the supplemental material). Though, only because there was a higher percentage of singletons in a network that doesn't necessarily translate to an effect on robustness. By visualizing the effect of the percentage of singletons on robustness, it was shown that for abundance based networks, robustness does decrease with increasing precentage of singletons (see figures \ref{fig:r_by_ps_lower} and \ref{fig:r_by_ps_higher} in the supplemental material).
 
-% Q2
-The fact that Abundance and Abundance x Trait rewiring scenarios led to a lower robustness than simulations without rewiring, is counter intuitive and could not be explained by the high number of terminated simulations runs compared to simulations without rewiring (compare \ref{fig:auc_org_rew} and \ref{fig:auc_org_rew_no_term}). A possible explanation for this is, that the increase of interaction probability of species due to rewiring is masked by the variability in redrawing the networks during the extinction simulations, resulting in a higher effect on robustness. To solve this problem, the difference in interaction probabilities between simulations with and without rewiring would need to be larger.
-% Some rew methods still lower even when testing 25 and 50 coext_thr. Also not due to terminated scenarios. Difference in number of extinctions also unlikely, since e.g. mean extc per step for abundance was lower than for no rew.
 
 %is most likely explained by the high number of terminated simulation runs in these scenarios (see table \ref{tab:abort_perc}). The high variability in extinction simulations of the individual networks leads to.
 
-The minimum loss of species in the last extinction step was considerably higher when species from the lower level were removed during the extinction simulation (compare figs. \ref{fig:extc_org_rew_lower} and \ref{fig:extc_org_rew_higher}). 
-Meaning that networks can support at least two species from the lower trophic level for a longer time under higher trophic species extinction than vice versa. This can be interpreted as a greater dependence of higher trophic species on lower trophic species, and was previously reported in other studies \parencite{Bascompte2006, Schleuning2016}.
+% r lower < r higher;confirmed
+ This can be interpreted as a greater dependence of higher trophic species on lower trophic species, and was previously reported in other studies \parencite{Bascompte2006, Schleuning2016}.
 
 %The networks simulated with abundance as the main driver of species interactions follow the assumption of neutral theory \parencite{Vazquez2005, Vazquez2007}. It proposes that species are 
 
+
+%
 % generalisation based adaptability of species to determine no of rewired interactions individually
-Setting the amount of interactions a species can reallocate during rewiring to a fixed percentage, might bias the robustness of the network, since generalists should more effectively transfer their interactions to other partners than specialists \parencite{Ramos-Jiliberto2012}. Linking the generalisation of a species to its adaptability (see section \ref{subsec:extc_alg}, step \ref{itm:shift}) would be a possibility to remove said bias but would need experimental data to quantify the effect of generalisation on rewiring success.
+Setting the amount of interactions a species can reallocate during rewiring to a fixed percentage, might bias network robustness, since generalists should more effectively translocate their interactions to other partners than specialists \parencite{Ramos-Jiliberto2012}. Linking the generalisation of a species to its adaptability (see section \ref{subsec:extc_alg}, step \ref{itm:shift}) would be a possibility to remove said bias, but would need experimental data to quantify the effect of generalisation on rewiring success. Baumgartner et al. \parencite{Baumgartner2020} developed an extinction algorithm, that accounted for the importance of an given interaction to a species. This constant was called intrinsic demographic dependence and was used to calculate susceptibility to coextincion in Baumgartner's algortihm. However, this variable could also be used to quantify how effective a species will be reallocating it's interactions to new partners.
 
 VB2019 found that rewiring in pollination networks is largely due to morphological matching. 
 
@@ -595,10 +605,12 @@ Phylogenetically closely related species often show similar traits and the set o
 Phylogeny has been identified to play a key role in the formation of interactions in bipartite networks \parencite{Rezende2007}. The authors showed that phylogenetic relatedness was predicting the identity of species' interaction partners in 46.6 \% of networks. They also found, that the number of interactions of phylogenetically related species was similar in 39 \% of networks.
 
 % restrict formation of new interactions during rewiring process !
-The extinction algorithm did not restrain species to a maximum number of interaction partners, so that species could freely form new interactions as long as the interaction probability was high enough. This could be possible if the observed network is extremely generalised, but is highly unlikely to be observed in real-world networks, since it would imply that species could diversify their foraging behaviour almost arbitrarily at any given time \footnote{However, \citeauthor{Petanidou2008} found that species that were regarded specialists in one year, tended to be generalists in a following year}. Restricting the number of new possible partners for a species is, however, not trivial. Temporal variance in interactions was reported in many studies due to a variety of reasons (see for example \cite{Olesen2008, CaraDonna2017, Schwarz2021}).
+The extinction algorithm did not restrain species to a maximum number of interaction partners, so that species could freely form new interactions as long as the interaction probability was high enough. Under the assumption that extinction events occur over a short time interval, this could be possible if the observed network is extremely generalised or species could diversify their foraging behaviour almost arbitrarily at any given time. Whilst there is evidence that current species extinction rates are alarmingly high and are bound to increase further \parencite{Ceballos2015}, so that a rapid succession of extinction event might be plausible. It is rather unlikely to observe real-world networks with such a high degree of generalisation or such rapid behavioural changes. However, if extinction events were thought to happen on a larger time scale, for example one extinction per year, the scenario becomes more tenable. \citeauthor{Petanidou2008} found that species that were regarded specialists in one year, tended to be generalists in a following year. By slightly altering the extinction algorithm to include spatio-temporal rewiring processes, such as interaction and species turnover, a consecutive study could easily be implemented. Various studies found, that these two processes are influencing networks, and should thus prove to be a solid foundation\parencite{Poisot2012, Morente-Lopez2018, Brimacombe2021}. Interaction turnover for example, could be simulated by redrawing all interactions after an extinction event and not only those of species that rewired due to losing a partner, as it was done in this study. Furthermore, by drawing from a pool of species and only using subsets during each redraw step of the algorithm, species turnover could be implemented.
+
+Another option would have been to restrict the number of new possible partners for a species. Since temporal variance in interactions was reported in many studies due to a variety of reasons (see for example \cite{Olesen2008, CaraDonna2017, Schwarz2021}), doing so would not be trivial. Rather than restrict the number of partners, Baumgartner et al. limited the number of interactions between species to their original degree \parencite{Baumgartner2020}. 
 % Seasonality influences species interactions particularly trhough rewiring. trits linked dto trophic level could be a good indicator of a species contribution to rewiring Brimacombe2021
 
-In VB when multiple attempts with multiple partners are allowed, number of attempts is the number on interactions obsevred between the species and the lost partner.
+In VB when multiple attempts with multiple partners are allowed, number of attempts is the number on interactions observed between the species and the lost partner.
 
 Baumgartner restricted NUMBER of interactions between species to original degree of species.
 %Further complicating the issue is the fact that, while species and their interactions in a network are changing between years, the structure of the networks is relatively stable \parencite{}.
@@ -629,7 +641,7 @@ Leon Thoma
 
 \begin{figure}[H]
 	 \centering
-	 \includegraphics[width = .8\textwidth]{/home/leon/Documents/Uni/M.sc/Master Thesis/Networks/models/plot_sink/ps_by_com_vars}
+	 \includegraphics[width = .8\textwidth]{/home/leon/Documents/Uni/M.sc/Master Thesis/Networks/models/plot_sink/ps_by_com_vars_rev}
 	 	 \captionsetup{width = .8\textwidth}
 	 \caption{\textbf{Percentage of singletons by community variables} The boxplots show the robustness values of all extinction simulations fore each rewiring method and random removal of species. See section \ref{subsec:extc_alg} step \ref{itm:rew} for details) for a detailed explanation of the abbreviations of community variable importances. See section \ref{itm:rew} for a details about the rewiring methods.}
 	 \label{fig:ps_by_cv}
@@ -637,7 +649,7 @@ Leon Thoma
 
 \begin{figure}[H]
 	 \centering
-	 \includegraphics[width = .8\textwidth]{/home/leon/Documents/Uni/M.sc/Master Thesis/Networks/models/plot_sink/r_by_ps_lower}
+	 \includegraphics[width = .8\textwidth]{/home/leon/Documents/Uni/M.sc/Master Thesis/Networks/models/plot_sink/r_by_ps_lower_rev}
 	 \captionsetup{width = .8\textwidth}
 	 \caption{\textbf{Robustness by mean percentage of singletons} lower}
 	 \label{fig:r_by_ps_lower}
@@ -645,7 +657,7 @@ Leon Thoma
 
 \begin{figure}[H]
 	 \centering
-	 \includegraphics[width = .8\textwidth]{/home/leon/Documents/Uni/M.sc/Master Thesis/Networks/models/plot_sink/r_by_ps_higher}
+	 \includegraphics[width = .8\textwidth]{/home/leon/Documents/Uni/M.sc/Master Thesis/Networks/models/plot_sink/r_by_ps_higher_rev}
 	 	 \captionsetup{width = .8\textwidth}
 	 \caption{\textbf{Robustness by mean percentage of singletons} higher}
 	 \label{fig:r_by_ps_higher}
@@ -686,12 +698,12 @@ Leon Thoma
 \toprule
   & \multicolumn{3}{c}{Lower} & \multicolumn{3}{c}{Higher} \\ \cmidrule(l){2-4} \cmidrule(l){5-7}
   						& Df		& Sum of squares	& $R^2$	& Df 	& Sum of squares	& $R^2$ \\ \midrule
-Residuals 				& 59836 & 815173			& 66.32	& 59876 & 717588 		& 85.75   \\
-N\textsubscript{lower} 	& 1 		& 98582 			& 8.02 	& 1		& 544 			& 0.06  \\
-N\textsubscript{higher} 	& 1 		& 1564 			& 0.13	& 1 		& 219 			& 0.02  \\
-Rewiring method 			& 5 		& 283337 		& 23.05 	& 5 		& 116050			& 13.86  \\
-$H2'$ 					& 1 		& 26374 			& 2.14 	& 1 		& 1744			& 0.21 \\
-Rewiring method x $H2'$ 	& 5 		& 4062 			& 0.33 	& 5 		& 700			& 0.08  \\ \bottomrule
+Residuals 				& 59836 & 769722			& 83.68	& 59876 & 736718 		& 85.41   \\
+N\textsubscript{lower} 	& 1 		& 5197 			& 0.56 	& 1		& 666 			& 0.08  \\
+N\textsubscript{higher} 	& 1 		& 747 			& 0.08	& 1 		& 407 			& 0.05  \\
+Rewiring method 			& 5 		& 140112 		& 15.23 	& 5 		& 119821			& 13.89  \\
+$H2'$ 					& 1 		& 3292 			& 0.36 	& 1 		& 4352			& 0.50 \\
+Rewiring method x $H2'$ 	& 5 		& 724 			& 0.08 	& 5 		& 615			& 0.07  \\ \bottomrule
 \end{tabularx}
 \end{subtable}
 
@@ -704,12 +716,12 @@ Rewiring method x $H2'$ 	& 5 		& 4062 			& 0.33 	& 5 		& 700			& 0.08  \\ \botto
 \toprule
   & \multicolumn{3}{c}{Lower} & \multicolumn{3}{c}{Higher} \\ \cmidrule(l){2-4} \cmidrule(l){5-7}
   						& Df		& Sum of squares	& $R^2$	& Df 	& Sum of squares	& $R^2$ \\ \midrule
-Residuals 				& 58096 & 3631671			& 86.61	& 59806 & 849856 		& 71.07   \\
-N\textsubscript{lower} 	& 1 		& 348002 		& 8.30 	& 1		& 28153			& 2.35  \\
-N\textsubscript{higher} 	& 1 		& 87079 			& 2.08	& 1 		& 43026 			& 3.60  \\
-Rewiring method 			& 5 		& 116022			& 2.77 	& 5 		& 241792			& 20.22  \\
-$H2'$ 					& 1 		& 9998 			& 0.24 	& 1 		& 28103			& 2.35 \\
-Rewiring method x $H2'$ 	& 5 		& 441 			& 0.01 	& 5 		& 4884			& 0.41  \\ \bottomrule
+Residuals 				& 58096 & 4196776		& 85.11	& 59806 & 3776235 		& 85.99   \\
+N\textsubscript{lower} 	& 1 		& 457068 		& 9.27 	& 1		& 407442		& 9.28  \\
+N\textsubscript{higher} 	& 1 		& 166235 			& 3.37	& 1 		& 94172 			& 2.14  \\
+Rewiring method 			& 5 		& 108878			& 2.21 	& 5 		& 104919			& 2.39  \\
+$H2'$ 					& 1 		& 1790 			& 0.04 	& 1 		& 7033			& 0.16 \\
+Rewiring method x $H2'$ 	& 5 		& 536 			& 0.01 	& 5 		& 1629			& 0.04  \\ \bottomrule
 \end{tabularx}
 \end{subtable}
 
@@ -722,12 +734,12 @@ Rewiring method x $H2'$ 	& 5 		& 441 			& 0.01 	& 5 		& 4884			& 0.41  \\ \botto
 \toprule
   & \multicolumn{3}{c}{Lower} & \multicolumn{3}{c}{Higher} \\ \cmidrule(l){2-4} \cmidrule(l){5-7}
   						& Df		& Sum of squares	& $R^2$	& Df 	& Sum of squares	& $R^2$ \\ \midrule
-Residuals 				& 58656 & 2999283			& 84.41	& 56966 & 3027643		& 84.55   \\
-N\textsubscript{lower} 	& 1 		& 247528 		& 6.99 	& 1		& 313488			& 8.75  \\
-N\textsubscript{higher} 	& 1 		& 96600 			& 2.73	& 1 		& 125480		& 3.50  \\
-Rewiring method 			& 5 		& 152421 			& 4.30 	& 5 		& 103923		& 2.90  \\
-$H2'$ 					& 1 		& 42547 			& 1.20 	& 1 		& 9287			& 0.26 \\
-Rewiring method x $H2'$ 	& 5 		& 2069 			& 0.06 	& 5 		& 994			& 0.03  \\ \bottomrule
+Residuals 				& 58656 & 771103		& 71.01	& 56966 & 747758		& 73.44   \\
+N\textsubscript{lower} 	& 1 		& 105453 		& 9.71 	& 1		& 59791			& 5.87  \\
+N\textsubscript{higher} 	& 1 		& 5844 			& 0.54	& 1 		& 37232		& 3.66  \\
+Rewiring method 			& 5 		& 185703 		& 17.10 	& 5 		& 153172		& 15.04  \\
+$H2'$ 					& 1 		& 12092 			& 1.11 	& 1 		& 17451			& 1.71 \\
+Rewiring method x $H2'$ 	& 5 		& 5692 			& 0.52 	& 5 		& 2780			& 0.27  \\ \bottomrule
 \end{tabularx}
 
 \end{subtable}
@@ -745,12 +757,12 @@ Rewiring method x $H2'$ 	& 5 		& 2069 			& 0.06 	& 5 		& 994			& 0.03  \\ \botto
 \toprule
   & \multicolumn{3}{c}{Lower} & \multicolumn{3}{c}{Higher} \\ \cmidrule(l){2-4} \cmidrule(l){5-7}
   						& Df		& Sum of squares	& $R^2$	& Df 	& Sum of squares	& $R^2$ \\ \midrule
-Residuals 				& 58746 & 2774657			& 84.74	& 57786 & 2612056 		& 84.87   \\
-N\textsubscript{lower} 	& 1 		& 222949 		& 6.81 	& 1		& 217612 			& 7.07  \\
-N\textsubscript{higher} 	& 1 		& 56552 			& 1.73	& 1 		& 85150			& 2.77  \\
-Rewiring method 			& 5 		& 187426			& 5.72 	& 5 		& 138637			& 4.50  \\
-$H2'$ 					& 1 		& 30982 			& 0.95 	& 1 		& 23335			& 0.76 \\
-Rewiring method x $H2'$ 	& 5 		& 1535 			& 0.05 	& 5 		& 895			& 0.03  \\ \bottomrule
+Residuals 				& 58746 & 264573		& 46.60	& 57786 & 193817 		& 46.35   \\
+N\textsubscript{lower} 	& 1 		& 139941 		& 24.65 	& 1		& 27694 		& 6.62  \\
+N\textsubscript{higher} 	& 1 		& 1247 			& 0.21	& 1 		& 59662			& 14.27  \\
+Rewiring method 			& 5 		& 156858			& 27.63 	& 5 		& 131297			& 31.40  \\
+$H2'$ 					& 1 		& 3570 			& 0.63 	& 1 		& 5103			& 1.22 \\
+Rewiring method x $H2'$ 	& 5 		& 1528 			& 0.27 	& 5 		& 553			& 0.13  \\ \bottomrule
 \end{tabularx}
 \end{subtable}
 
@@ -763,12 +775,12 @@ Rewiring method x $H2'$ 	& 5 		& 1535 			& 0.05 	& 5 		& 895			& 0.03  \\ \botto
 \toprule
   & \multicolumn{3}{c}{Lower} & \multicolumn{3}{c}{Higher} \\ \cmidrule(l){2-4} \cmidrule(l){5-7}
   						& Df		& Sum of squares	& $R^2$	& Df 	& Sum of squares	& $R^2$ \\ \midrule
-Residuals 				& 59986 & 139716			& 43.82	& 57856 & 2448385		& 84.01   \\
-N\textsubscript{lower} 	& 1 		& 62961 			& 19.75 	& 1		& 136946			& 4.70  \\
-N\textsubscript{higher} 	& 1 		& 349 			& 0.11	& 1 		& 123813 			& 4.25  \\
-Rewiring method 			& 5 		& 113691 			& 35.66 	& 5 		& 191347			& 6.56  \\
-$H2'$ 					& 1 		& 1173 			& 0.37 	& 1 		& 12771			& 0.44 \\
-Rewiring method x $H2'$ 	& 5 		& 920 			& 0.29 	& 5 		& 1056			&  0.04  \\ \bottomrule
+Residuals 				& 59986 & 148797			& 43.05	& 57856 & 105048		& 44.02   \\
+N\textsubscript{lower} 	& 1 		& 84779 			& 24.53 	& 1		& 14656			& 6.14  \\
+N\textsubscript{higher} 	& 1 		& 492 			& 0.14	& 1 		& 31701 		& 13.28  \\
+Rewiring method 			& 5 		& 108911 		& 31.51 	& 5 		& 85565			& 35.85  \\
+$H2'$ 					& 1 		& 1661 			& 0.48 	& 1 		& 1425			& 0.60 \\
+Rewiring method x $H2'$ 	& 5 		& 967 			& 0.28 	& 5 		& 240			&  0.10  \\ \bottomrule
 \end{tabularx}
 \end{subtable}
 
@@ -781,12 +793,12 @@ Rewiring method x $H2'$ 	& 5 		& 920 			& 0.29 	& 5 		& 1056			&  0.04  \\ \bott
 \toprule
   & \multicolumn{3}{c}{Lower} & \multicolumn{3}{c}{Higher} \\ \cmidrule(l){2-4} \cmidrule(l){5-7}
   						& Df		& Sum of squares	& $R^2$	& Df 	& Sum of squares	& $R^2$ \\ \midrule
-Residuals 				& 59896 & 735842			& 84.09	& 59986 & 106930			& 45.08   \\
-N\textsubscript{lower} 	& 1 		& 2989 		& 0.34 	& 1		& 10652 			& 4.49  \\
-N\textsubscript{higher} 	& 1 		& 768 			& 0.09	& 1 		& 29999 			& 12.64  \\
-Rewiring method 			& 5 		& 133751 			& 15.28 	& 5 		& 87594			& 36.93  \\
-$H2'$ 					& 1 		& 1045 			& 0.12 	& 1 		& 1843			& 0.78 \\
-Rewiring method x $H2'$ 	& 5 		& 640 			& 0.07 	& 5 		& 180			& 0.08  \\ \bottomrule
+Residuals 				& 59896 & 2970402		& 82.91	& 59986 & 2854801			& 82.95   \\
+N\textsubscript{lower} 	& 1 		& 339818 		& 9.48 	& 1		& 244337 			& 7.10  \\
+N\textsubscript{higher} 	& 1 		& 57389 			& 1.60	& 1 		& 133933 			& 3.89  \\
+Rewiring method 			& 5 		& 195005 		& 5.44 	& 5 		& 202483			& 5.88  \\
+$H2'$ 					& 1 		& 19502 			& 0.54 	& 1 		& 5088			& 0.15 \\
+Rewiring method x $H2'$ 	& 5 		& 578 			& 0.02 	& 5 		& 1103			& 0.03  \\ \bottomrule
 \end{tabularx}
 
 \end{subtable}
